@@ -154,18 +154,5 @@ Les contributions sont les bienvenues ! Si vous trouvez des bugs, avez des sugge
 
 Veuillez suivre un style de code standard et contribuer de manière constructive.
 
-## Licence
-
-Ce projet est sous licence MIT. Consultez le fichier [LICENSE](LICENSE) (ou le texte de la licence dans `V75.html` s'il n'y a pas de fichier séparé) pour plus de détails.
-
-## Crédits
-
-*   Code développé par [Votre Nom/Nom d'utilisateur ici si applicable].
-*   Personnages et concepts inspirés de divers animes/mangas (les noms et images de personnages explicitement mentionnés sont probablement dérivés de séries populaires, mais ce projet est une œuvre de fan/simulation non commerciale).
-*   Tailwind CSS ([https://tailwindcss.com/](https://tailwindcss.com/))
-*   Canvas Confetti ([https://www.npmjs.com/package/canvas-confetti](https://www.npmjs.com/package/canvas-confetti))
-*   Effets sonores de Freesound ([https://freesound.org/](https://freesound.org/)).
-
----
 
 Amusez-vous bien avec le Gacha ! 🎉
