@@ -14,8 +14,6 @@ Ce projet sert d'exemple complet pour la construction d'une application interact
 *   [Version Actuelle](#version-actuelle)
 *   [Plans Futurs](#plans-futurs)
 *   [Contribuer](#contribuer)
-*   [Licence](#licence)
-*   [Crédits](#crédits)
 
 ## Fonctionnalités
 
