@@ -4,7 +4,7 @@
 
 Ce projet sert d'exemple complet pour la construction d'une application interactive complexe utilisant uniquement HTML, CSS (avec Tailwind CSS) et JavaScript, en s'appuyant sur le `localStorage` du navigateur pour la persistance des données.
 
-Pour acceder au jeu : [Gacha-Anime-Ultime]https://DZTic.github.io/gacha-anime-ultime/V75.html
+Pour acceder au jeu : [Gacha-Anime-Ultime](https://DZTic.github.io/gacha-anime-ultime/V75.html)
 
 ## Table des Matières
 
