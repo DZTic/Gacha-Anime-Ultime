@@ -5917,13 +5917,6 @@
                  return;
             }
 
-            if (char.rarity === "Mythic") {
-                missions.forEach(mission => {
-                    if (mission.type === "mythic_chars" && !mission.completed) {
-                        mission.progress++;
-                    }
-                });
-            }
             executePull(false); 
         }
     }
@@ -9904,6 +9897,15 @@
     }
     populateTargetStatRanks();
     populateTargetTraits();
+    window.addEventListener('beforeunload', (event) => {
+        // La spécification requiert que returnValue soit défini pour certains navigateurs,
+        // même si nous ne voulons pas afficher de message de confirmation.
+        // On n'exécute que la sauvegarde.
+        console.log("Événement beforeunload déclenché. Tentative de sauvegarde...");
+        saveProgress();
+        // Note : Il n'est pas possible de garantir que la sauvegarde asynchrone aura le temps
+        // de se terminer, mais c'est la meilleure tentative possible.
+    });
   </script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'939104e50fc0d0b6',t:'MTc0NjEyMDc1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
