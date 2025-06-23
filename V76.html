@@ -2073,7 +2073,7 @@
       { id: 201, world: "Challenge Unique", name: "Défi: Vague d'ennemis", enemy: { name: "Horde Mixte", power: 3000}, rewards: { gems: 100, coins: 50, exp: 200, itemChance: { item: "Cursed Token", probability: 0.01, minQuantity: 1, maxQuantity: 1 } }, type: 'challenge', unlocked: true, completed: false },
       { id: 202, world: "Challenge Unique", name: "Défi: Boss Résistant", enemy: { name: "Golem Ancien", power: 6000}, rewards: { gems: 200, coins: 100, exp: 400, itemChance: { item: "Stat Chip", probability: 0.01, minQuantity: 1, maxQuantity: 1 }}, type: 'challenge', unlocked: true, completed: false },
       { id: 203, world: "Challenge Unique", name: "Défi: Gardien Véloce", enemy: { name: "Gardien Véloce", power: 4500}, rewards: { gems: 150, coins: 75, exp: 300, itemChance: {item: "Reroll Token", probability: 0.01, minQuantity: 1, maxQuantity: 1} }, type: 'challenge', unlocked: true, completed: false },
-      { id: 204, world: "Challenge Avancé", name: "Défi: Briser les Limites", enemy: { name: "Gardien Ancestral", power: 8000 }, rewards: { gems: 250, coins: 125, exp: 500, itemChance: { item: "Divin Wish", probability: 0.0, minQuantity: 1, maxQuantity: 1 } }, type: 'challenge', unlocked: true, completed: false }
+      { id: 204, world: "Challenge Avancé", name: "Défi: Briser les Limites", enemy: { name: "Gardien Ancestral", power: 8000 }, rewards: { gems: 250, coins: 125, exp: 500, itemChance: { item: "Divin Wish", probability: 0.01, minQuantity: 1, maxQuantity: 1 } }, type: 'challenge', unlocked: true, completed: false }
     ];
 
             const materialFarmLevels = [
@@ -4977,15 +4977,61 @@
             await db.collection('playerSaves').doc(currentUser.uid).delete();
         }
         
-        // Réinitialiser le jeu à son état initial
+        // --- NOUVEAU: Réinitialisation complète des paramètres ---
+        // 1. Supprimer les clés de paramètres du localStorage
+        localStorage.removeItem("soundEnabled");
+        localStorage.removeItem("animationsEnabled");
+        localStorage.removeItem("theme");
+        localStorage.removeItem("autosellSettings");
+        localStorage.removeItem("sortCriteria");
+        localStorage.removeItem("battleSortCriteria");
+        localStorage.removeItem("presetSortCriteria");
+        localStorage.removeItem("battleSearchName");
+        localStorage.removeItem("battleFilterRarity");
+        localStorage.removeItem("presetSearchName");
+        localStorage.removeItem("presetFilterRarity");
+        localStorage.removeItem("fusionSearchName");
+        localStorage.removeItem("fusionFilterRarity");
+        localStorage.removeItem("inventoryFilterName");
+        localStorage.removeItem("inventoryFilterRarity");
+        localStorage.removeItem("inventoryFilterEvolvable");
+        localStorage.removeItem("inventoryFilterLimitBreak");
+        localStorage.removeItem("inventoryFilterCanReceiveExp");
+
+        // 2. Réassigner les valeurs par défaut aux variables globales des paramètres
+        soundEnabled = true;
+        animationsEnabled = true;
+        theme = "dark";
+        autosellSettings = { Rare: false, Épique: false, Légendaire: false, Mythic: false, Secret: false };
+        sortCriteria = "power";
+        battleSortCriteria = "power";
+        presetSortCriteria = "power";
+        battleSearchName = "";
+        battleFilterRarity = "all";
+        presetSearchName = "";
+        presetFilterRarity = "all";
+        fusionSearchName = "";
+        fusionFilterRarity = "all";
+        inventoryFilterName = "";
+        inventoryFilterRarity = "all";
+        inventoryFilterEvolvable = false;
+        inventoryFilterLimitBreak = false;
+        inventoryFilterCanReceiveExp = false;
+        // --- FIN NOUVEAU ---
+
+        // Réinitialiser le reste du jeu à son état initial
         isGameInitialized = false; // Forcer la réinitialisation
         initializeGameData(null);
         
+        // --- NOUVEAU: Appliquer les paramètres réinitialisés à l'UI
+        applySettings();
+        // --- FIN NOUVEAU ---
+
         disableNoScroll();
 
-        resultElement.innerHTML = '<p class="text-green-400">Partie réinitialisée avec succès !</p>';
+        resultElement.innerHTML = '<p class="text-green-400">Partie et paramètres réinitialisés avec succès !</p>';
         setTimeout(() => {
-            if (resultElement.innerHTML.includes("Partie réinitialisée")) {
+            if (resultElement.innerHTML.includes("Partie et paramètres réinitialisés")) {
                 resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
             }
         }, 3000);
