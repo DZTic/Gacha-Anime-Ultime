@@ -1118,53 +1118,45 @@
   <script>
     const standardCharacters = [
         { name: "Goku", rarity: "Rare", color: "text-gray-400", image: "./images/goku.webp", power: 350, level: 1 },
-        { name: "Naruto", rarity: "Rare", color: "text-gray-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/2b/Noruto_Pose.webp/revision/latest/scale-to-width-down/1000?cb=20250429225705", power: 370, level: 1 },
-        { name: "Luffy", rarity: "Rare", color: "text-gray-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/71/Luffo_Pose.webp/revision/latest/scale-to-width-down/1000?cb=20250429225655", power: 370, level: 1 },
-        { name: "Ichigo", rarity: "Rare", color: "text-gray-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/a/ae/Ichiga_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429225441", power: 360, level: 1 },
-        { name: "Sanji", rarity: "Rare", color: "text-gray-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/3/3e/Sanjo_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230432", power: 355, level: 1 },
+        { name: "Naruto", rarity: "Rare", color: "text-gray-400", image: "./images/naruto.webp", power: 370, level: 1 },
+        { name: "Luffy", rarity: "Rare", color: "text-gray-400", image: "./images/luffy.webp", power: 370, level: 1 },
+        { name: "Ichigo", rarity: "Rare", color: "text-gray-400", image: "./images/ichigo.webp", power: 360, level: 1 },
+        { name: "Sanji", rarity: "Rare", color: "text-gray-400", image: "./images/sanji.webp", power: 355, level: 1 },
         { name: "Crocodile", rarity: "Épique", color: "text-purple-400", image: "./images/crocodile.webp", power: 550, level: 1 },
-        { name: "Killua", rarity: "Épique", color: "text-purple-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/ed/Kinnua_Pose.webp/revision/latest/scale-to-width-down/1000?cb=20250429225629", power: 550, level: 1 },
-        { name: "Picolo", rarity: "Épique", color: "text-purple-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/5e/Pickleo_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429225942", power: 560, level: 1 },
-        { name: "Zenitsu", rarity: "Épique", color: "text-purple-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/93/Genitsu_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429225352", power: 570, level: 1 },
-        { name: "Goku Black", rarity: "Légendaire", color: "text-yellow-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/03/Roku_%28Dark%29_Pose.webp/revision/latest/scale-to-width-down/1000?cb=20250429225842", power: 800, level: 1 },
-        { name: "Gon", rarity: "Légendaire", color: "text-yellow-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/58/Goi_Pose.webp/revision/latest/scale-to-width-down/1000?cb=20250429225407", power: 820, level: 1 },
-        { name: "Kizaru", rarity: "Légendaire", color: "text-yellow-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/a/a3/Kinaru_Pose.webp/revision/latest/scale-to-width-down/1000?cb=20250429225612", power: 820, level: 1 },
-        { name: "Itachi", rarity: "Légendaire", color: "text-yellow-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/cd/Itochi_Pose.webp/revision/latest/scale-to-width-down/1000?cb=20250429225557", power: 820, level: 1 },
-        { name: "Pain", rarity: "Légendaire", color: "text-yellow-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/78/Agony_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429224537", power: 850, level: 1 },
-        { name: "Toge", rarity: "Légendaire", color: "text-yellow-400", image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/e0/Inamuki_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429225446", power: 860, level: 1 },
-
+        { name: "Killua", rarity: "Épique", color: "text-purple-400", image: "./images/killua.webp", power: 550, level: 1 },
+        { name: "Picolo", rarity: "Épique", color: "text-purple-400", image: "./images/picolo.webp", power: 560, level: 1 },
+        { name: "Zenitsu", rarity: "Épique", color: "text-purple-400", image: "./images/zenitsu.webp", power: 570, level: 1 },
+        { name: "Goku Black", rarity: "Légendaire", color: "text-yellow-400", image: "./images/goku black.webp", power: 800, level: 1 },
+        { name: "Gon", rarity: "Légendaire", color: "text-yellow-400", image: "./images/gon.webp", power: 820, level: 1 },
+        { name: "Kizaru", rarity: "Légendaire", color: "text-yellow-400", image: "./images/kizaru.webp", power: 820, level: 1 },
+        { name: "Itachi", rarity: "Légendaire", color: "text-yellow-400", image: "./images/itachi.webp", power: 820, level: 1 },
+        { name: "Pain", rarity: "Légendaire", color: "text-yellow-400", image: "./images/pain.webp", power: 850, level: 1 },
+        { name: "Toge", rarity: "Légendaire", color: "text-yellow-400", image: "./images/toge.webp", power: 860, level: 1 },
         {
           name: "Sung Jin Wu",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/01/Song_Jinwu_Pose.png/revision/latest/scale-to-width-down/1000?cb=20250416101908",
+          image: "./images/sung_jin_wu.webp",
           power: 1250,
           level: 1,
           evolutionRequirements: [ { item: "Shadow Tracer", quantity: 3 }, { coins: 50000 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 } ],
           evolutionData: {
               newName: "Sung Jin Wu (Monarch)",
-              newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/e3/Song_Jinwu_%28Monarch%29_Pose.png/revision/latest?cb=20250308090112",
-              basePowerIncrease: 500, // Augmentation de la puissance DE BASE
+              newImage: "./images/sung jin wu monarch.webp",
+              basePowerIncrease: 500
           }
         },
         {
-            name: "Satoru Gojo", // Satoru Gojo
+            name: "Satoru Gojo",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/f2/Gujo_Pose.png/revision/latest?cb=20250416110918",
-            power: 1100, // Initial power from your existing list
+            image: "./images/gojo.webp",
+            power: 1100,
             level: 1,
-            evolutionRequirements: [
-                { item: "Six Eyes", quantity: 5 },
-                { item: "Green Essence", quantity: 40 },
-                { item: "Blue Essence", quantity: 30 },
-                { item: "Red Essence", quantity: 30 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 100000 }
-            ],
+            evolutionRequirements: [ { item: "Six Eyes", quantity: 5 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 30 }, { item: "Red Essence", quantity: 30 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 100000 } ],
             evolutionData: {
                 newName: "Satoru Gojo (Infinity)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/f2/Gujo_%28Infinity%29_Pose.png/revision/latest?cb=20250416110827", // Image from the provided screenshot for evolved form
+                newImage: "./images/satoru gojo (infinity).webp",
                 basePowerIncrease: 800, 
                 newRarity: "Secret",   
                 newColor: "text-secret" 
@@ -1174,43 +1166,27 @@
           name: "Archer",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/57/Archer_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429224750",
+          image: "./images/archer.webp",
           power: 1200,
           level: 1,
-          evolutionRequirements: [
-              { item: "Cast Blades", quantity: 5 },
-              { coins: 50000 },
-              { item: "Green Essence", quantity: 20 },
-              { item: "Yellow Essence", quantity: 20 },
-              { item: "Blue Essence", quantity: 20 },
-              { item: "Purple Essence", quantity: 20 },
-              { item: "Red Essence", quantity: 20 },
-              { item: "Rainbow Essence", quantity: 10 }
-          ],
+          evolutionRequirements: [ { item: "Cast Blades", quantity: 5 }, { coins: 50000 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 } ],
           evolutionData: {
               newName: "Archer (Counter Spirit)",
-              newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/d6/Archer_%28Counter_Spirit%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429224659", // Trouvé sur le wiki
-              basePowerIncrease: 500 // Estimation
+              newImage: "./images/archer (counter spirit).webp",
+              basePowerIncrease: 500
           }
         },
         {
           name: "Cha Hae-In",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/53/Cha-In_Pose.png/revision/latest?cb=20250416102607",
+          image: "./images/cha.webp",
           power: 1080,
           level: 1,
-          evolutionRequirements: [
-              { item: "Broken Sword", quantity: 5 },
-              { item: "Green Essence", quantity: 20 },
-              { item: "Blue Essence", quantity: 20 },
-              { item: "Purple Essence", quantity: 20 },
-              { item: "Rainbow Essence", quantity: 10 },
-              { coins: 75000 }
-          ],
+          evolutionRequirements: [ { item: "Broken Sword", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 75000 } ],
           evolutionData: {
               newName: "Cha Hae-In (Sword Dance)",
-              newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/ba/Cha-In_%28Blade_Dancer%29_Pose.png/revision/latest?cb=20250416102655", // Trouvé sur le wiki
+              newImage: "./images/cha hae-in (sword dance).webp",
               basePowerIncrease: 500
           }
         },
@@ -1218,21 +1194,13 @@
           name: "Kenpachi Zaraki",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/79/Kempache_Pose_D.png/revision/latest?cb=20250404134215",
+          image: "./images/kenpachi.webp",
           power: 1150,
           level: 1,
-          evolutionRequirements: [
-              { item: "Chipped Blade", quantity: 5 },
-              { item: "Green Essence", quantity: 20 },
-              { item: "Yellow Essence", quantity: 20 },
-              { item: "Red Essence", quantity: 20 },
-              { item: "Purple Essence", quantity: 20 },
-              { item: "Rainbow Essence", quantity: 10 },
-              { coins: 75000 }
-          ],
+          evolutionRequirements: [ { item: "Chipped Blade", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 75000 } ],
           evolutionData: {
               newName: "Kenpachi Zaraki (Shikai)",
-              newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/3/36/Kempache_%28Shikai%29_Pose_D.png/revision/latest?cb=20250404134210", // Trouvé sur le wiki
+              newImage: "./images/kenpachi zaraki (shikai).webp",
               basePowerIncrease: 500
           }
         },
@@ -1240,22 +1208,13 @@
             name: "Choso",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/15/Chaso_Pose.png/revision/latest?cb=20241028092556", // Image de base de Chaso
+            image: "./images/choso.webp",
             power: 1180,
             level: 1,
-            evolutionRequirements: [
-                { item: "Hardened Blood", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Blue Essence", quantity: 20 },
-                { item: "Red Essence", quantity: 20 },
-                { item: "Pink Essence", quantity: 20 },
-                { item: "Purple Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 75000 }
-            ],
+            evolutionRequirements: [ { item: "Hardened Blood", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 75000 } ],
             evolutionData: {
                 newName: "Choso (Blood Curse)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/5e/Chaso_%28Blood_Curse%29_Pose.png/revision/latest?cb=20241028092603",
+                newImage: "./images/choso (blood curse).webp",
                 basePowerIncrease: 590
             }
         },
@@ -1263,21 +1222,13 @@
           name: "Yuji Itadori", 
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/df/Itaduri_Pose.png/revision/latest?cb=20241028092454",
+          image: "./images/itadori.webp",
           power: 1220,
           level: 1,
-          evolutionRequirements: [
-              { item: "Cursed Finger", quantity: 5 },
-              { item: "Green Essence", quantity: 20 },
-              { item: "Yellow Essence", quantity: 20 },
-              { item: "Pink Essence", quantity: 20 },
-              { item: "Red Essence", quantity: 20 },
-              { item: "Rainbow Essence", quantity: 10 },
-              { coins: 75000 }
-          ],
+          evolutionRequirements: [ { item: "Cursed Finger", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 75000 } ],
           evolutionData: {
               newName: "Sukuna",
-              newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/b7/Sukono_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230613",
+              newImage: "./images/sukuna.webp",
               basePowerIncrease: 600,
               newRarity: "Secret",
               newColor: "text-secret"
@@ -1287,20 +1238,13 @@
             name: "Jogo",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/c5/Jag-o_Pose.png/revision/latest?cb=20250404171643", // Image de Jag-o
+            image: "./images/jogo.webp",
             power: 1240,
             level: 1,
-            evolutionRequirements: [
-                { item: "Magma Stone", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Yellow Essence", quantity: 20 },
-                { item: "Purple Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 50000 }
-            ],
+            evolutionRequirements: [ { item: "Magma Stone", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Jogo (Volcanic)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/d5/Jag-o_%28Volcanic%29_Pose.png/revision/latest?cb=20250404171534",
+                newImage: "./images/jogo (volcanic).webp",
                 basePowerIncrease: 580
             }
         },
@@ -1308,21 +1252,13 @@
             name: "Aoi Todo",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/90/Todu_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230658", // Image de Todu
+            image: "./images/todo.webp",
             power: 1120,
             level: 1,
-            evolutionRequirements: [
-                { item: "Broken Pendant", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Blue Essence", quantity: 20 },
-                { item: "Yellow Essence", quantity: 20 },
-                { item: "Purple Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 50000 },
-            ],
+            evolutionRequirements: [ { item: "Broken Pendant", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Aoi Todo (Unleashed)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/44/Todu_%28Unleashed%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230638",
+                newImage: "./images/aoi todo (unleashed).webp",
                 basePowerIncrease: 600
             }
         },
@@ -1330,23 +1266,13 @@
             name: "Akaza",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/e0/Akazo_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429224618", // Image de Akazo
+            image: "./images/akaza.webp",
             power: 1280,
             level: 1,
-            evolutionRequirements: [
-                { item: "Demon Beads", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Blue Essence", quantity: 20 },
-                { item: "Yellow Essence", quantity: 20 },
-                { item: "Purple Essence", quantity: 20 },
-                { item: "Pink Essence", quantity: 10 },
-                { item: "Red Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 50000 }
-            ],
+            evolutionRequirements: [ { item: "Demon Beads", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 10 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Akaza (Destructive)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/1a/Akazo_%28Destructive%29_Pose.png/revision/latest?cb=20241028092213",
+                newImage: "./images/akaza (destructive).webp",
                 basePowerIncrease: 620
             }
         },
@@ -1354,21 +1280,13 @@
             name: "Tengen Uzui",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/8/85/Tengon_Pose.png/revision/latest?cb=20250416102914",
+            image: "./images/tengen.webp",
             power: 1230,
             level: 1,
-            evolutionRequirements: [
-                { item: "Nichirin Cleavers", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Blue Essence", quantity: 20 },
-                { item: "Yellow Essence", quantity: 20 },
-                { item: "Purple Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 50000 }
-            ],
+            evolutionRequirements: [ { item: "Nichirin Cleavers", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Tengen Uzui (Flashiness)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/7c/Tengon_%28Flashiness%29_Pose.png/revision/latest?cb=20241028092115",
+                newImage: "./images/tengen uzui (flashiness).webp",
                 basePowerIncrease: 590
             }
         },
@@ -1376,21 +1294,13 @@
             name: "Naruto (Sage)",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/f6/Noruto_%28Sage%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429225721", // Image de Noruto (Beast)
+            image: "./images/naruto (sage).webp",
             power: 1270,
             level: 1,
-            evolutionRequirements: [
-                { item: "Blue Chakra", quantity: 5 },
-                { item: "Red Chakra", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Blue Essence", quantity: 20 },
-                { item: "Pink Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 50000 },
-            ],
+            evolutionRequirements: [ { item: "Blue Chakra", quantity: 5 }, { item: "Red Chakra", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Naruto (Six Tails)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/ec/Noruto_%28Six_Tails%29_Pose.png/revision/latest?cb=20241028004539",
+                newImage: "./images/Naruto (Six Tails).webp",
                 basePowerIncrease: 610
             }
         },
@@ -1398,20 +1308,13 @@
             name: "Obito Uchiha",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/8/84/Obita_Pose.png/revision/latest?cb=20241028091842",
+            image: "./images/obito.webp",
             power: 1240,
             level: 1,
-            evolutionRequirements: [
-                { item: "Skin Patch", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Purple Essence", quantity: 20 },
-                { item: "Yellow Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 50000 },
-            ],
+            evolutionRequirements: [ { item: "Skin Patch", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Obito Uchiha (Awakened)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/ce/Obita_%28Awakened%29_Pose.png/revision/latest?cb=20250416102922",
+                newImage: "./images/Obito Uchiha (Awakened).webp",
                 basePowerIncrease: 600
             }
         },
@@ -1419,20 +1322,13 @@
             name: "Sasuke (Hebi)",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/98/Sosuke_%28Hebi%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230545", // Image de Sosuke
+            image: "./images/sasuke (hebi).webp",
             power: 1250,
             level: 1,
-            evolutionRequirements: [
-                { item: "Snake Scale", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Pink Essence", quantity: 20 },
-                { item: "Red Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 50000 },
-            ],
+            evolutionRequirements: [ { item: "Snake Scale", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Sasuke (Storm)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/c3/Sosuke_%28Storm%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230554",
+                newImage: "./images/Sasuke (Storm).webp",
                 basePowerIncrease: 610
             }
         },
@@ -1440,20 +1336,13 @@
             name: "Vegeta (Super)",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/c6/Vogita_Super_Pose.png/revision/latest?cb=20241028091945", // Image de Vogita (Super)
+            image: "./images/vegeta (super).webp",
             power: 1290,
             level: 1,
-            evolutionRequirements: [
-                { item: "Senzu Bean", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Blue Essence", quantity: 20 },
-                { item: "Yellow Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 50000 },
-            ],
+            evolutionRequirements: [ { item: "Senzu Bean", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Vegeta (Super Awakened)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/f4/Vogita_Super_%28Awakened%29_Pose.png/revision/latest?cb=20241028091952",
+                newImage: "./images/Vegeta (Super Awakened).webp",
                 basePowerIncrease: 620
             }
         },
@@ -1461,35 +1350,27 @@
           name: "Alucard",
           rarity: "Secret",
           color: "text-yellow-400",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/56/Alocard_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429224650",
+          image: "./images/alucard.webp",
           power: 1400,
           level: 1,
-          evolutionRequirements: [ { item: "Hellsing Arms", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 100000 }, ],
+          evolutionRequirements: [ { item: "Hellsing Arms", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 100000 } ],
           evolutionData: {
               newName: "Alucard (Vampire King)",
-              newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/1e/Alocard_%28Vampire_King%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429224644g",
-              basePowerIncrease: 750,
+              newImage: "./images/Alucard (Vampire King).webp",
+              basePowerIncrease: 750
           }
         },
         {
           name: "Yamamoto",
           rarity: "Secret",
           color: "text-yellow-400",
-          chance: 0.0025,
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/3/39/Yomomata_Pose_D.png/revision/latest?cb=20250404132741",
+          image: "./images/yamamoto.webp",
           power: 1500,
           level: 1,
-          evolutionRequirements: [
-              { item: "Head Captain's Coat", quantity: 5 },
-              { coins: 100000 },
-              { item: "Green Essence", quantity: 20 },
-              { item: "Red Essence", quantity: 20 },
-              { item: "Purple Essence", quantity: 20 },
-              { item: "Rainbow Essence", quantity: 10 }
-          ],
+          evolutionRequirements: [ { item: "Head Captain's Coat", quantity: 5 }, { coins: 100000 }, { item: "Green Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 } ],
           evolutionData: {
-              newName: "Yamamoto (Captain)", // Nom de l'évolution trouvé sur le wiki
-              newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9a/Yomomata_%28Captain%29_Pose_D.png/revision/latest?cb=20250416111600", // Image de l'évolution trouvée
+              newName: "Yamamoto (Captain)",
+              newImage: "./images/Yamamoto (Captain).webp",
               basePowerIncrease: 750
           }
         },
@@ -1497,22 +1378,13 @@
           name: "Regnaw", 
           rarity: "Secret",
           color: "text-yellow-400", 
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/ee/Regnaw_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429225924", // À remplacer par l'URL de l'image de Regnaw (Secret)
+          image: "./images/regnaw.webp",
           power: 1510, 
           level: 1,
-          evolutionRequirements: [
-              { item: "Silverite Sword", quantity: 1 },
-              { item: "Green Essence", quantity: 20 },
-              { item: "Yellow Essence", quantity: 20 },
-              { item: "Blue Essence", quantity: 20 },
-              { item: "Purple Essence", quantity: 20 },
-              { item: "Red Essence", quantity: 20 },
-              { item: "Rainbow Essence", quantity: 10 },
-              { coins: 100000 }
-          ],
+          evolutionRequirements: [ { item: "Silverite Sword", quantity: 1 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 100000 } ],
           evolutionData: {
               newName: "Regnaw (Rage)",
-              newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/70/Regnaw_%28Rage%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429225937", // À remplacer par l'URL de l'image de Regnaw (Rage)
+              newImage: "./images/Regnaw (Rage).webp",
               basePowerIncrease: 750
           }
         },
@@ -1520,21 +1392,13 @@
           name: "Giro",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/95/Giro_Pose.png/revision/latest?cb=20241211085120",
+          image: "./images/giro.webp",
           power: 1250,
           level: 1,
-          evolutionRequirements: [
-            { item: "Holy Corpse Eyes", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Holy Corpse Eyes", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Giro (Ball Breaker)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/f5/Giro_%28Ball_Breaker%29_Pose_D.png/revision/latest?cb=20250404165958",
+            newImage: "./images/Giro (Ball Breaker).webp",
             basePowerIncrease: 550
           }
         },
@@ -1542,21 +1406,13 @@
           name: "Johnni",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/8/86/Johnni_Pose_D.png/revision/latest?cb=20250404170558",
+          image: "./images/johnni.webp",
           power: 1260,
           level: 1,
-          evolutionRequirements: [
-            { item: "Holy Corpse Arms", quantity: 1 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Pink Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Holy Corpse Arms", quantity: 1 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Johnni (Infinite Spin)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/57/Johnni_%28Infinite_Spin%29_Pose_D.png/revision/latest?cb=20250404170412",
+            newImage: "./images/Johnni (Infinite Spin).webp",
             basePowerIncrease: 600
           }
         },
@@ -1564,46 +1420,29 @@
           name: "Valentine",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/50/Valentine_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230746",
+          image: "./images/valentine.webp",
           power: 1300,
           level: 1,
-          evolutionRequirements: [
-            { item: "Completed Holy Corpse", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Pink Essence", quantity: 20 },
-            { item: "Red Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 750000 }
-          ],
+          evolutionRequirements: [ { item: "Completed Holy Corpse", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 750000 } ],
           evolutionData: {
             newName: "Valentine (Love Train)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/6f/Valentine_%28Love_Train%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230735",
+            newImage: "./images/Valentine (Love Train).webp",
             basePowerIncrease: 700,
             newRarity: "Secret",
             newColor: "text-secret"
           }
         },
-         {
+        {
           name: "Medusa",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/d0/Medusa_Pose.png/revision/latest?cb=20250225045741",
+          image: "./images/medusa.webp",
           power: 1280,
           level: 1,
-          evolutionRequirements: [
-            { item: "Gorgon's Blindfold", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Pink Essence", quantity: 20 },
-            { item: "Red Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Gorgon's Blindfold", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Medusa (Gorgon)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/8/85/Medusa_%28Gorgon%29_Pose.png/revision/latest?cb=20250116043554",
+            newImage: "./images/Medusa (Gorgon).webp",
             basePowerIncrease: 580
           }
         },
@@ -1611,45 +1450,27 @@
           name: "Medea",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/eb/Medea_Pose.png/revision/latest?cb=20250416104759",
+          image: "./images/medea.webp",
           power: 1290,
           level: 1,
-          evolutionRequirements: [
-            { item: "Caster's Headpiece", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Pink Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Caster's Headpiece", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Medea (Witch of Betrayal)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/42/Medea_%28Witch_of_Betrayal%29_Pose.png/revision/latest?cb=20250416104617 ",
-            basePowerIncrease: 59
+            newImage: "./images/Medea (Witch of Betrayal).webp",
+            basePowerIncrease: 590
           }
         },
         {
           name: "Saber",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/99/Saber_Pose.png/revision/latest?cb=20250116032232s",
+          image: "./images/saber.webp",
           power: 1300,
           level: 1,
-          evolutionRequirements: [
-            { item: "Avalon", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 20 },
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Red Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Avalon", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Saber (King of Knights)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/48/Saber_%28King_of_Knights%29_Pose.png/revision/latest?cb=20250116015503",
+            newImage: "./images/Saber (King of Knights).webp",
             basePowerIncrease: 610
           }
         },
@@ -1657,22 +1478,13 @@
           name: "Ishtar",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/21/Ishtar_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429225530",
+          image: "./images/ishtar.webp",
           power: 1300,
           level: 1,
-          evolutionRequirements: [
-            { item: "Goddess' Sword", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Red Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Goddess' Sword", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Ishtar (Divinity)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/51/Ishtar_%28Divinity%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429222820",
+            newImage: "./images/Ishtar (Divinity).webp",
             basePowerIncrease: 600
           }
         },
@@ -1680,47 +1492,27 @@
           name: "Cu Chulainn",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/a/ac/Cu_Chulainn_Pose.png/revision/latest?cb=20250416105108",
+          image: "./images/cu chulainn.webp",
           power: 1290,
           level: 1,
-          evolutionRequirements: [
-            { item: "Blade of Death", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Pink Essence", quantity: 20 },
-            { item: "Red Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Blade of Death", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Cu Chulainn (Child of Light)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/c9/Lilia_and_Berserker_Pose_D.png/revision/latest?cb=20250404171108",
+            newImage: "./images/Cu Chulainn (Child of Light)",
             basePowerIncrease: 580
           }
         },
-
         {
           name: "Lilia",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/fc/Lilia_Pose_D.png/revision/latest?cb=20250404171227",
+          image: "./images/lilia.webp",
           power: 1310,
           level: 1,
-          evolutionRequirements: [
-            { item: "Berserker's Blade", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 20 },
-            { item: "Pink Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Red Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Berserker's Blade", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Lilia and Berserker",
-            newImage: "https://static.wikia.nocookie.net/animeadventures/images/9/99/Lilia_and_Berserker_Icon.png/revision/latest?cb=20220917152123",
+            newImage: "./images/Lilia and Berserker.webp",
             basePowerIncrease: 600
           }
         },
@@ -1728,21 +1520,13 @@
           name: "Yoruichi",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/ff/Yuruicha_Pose_D.png/revision/latest?cb=20250404165231",
+          image: "./images/yoruichi.webp",
           power: 1330,
           level: 1,
-          evolutionRequirements: [
-            { item: "Shunpo Spirit", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Red Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins:50000 }
-          ],
+          evolutionRequirements: [ { item: "Shunpo Spirit", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins:50000 } ],
           evolutionData: {
             newName: "Yoruichi (Raijin)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/5d/Yuruicha_%28Raijin%29_Pose_D.png/revision/latest?cb=20250416105507",
+            newImage: "./images/Yoruichi (Raijin).webp",
             basePowerIncrease: 620
           }
         },
@@ -1750,44 +1534,27 @@
           name: "Uryu",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/0a/Oryo_Pose_D.png/revision/latest?cb=20250404141441",
+          image: "./images/uryu.webp",
           power: 1340,
           level: 1,
-          evolutionRequirements: [
-            { item: "Energy Arrow", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 20 },
-            { item: "Pink Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Energy Arrow", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Uryu (Antithesis)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/be/Oryo_%28Antithesis%29_Pose_D.png/revision/latest?cb=20250404141300",
+            newImage: "./images/Uryu (Antithesis).webp",
             basePowerIncrease: 630
-
           }
         },
         {
           name: "Orihime",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/a/a2/Orehimi_Pose_D.png/revision/latest?cb=20250404165834",
+          image: "./images/orihime.webp",
           power: 1260,
           level: 1,
-          evolutionRequirements: [
-            { item: "Hair Ornament", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Pink Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Hair Ornament", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Orihime (Faith)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/0a/Orehimi_%28Faith%29_Pose_D.png/revision/latest?cb=20250404165725",
+            newImage: "./images/Orihime (Faith).webp",
             basePowerIncrease: 570
           }
         },
@@ -1795,21 +1562,13 @@
           name: "Kisuke",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/78/Kiskae_Pose_D.png/revision/latest?cb=20250404172006",
+          image: "./images/kisuke.webp",
           power: 1280,
           level: 1,
-          evolutionRequirements: [
-            { item: "Bucket Hat", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Pink Essence", quantity: 20 },
-            { item: "Red Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 10 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Bucket Hat", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Kisuke (Scientist)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/95/Kiskae_%28Scientist%29_Pose_D.png/revision/latest?cb=20250404171923",
+            newImage: "./images/Kisuke (Scientist).webp",
             basePowerIncrease: 590
           }
         },
@@ -1817,43 +1576,27 @@
           name: "Ichigo (True Release)",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/ec/Ichiga_%28True_Release%29_Pose_D.png/revision/latest?cb=20250416105815",
+          image: "./images/ichigo (true release).webp",
           power: 1350,
           level: 1,
-          evolutionRequirements: [
-            { item: "Horn of Salvation", quantity: 5 },
-            { item: "Green Essence", quantity: 20 },
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Purple Essence", quantity: 20 },
-            { item: "Red Essence", quantity: 20 },
-            { item: "Rainbow Essence", quantity: 5 },
-            { coins: 50000 }
-          ],
+          evolutionRequirements: [ { item: "Horn of Salvation", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 5 }, { coins: 50000 } ],
           evolutionData: {
             newName: "Ichigo (Savior)",
-            newImage: "https://static.wikia.nocookie.net/animeadventures/images/8/82/Ichiga_%28Savior%29_Icon.png/revision/latest?cb=20221225195929",
+            newImage: "./images/Ichigo (Savior).webp",
             basePowerIncrease: 650 
           }
         },
         {
           name: "Giselle",
           rarity: "Mythic",
-          color: "rainbow-text", // Couleur pour Mythic
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/3/37/Gazelle_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429164852",
-          power: 1270, // Puissance de base estimée pour Mythic
+          color: "rainbow-text",
+          image: "./images/giselle.webp",
+          power: 1270,
           level: 1,
-          evolutionRequirements: [
-            { item: "Energy Bone", quantity: 1 }, // Note: L'image montre "1", pas "12" comme les autres.
-            { item: "Green Essence", quantity: 30 },
-            { item: "Purple Essence", quantity: 15 }, // D'après l'image, Purple avant Blue.
-            { item: "Blue Essence", quantity: 20 },
-            { item: "Yellow Essence", quantity: 12 },
-            { item: "Rainbow Essence", quantity: 2 },
-            { coins:50000 }
-          ],
+          evolutionRequirements: [ { item: "Energy Bone", quantity: 1 }, { item: "Green Essence", quantity: 30 }, { item: "Purple Essence", quantity: 15 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 12 }, { item: "Rainbow Essence", quantity: 2 }, { coins:50000 } ],
           evolutionData: {
             newName: "Giselle (Zombie)",
-            newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/46/Gazelle_%28Zombie%29_Pose_D.png/revision/latest?cb=20250404172111",
+            newImage: "./images/Giselle (Zombie).webp",
             basePowerIncrease: 580
           }
         },
@@ -1861,45 +1604,29 @@
           name: "Aizen",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9b/Eizan_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429222803",
+          image: "./images/aizen.webp",
           power: 1320,
           level: 1,
-          evolutionRequirements: [
-              { item: "Prison Chair", quantity: 1 },
-              { item: "Green Essence", quantity: 30 },
-              { item: "Blue Essence", quantity: 12 },
-              { item: "Yellow Essence", quantity: 12 },
-              { item: "Purple Essence", quantity: 15 },
-              { item: "Rainbow Essence", quantity: 2 },
-              { coins: 75000 }
-            ],
+          evolutionRequirements: [ { item: "Prison Chair", quantity: 1 }, { item: "Green Essence", quantity: 30 }, { item: "Blue Essence", quantity: 12 }, { item: "Yellow Essence", quantity: 12 }, { item: "Purple Essence", quantity: 15 }, { item: "Rainbow Essence", quantity: 2 }, { coins: 75000 } ],
             evolutionData: {
                 newName: "Aizen (Aura)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9e/Eizan_%28Aura%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429222803c",
+                newImage: "./images/Aizen (Aura).webp",
                 basePowerIncrease: 730,
                 newRarity: "Secret",
                 newColor: "text-secret"
             }
         },
         {
-            name: "Roku (Angel)",
+            name: "Goku (Angel)",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/63/Roku_%28Angel%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429231405",
+            image: "./images/goku (angel).webp",
             power: 1300,
             level: 1,
-            evolutionRequirements: [
-                { item: "Rotara Earring 2", quantity: 1 },
-                { item: "Rotara Earring 1", quantity: 1 },
-                { item: "Green Essence", quantity: 40 },
-                { item: "Red Essence", quantity: 30 },
-                { item: "Blue Essence", quantity: 30 },
-                { item: "Rainbow Essence", quantity: 3 },
-                { coins: 75000 }
-            ],
+            evolutionRequirements: [ { item: "Rotara Earring 2", quantity: 1 }, { item: "Rotara Earring 1", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Red Essence", quantity: 30 }, { item: "Blue Essence", quantity: 30 }, { item: "Rainbow Essence", quantity: 3 }, { coins: 75000 } ],
             evolutionData: {
                 newName: "Roku (Super 3)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9f/Roku_%28Super_3%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250417064305",
+                newImage: "./images/Goku (Super 3).webp",
                 basePowerIncrease: 850,
                 newRarity: "Secret",
                 newColor: "text-secret"
@@ -1909,22 +1636,13 @@
             name: "Gohan (Adult)",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/66/Rohan_%28Adult%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250415042816",
-            power: 1300, // Estimated base power
+            image: "./images/gohan (adult).webp",
+            power: 1300,
             level: 1,
-            evolutionRequirements: [
-                { item: "Z Blade", quantity: 12 },
-                { item: "Green Essence", quantity: 30 },
-                { item: "Red Essence", quantity: 10 },
-                { item: "Purple Essence", quantity: 5 },
-                { item: "Yellow Essence", quantity: 5 },
-                { item: "Blue Essence", quantity: 15 },
-                { item: "Rainbow Essence", quantity: 1 },
-                { coins: 50000 }
-            ],
+            evolutionRequirements: [ { item: "Z Blade", quantity: 12 }, { item: "Green Essence", quantity: 30 }, { item: "Red Essence", quantity: 10 }, { item: "Purple Essence", quantity: 5 }, { item: "Yellow Essence", quantity: 5 }, { item: "Blue Essence", quantity: 15 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Ultimate Gohan",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/8/84/Ultimate_Rohan_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250417063720",
+                newImage: "./images/Ultimate Gohan.webp",
                 basePowerIncrease: 700
             }
         },
@@ -1932,43 +1650,27 @@
             name: "Hercules",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/2f/Hercool_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250415042803",
+            image: "./images/hercules.webp",
             power: 1280,
             level: 1,
-            evolutionRequirements: [
-                { item: "Champ's Belt", quantity: 12 },
-                { item: "Green Essence", quantity: 30 },
-                { item: "Red Essence", quantity: 15 },
-                { item: "Purple Essence", quantity: 20 },
-                { item: "Blue Essence", quantity: 5 },
-                { item: "Yellow Essence", quantity: 15 },
-                { item: "Rainbow Essence", quantity: 1 },
-                { coins: 50000 }
-            ],
+            evolutionRequirements: [ { item: "Champ's Belt", quantity: 12 }, { item: "Green Essence", quantity: 30 }, { item: "Red Essence", quantity: 15 }, { item: "Purple Essence", quantity: 20 }, { item: "Blue Essence", quantity: 5 }, { item: "Yellow Essence", quantity: 15 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Hercules and Mr Boo",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/1f/Hercool_and_Mr_Boo_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250417064116",
-                basePowerIncrease: 650 // Estimated increase
+                newImage: "./images/Hercules and Mr Boo.webp",
+                basePowerIncrease: 650
             }
         },
         {
             name: "Delta",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/4b/Deruta_Pose.png/revision/latest/scale-to-width-down/1500?cb=20250507071615",
+            image: "./images/delta.webp",
             power: 1250,
             level: 1,
-            evolutionRequirements: [
-                { item: "Dog Bone", quantity: 1 },
-                { item: "Green Essence", quantity: 30 },
-                { item: "Red Essence", quantity: 20 },
-                { item: "Pink Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 1 },
-                { coins: 50000 }
-            ],
+            evolutionRequirements: [ { item: "Dog Bone", quantity: 1 }, { item: "Green Essence", quantity: 30 }, { item: "Red Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 50000 } ],
             evolutionData: {
                 newName: "Delta (Hunt)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/c0/Deruta_%28Hunt%29_Pose.png/revision/latest/scale-to-width-down/1500?cb=20250507072954",
+                newImage: "./images/Delta (Hunt).webp",
                 basePowerIncrease: 600
             }
         },
@@ -1976,38 +1678,27 @@
             name: "Subaru Natsuki",
             rarity: "Secret",
             color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/2b/Soburo_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230458",
-            power: 1500, // Puissance de base estimée pour un personnage Secret
+            image: "./images/subaru.webp",
+            power: 1500,
             level: 1,
-            evolutionRequirements: [
-                { item: "Tome of Wisdom", quantity: 1 },
-                { coins: 100000 }
-            ],
+            evolutionRequirements: [ { item: "Tome of Wisdom", quantity: 1 }, { coins: 100000 } ],
             evolutionData: {
                 newName: "Subaru Natsuki (Contract)", 
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/cb/Soburo_%28Contract%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429230201",
-                basePowerIncrease: 800, // Augmentation significative pour une évolution Secret
+                newImage: "./images/Subaru Natsuki (Contract).webp",
+                basePowerIncrease: 800,
             }
         },
         {
-            name: "Artoria Pendragon (Alternate)", // Nom traduit, en gardant "Alter" car c'est un terme spécifique
+            name: "Artoria Pendragon (Alternate)",
             rarity: "Secret",
             color: "text-secret", 
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/b1/Saber_%28Alternate%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429222855",
-            power: 1510, // Puissance de base élevée pour un Secret
+            image: "./images/artoria pendragon (alternate).webp",
+            power: 1510,
             level: 1,
-            evolutionRequirements: [
-                { item: "Corrupted Visor", quantity: 1 },
-                { item: "Green Essence", quantity: 40 },
-                { item: "Blue Essence", quantity: 12 },
-                { item: "Yellow Essence", quantity: 12 },
-                { item: "Red Essence", quantity: 15 },
-                { item: "Rainbow Essence", quantity: 1 },
-                { coins: 30000 }
-            ],
+            evolutionRequirements: [ { item: "Corrupted Visor", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 12 }, { item: "Yellow Essence", quantity: 12 }, { item: "Red Essence", quantity: 15 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 30000 } ],
             evolutionData: {
                 newName: "Artoria Pendragon (Black Tyrant)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/7b/Saber_%28Black_Tyrant%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429222856",
+                newImage: "./images/Artoria Pendragon (Black Tyrant).webp",
                 basePowerIncrease: 900,
             }
         },
@@ -2015,21 +1706,13 @@
             name: "Sakura Matou",
             rarity: "Secret",
             color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/43/Sokora_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250429222901",
+            image: "./images/sakura.webp",
             power: 1550,
             level: 1,
-            evolutionRequirements: [
-                { item: "Tainted Ribbon", quantity: 1 },
-                { item: "Green Essence", quantity: 40 },
-                { item: "Yellow Essence", quantity: 12 },
-                { item: "Pink Essence", quantity: 15 },
-                { item: "Red Essence", quantity: 12 },
-                { item: "Rainbow Essence", quantity: 1 },
-                { coins: 100000 }
-            ],
+            evolutionRequirements: [ { item: "Tainted Ribbon", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Yellow Essence", quantity: 12 }, { item: "Pink Essence", quantity: 15 }, { item: "Red Essence", quantity: 12 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 100000 } ],
             evolutionData: {
                 newName: "Sakura (Angra Mainyu)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9f/Sokora_%28Angra_Mainyu%29_Pose.webp/revision/latest?cb=20250429223016",
+                newImage: "./images/Sakura (Angra Mainyu).webp",
                 basePowerIncrease: 950,
             }
         },
@@ -2037,16 +1720,13 @@
             name: "Esdeath",
             rarity: "Secret",
             color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/d4/Isdead_Pose_D.png/revision/latest?cb=20250404164224",
+            image: "./images/esdeath.webp",
             power: 1520,
             level: 1,
-            evolutionRequirements: [
-                { item: "Demon Chalice", quantity: 1 },
-                { coins: 100000 }
-            ],
+            evolutionRequirements: [ { item: "Demon Chalice", quantity: 1 }, { coins: 100000 } ],
             evolutionData: {
                 newName: "Esdeath (Romantic)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/8/84/Isdead_%28Romantic%29_Pose_D.png/revision/latest?cb=20250404164110",
+                newImage: "./images/Esdeath (Romantic).webp",
                 basePowerIncrease: 800,
             }
         },
@@ -2054,21 +1734,13 @@
             name: "Yhwach",
             rarity: "Secret",
             color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/06/Yehowach_Pose_D.png/revision/latest?cb=20250404124605",
+            image: "./images/yhwach.webp",
             power: 1530, 
             level: 1,
-            evolutionRequirements: [
-                { item: "Essence of the Spirit King", quantity: 1 }, 
-                { item: "Green Essence", quantity: 40 },
-                { item: "Blue Essence", quantity: 12 },
-                { item: "Purple Essence", quantity: 15 },
-                { item: "Red Essence", quantity: 12 },
-                { item: "Rainbow Essence", quantity: 1 },
-                { coins: 30000 }
-            ],
+            evolutionRequirements: [ { item: "Essence of the Spirit King", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 12 }, { item: "Purple Essence", quantity: 15 }, { item: "Red Essence", quantity: 12 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 30000 } ],
             evolutionData: {
                 newName: "Yhwach (Almighty)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/0c/Yehowach_%28Almighty%29_Pose_D.png/revision/latest?cb=20250404122139",
+                newImage: "./images/Yhwach (Almighty).webp",
                 basePowerIncrease: 790,
             }
         },
@@ -2076,16 +1748,13 @@
             name: "Frieren",
             rarity: "Secret",
             color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/18/Friran_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250317214527",
+            image: "./images/frieren.webp",
             power: 1520,
             level: 1,
-            evolutionRequirements: [
-                { item: "Ring of Friendship", quantity: 1 },
-                { coins: 10000 }
-            ],
+            evolutionRequirements: [ { item: "Ring of Friendship", quantity: 1 }, { coins: 10000 } ],
             evolutionData: {
                 newName: "Frieren (Teacher)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/e3/Friran_%28Teacher%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250317204828",
+                newImage: "./images/Frieren (Teacher).webp",
                 basePowerIncrease: 780,
             }
         },
@@ -2093,21 +1762,13 @@
             name: "Choi Jong-In",
             rarity: "Secret",
             color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/b6/Choy_Jong_En_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250317215056",
+            image: "./images/choi jong-in.webp",
             power: 1550, 
             level: 1,
-            evolutionRequirements: [
-                { item: "Red Jewel", quantity: 5 },
-                { item: "Green Essence", quantity: 40 },
-                { item: "Blue Essence", quantity: 12 },
-                { item: "Purple Essence", quantity: 12 },
-                { item: "Red Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 1 },
-                { coins: 100000 }
-            ],
+            evolutionRequirements: [ { item: "Red Jewel", quantity: 5 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 12 }, { item: "Purple Essence", quantity: 12 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 100000 } ],
             evolutionData: {
                 newName: "Choi Jong-In (Guild Leader)", 
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/6c/Choy_Jong_En_%28Guild_Leader%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250317215308",
+                newImage: "./images/Choi Jong-In (Guild Leader).webp",
                 basePowerIncrease: 800,
             }
         },
@@ -2115,21 +1776,13 @@
             name: "Boo",
             rarity: "Secret",
             color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/0c/Boo_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250415042814",
+            image: "./images/boo.webp",
             power: 1550,
             level: 1,
-            evolutionRequirements: [
-                { item: "Majan Essence", quantity: 12 }, 
-                { item: "Green Essence", quantity: 40 },
-                { item: "Red Essence", quantity: 12 },
-                { item: "Pink Essence", quantity: 20 },
-                { item: "Blue Essence", quantity: 12 },
-                { item: "Rainbow Essence", quantity: 2 },
-                { coins: 30000 }
-            ],
+            evolutionRequirements: [ { item: "Majan Essence", quantity: 12 }, { item: "Green Essence", quantity: 40 }, { item: "Red Essence", quantity: 12 }, { item: "Pink Essence", quantity: 20 }, { item: "Blue Essence", quantity: 12 }, { item: "Rainbow Essence", quantity: 2 }, { coins: 30000 } ],
             evolutionData: {
                 newName: "Boo (Evil)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/e4/Boo_%28Evil%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250415042812",
+                newImage: "./images/Boo (Evil).webp",
                 basePowerIncrease: 830,
             }
         },
@@ -2137,16 +1790,13 @@
             name: "Katakuri",
             rarity: "Secret",
             color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/3/35/Clatakiri_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250507084022",
+            image: "./images/katakuri.webp",
             power: 1750,
             level: 1,
-            evolutionRequirements: [
-                { item: "Donut", quantity: 5 },
-                { coins: 100000 }
-            ],
+            evolutionRequirements: [ { item: "Donut", quantity: 5 }, { coins: 100000 } ],
             evolutionData: {
-                newName: "Katakuri (Mochi)", // Traduit de "Clatakiri (Mochi)"
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/41/Clatakiri_%28Mochi%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250507084115",
+                newName: "Katakuri (Mochi)",
+                newImage: "./images/Katakuri (Mochi).webp",
                 basePowerIncrease: 800,
             }
         },
@@ -2154,21 +1804,13 @@
             name: "Cid Kagenou",
             rarity: "Secret",
             color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/6d/Delusional_Boy_Pose.png/revision/latest/scale-to-width-down/1500?cb=20250507080013",
+            image: "./images/cid kagenou.webp",
             power: 1580,
             level: 1,
-
-            evolutionRequirements: [
-                { item: "Atomic Essence", quantity: 1 }, // Traduit "Atomic Essence"
-                { item: "Green Essence", quantity: 40 },
-                { item: "Red Essence", quantity: 30 },
-                { item: "Blue Essence", quantity: 30 },
-                { item: "Rainbow Essence", quantity: 3 },
-                { coins: 30000 }
-            ],
+            evolutionRequirements: [ { item: "Atomic Essence", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Red Essence", quantity: 30 }, { item: "Blue Essence", quantity: 30 }, { item: "Rainbow Essence", quantity: 3 }, { coins: 30000 } ],
             evolutionData: {
                 newName: "Shadow", 
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/01/Smith_John_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250507095255",
+                newImage: "./images/shadow.webp",
                 basePowerIncrease: 800,
             }
         },
@@ -2176,20 +1818,13 @@
             name: "NotGoodGuy",
             rarity: "Mythic",
             color: "rainbow-text",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/cd/NotGoodGuy_%28Free%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250606210027", // Placeholder, image exacte non trouvée
+            image: "./images/notgoodguy.webp",
             power: 1260,
             level: 1,
-            evolutionRequirements: [
-                { item: "Restricting Headband", quantity: 12 },
-                { item: "Green Essence", quantity: 30 },
-                { item: "Purple Essence", quantity: 20 },
-                { item: "Red Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 1 },
-                { coins: 15000 }
-            ],
+            evolutionRequirements: [ { item: "Restricting Headband", quantity: 12 }, { item: "Green Essence", quantity: 30 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 15000 } ],
             evolutionData: {
                 newName: "NotGoodGuy (Free)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/cd/NotGoodGuy_%28Free%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250606210027", // Placeholder
+                newImage: "./images/NotGoodGuy (Free).webp",
                 basePowerIncrease: 650
             }
         },
@@ -2197,21 +1832,13 @@
             name: "Kazzy",
             rarity: "Mythic",
             color: "rainbow-text",
-            chance: 0.002,
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/8/88/Kazzy_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250608165233",
+            image: "./images/kazzy.webp",
             power: 1300,
             level: 1,
-            evolutionRequirements: [
-                { item: "Toil Ribbon", quantity: 12 },
-                { item: "Green Essence", quantity: 40 },
-                { item: "Blue Essence", quantity: 20 },
-                { item: "Red Essence", quantity: 30 },
-                { item: "Rainbow Essence", quantity: 3 },
-                { coins: 30000 }
-            ],
+            evolutionRequirements: [ { item: "Toil Ribbon", quantity: 12 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 20 }, { item: "Red Essence", quantity: 30 }, { item: "Rainbow Essence", quantity: 3 }, { coins: 30000 } ],
             evolutionData: {
                 newName: "Kazzy (Queen)",
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/2c/Kazzy_%28Queen%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250607014502",
+                newImage: "./images/Kazzy (Queen).webp",
                 basePowerIncrease: 600,
             }
         },
@@ -2222,105 +1849,36 @@
           name: "Gogeta's Super Saiyan 4",
           rarity: "Vanguard",
           color: "text-vanguard",
-          chance: 0.00001111111,
-          image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/6f/Rogita_%28Super_4%29_Pose.png/revision/latest/scale-to-width-down/1500?cb=20250122115933", // REMPLACEZ PAR UNE URL VALIDE
-          power: 1850, // Puissance de base à ajuster
+          image: "./images/gogeta's super saiyan 4.webp",
+          power: 1850,
           level: 1,
-          passive: {
-              teamSizeBonus: 2
-          }
-          // Pas de evolutionRequirements ni evolutionData car il n'évolue pas
+          passive: { teamSizeBonus: 2 }
         },  
         {
             name: "Igris",
             rarity: "Secret",
             color: "text-yellow-400",
-            chance: 0.0000125,
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/a/ac/Igros_Pose.png/revision/latest?cb=20250309094840",
+            image: "./images/igris.webp",
             power: 1450,
             level: 1,
-            evolutionRequirements: [
-                { item: "Blood-Red Armor", quantity: 5 },
-                { item: "Green Essence", quantity: 20 },
-                { item: "Blue Essence", quantity: 20 },
-                { item: "Red Essence", quantity: 20 },
-                { item: "Pink Essence", quantity: 20 },
-                { item: "Rainbow Essence", quantity: 10 },
-                { coins: 100000 }
-            ],
+            evolutionRequirements: [ { item: "Blood-Red Armor", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 100000 } ],
             evolutionData: {
-                newName: "Igris (Elite Knight)", // Trouvé sur le wiki (sous "Igros")
-                newImage: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/e9/Igros_%28Elite_Knight%29_Pose.png/revision/latest?cb=20241028092007", // Image de l'évolution trouvée
-                basePowerIncrease: 800 // Similaire à Yamamoto, même power de base et rareté
+                newName: "Igris (Elite Knight)",
+                newImage: "./images/Igris (Elite Knight).webp",
+                basePowerIncrease: 800
             }
         },
-        {
-            name: "Majin Boo (Evil)",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/2b/Bootenks_%28Evil%29_Pose.png/revision/latest?cb=20250416123025",
-            chance: 0.0000125,
-            power: 1550,
-            level: 1
-        },
-        {
-            name: "Buuhan (Evil)",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/12/Boohon_%28Evil%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250430000142",
-            chance: 0.0000125,
-            power: 1560,
-            level: 1
-        },
-        {
-            name: "Boockleo (Evil)",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/05/Boockleo_%28Evil%29_Pose.png/revision/latest/scale-to-width-down/1500?cb=20250416125159",
-            chance: 0.0000125,
-            power: 1570,
-            level: 1
-        },
-        {
-            name: "Super Boo (Evil)",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/e0/Super_Boo_%28Evil%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250417063441",
-            chance: 0.0000125,
-            power: 1520,
-            level: 1
-        },
-        {
-            name: "Kid Boo (Evil)",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/74/Kid_Boo_%28Evil%29_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250430000424",
-            chance: 0.0000125,
-            power: 1580,
-            level: 1
-        },
-        {
-            name: "Super Vegetto",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/a/a8/Super_Vogito_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250417063950",
-            chance: 0.0000125,
-            power: 1585,
-            level: 1
-        },
-        {
-            name: "Cid",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/7b/Lord_of_Shadows_Pose.webp/revision/latest/scale-to-width-down/1500?cb=20250507090638",
-            chance: 0.0000125,
-            power: 1650, 
-            level: 1
-        },
-        { name: "Kaze-sensei", rarity: "Légendaire", color: "text-purple-400", chance: 0.08, image: "https://via.placeholder.com/150?text=Kaze", power: 800, level: 1 },
-        { name: "Mizu-chan", rarity: "Épique", color: "text-blue-400", chance: 0.3, image: "https://via.placeholder.com/150?text=Mizu", power: 500, level: 1 },
-        { name: "Tsuchi-kun", rarity: "Rare", color: "text-gray-400", chance: 0.6, image: "https://via.placeholder.com/150?text=Tsuchi", power: 360, level: 1 },
-        { name: "Sakura", rarity: "Légendaire", color: "text-pink-400", chance: 0.05, image: "https://via.placeholder.com/150?text=Sakura", power: 850, level: 1 }
+        { name: "Majin Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/majin boo (evil).webp", power: 1550, level: 1 },
+        { name: "Buuhan (Evil)", rarity: "Secret", color: "text-secret", image: "./images/buuhan (evil).webp", power: 1560, level: 1 },
+        { name: "Boockleo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/boockleo (evil).webp", power: 1570, level: 1 },
+        { name: "Super Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/super boo (evil).webp", power: 1520, level: 1 },
+        { name: "Kid Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/kid boo (evil).webp", power: 1580, level: 1 },
+        { name: "Super Vegetto", rarity: "Secret", color: "text-secret", image: "./images/super vegetto.webp", power: 1585, level: 1 },
+        { name: "Cid", rarity: "Secret", color: "text-secret", image: "./images/cid.webp", power: 1650, level: 1 },
+        { name: "Kaze-sensei", rarity: "Légendaire", color: "text-purple-400", image: "https://via.placeholder.com/150?text=Kaze", power: 800, level: 1 },
+        { name: "Mizu-chan", rarity: "Épique", color: "text-blue-400", image: "https://via.placeholder.com/150?text=Mizu", power: 500, level: 1 },
+        { name: "Tsuchi-kun", rarity: "Rare", color: "text-gray-400", image: "https://via.placeholder.com/150?text=Tsuchi", power: 360, level: 1 },
+        { name: "Sakura", rarity: "Légendaire", color: "text-pink-400", image: "https://via.placeholder.com/150?text=Sakura", power: 850, level: 1 }
     ];
 
     const allCharacters = [...standardCharacters, ...specialCharacters];
