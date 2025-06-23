@@ -2974,6 +2974,8 @@
     let inventoryFilterEvolvable = localStorage.getItem("inventoryFilterEvolvable") === "true";
     let inventoryFilterLimitBreak = localStorage.getItem("inventoryFilterLimitBreak") === "true";
     let inventoryFilterCanReceiveExp = localStorage.getItem("inventoryFilterCanReceiveExp") === "true";
+    let saveTimeoutId = null; // Pour stocker l'ID du minuteur de sauvegarde
+    const SAVE_DELAY_MS = 2000; // 2 secondes de délai avant la sauvegarde
 
     // Existing DOM elements
     const gemsElement = document.getElementById("gems");
@@ -3260,32 +3262,37 @@
             }
         }
 
-        // Une fois les données initialisées ou chargées, mettre à jour toute l'interface du jeu.
-        // Cette section est cruciale pour que l'affichage corresponde à l'état du jeu.
-        updateUI();
-        updateCharacterDisplay();
-        updateItemDisplay();
-        updateLevelDisplay();
+        // 1. Mettre à jour les données et les états internes en premier.
         updateLegendeDisplay();
         updateChallengeDisplay();
         updateMaterialFarmDisplay();
         updateShopDisplay();
         updateMissions();
+        applySettings();
+        updateTimer();
+
+        // 2. Mettre à jour l'affichage de l'UI principale avec les données finalisées.
+        updateUI();
+        updateCharacterDisplay();
+        updateItemDisplay();
         updateIndexDisplay();
         updateEvolutionDisplay();
         updateStatChangeTabDisplay();
         updateCurseTabDisplay();
         updateTraitTabDisplay();
         updateLimitBreakTabDisplay();
-        applySettings(); // Applique les paramètres chargés (thème, autosell, etc.)
-        updateTimer(); // Pour s'assurer que le minuteur de la boutique est correct
 
-        // S'assurer que le premier onglet est bien affiché
+        // 3. Mettre à jour l'affichage des niveaux AVANT de montrer l'onglet
+        updateLevelDisplay(); // <-- Ligne cruciale restaurée ici
+
+        // 4. Afficher le premier onglet maintenant que tout est prêt.
         showTab("play");
-        showSubTab("story");
-
-        // Marquer le jeu comme initialisé pour éviter les chargements multiples
+        
+        // 5. Marquer le jeu comme initialisé.
         isGameInitialized = true;
+
+        // 6. Planifier une sauvegarde initiale une fois que tout est chargé.
+        scheduleSave();
     }
 
     async function handleLogin(e) {
@@ -3376,7 +3383,9 @@
         }
     }
 
-    function handleLogout() {
+    async function handleLogout() {
+        console.log("[LOGOUT] Sauvegarde immédiate avant déconnexion.");
+        await _performSave(); // Attend que la sauvegarde soit terminée
         auth.signOut();
     }
 
@@ -3799,7 +3808,7 @@
         if (!foundLegendaryLevel) {
              legendeLevelListElement.innerHTML = "<p class='text-white'>Aucun défi légendaire disponible pour le moment. Terminez des mondes pour les déverrouiller !</p>";
         }
-        saveProgress(); // Sauvegarder les changements de storyProgress (surtout les nouveaux déverrouillages)
+        scheduleSave(); // Sauvegarder les changements de storyProgress (surtout les nouveaux déverrouillages)
     }
 
     function startLevel(id, useLastTeam = false) { // AJOUT du paramètre useLastTeam
@@ -4071,13 +4080,13 @@
         updateCharacterDisplay();
         // updateAutofuseCharacterGrid(); // Pas nécessaire car la modale est fermée
         updateUI();
-        saveProgress();
+        scheduleSave();
     }
 
     function addGems(amount) {
         gems = Math.min(gems + amount, 1000000000); // Limite à 10 000 gemmes
         updateUI(); // Met à jour l'affichage
-        saveProgress(); // Sauvegarde la progression
+        scheduleSave(); // Sauvegarde la progression
     }
 
     function openPullMethodModal(pullType) {
@@ -4778,10 +4787,10 @@
         updateIndexDisplay();
         updateUI();
         updateItemDisplay();
-        saveProgress();
+        scheduleSave();
     }
 
-    function updateChallengeDisplay() {
+        function updateChallengeDisplay() {
         const challengeLevelListElement = document.getElementById("challenge-level-list");
         if (!challengeLevelListElement) return;
 
@@ -4792,7 +4801,6 @@
             return;
         }
         
-        // Créer un bloc pour chaque challenge, similaire à la façon dont chaque défi légendaire est son propre bloc
         challengeLevels.forEach(level => {
             const progress = storyProgress.find(p => p.id === level.id) || { unlocked: true, completed: false };
             if (!storyProgress.find(p => p.id === level.id)) {
@@ -4802,10 +4810,8 @@
             const isDisabled = !progress.unlocked;
             const buttonText = `${level.name} ${progress.completed ? '(Terminé)' : ''}`;
             
-            // Texte d'info sur le drop d'objet
             let itemDropText = '';
             if (level.rewards.itemChance) {
-                // Gérer à la fois les objets simples et les tableaux d'objets
                 const chancesArray = Array.isArray(level.rewards.itemChance) ? level.rewards.itemChance : [level.rewards.itemChance];
                 const dropNames = chancesArray.map(chanceDef => {
                     if (chanceDef && chanceDef.item) {
@@ -4838,7 +4844,7 @@
             challengeLevelListElement.appendChild(levelDiv);
         });
 
-        saveProgress();
+        scheduleSave(); // Appel corrigé
     }
 
     function addCharacterExp(character, amount) {
@@ -5282,27 +5288,43 @@
       // Chaque div générée sera un enfant direct et prendra une cellule de cette grille.
     }
 
-    async function saveProgress() {
+    async function _performSave() {
         if (!currentUser || !isGameInitialized) {
             // Ne pas sauvegarder si l'utilisateur n'est pas connecté ou si le jeu n'est pas prêt
             return;
         }
-        console.log("Sauvegarde de la progression sur Firestore...");
+        console.log(`%c[SAVE] Déclenchement de la sauvegarde sur Firestore... (Gemmes: ${gems})`, 'color: #7CFC00');
         
         // Créer un objet contenant toutes les données à sauvegarder
         const saveData = {
             characterIdCounter, gems, coins, pullCount, ownedCharacters, level, exp,
             pullTickets, missions, shopOffers, shopRefreshTime, storyProgress, inventory,
             characterPreset, presetConfirmed, standardPityCount, specialPityCount,
+            lastUsedBattleTeamIds, autosellSettings, expMultiplier, expBoostEndTime, discoveredCharacters,
+            everOwnedCharacters,
             // Ajoutez toutes les autres variables d'état ici
         };
 
         try {
             await db.collection('playerSaves').doc(currentUser.uid).set(saveData);
-            console.log("Progression sauvegardée avec succès !");
+            console.log("%c[SAVE] Progression sauvegardée avec succès !", 'color: #7CFC00');
         } catch (error) {
             console.error("Erreur lors de la sauvegarde de la progression:", error);
         }
+    }
+
+    // Nouvelle fonction qui planifie une sauvegarde. C'est celle-ci que nous appellerons partout.
+    function scheduleSave() {
+        // Annuler toute sauvegarde précédemment planifiée
+        if (saveTimeoutId) {
+            clearTimeout(saveTimeoutId);
+        }
+        // Planifier une nouvelle sauvegarde après le délai
+        console.log(`[SAVE] Sauvegarde planifiée dans ${SAVE_DELAY_MS / 1000}s...`);
+        saveTimeoutId = setTimeout(() => {
+            _performSave();
+            saveTimeoutId = null; // Réinitialiser l'ID après l'exécution
+        }, SAVE_DELAY_MS);
     }
 
     async function loadProgress(userId) {
@@ -5367,7 +5389,6 @@
       if (specialPityDisplay) specialPityDisplay.textContent = specialPityCount;
 
       updateShopDisplay(); 
-      saveProgress();
     }
 
     function getRarityBorderClass(rarity) {
@@ -5658,7 +5679,7 @@
       updateIndexDisplay();
       updateUI(); // Mettra à jour l'affichage du Pity
       localStorage.setItem("characterIdCounter", characterIdCounter);
-      saveProgress();
+      scheduleSave();
       console.log("multiPull (standard banner) terminé, ownedCharacters:", ownedCharacters.length);
     }
 
@@ -5841,7 +5862,7 @@
         updateItemDisplay();
         updateUI();
         localStorage.setItem("characterIdCounter", characterIdCounter);
-        saveProgress();
+        scheduleSave();
         console.log("executePull (x1) terminé, ownedCharacters:", ownedCharacters.length);
     }
 
@@ -5967,7 +5988,7 @@
       updateIndexDisplay();
       updateUI(); 
       localStorage.setItem("characterIdCounter", characterIdCounter);
-      saveProgress();
+      scheduleSave();
       console.log("specialMultiPull terminé, ownedCharacters:", ownedCharacters.length);
     }
 
@@ -5990,7 +6011,7 @@
 
         // Mettre à jour l'interface
         updateUI();
-        saveProgress();
+        scheduleSave();
         }
 
         // Exemple d'appel dans une fonction de complétion de niveau (à adapter selon votre code)
@@ -6242,7 +6263,7 @@
         updateCharacterDisplay();
         updateIndexDisplay();
         updateUI();
-        saveProgress(); // Sauvegarder après modification de coins
+        scheduleSave(); // Sauvegarder après modification de coins
       }
     }
 
@@ -6322,7 +6343,7 @@
       updateShopDisplay();
       updateItemDisplay(); // Mettre à jour l'affichage de l'inventaire
       localStorage.setItem("characterIdCounter", characterIdCounter);
-      saveProgress();
+      scheduleSave();
     }
 
     function checkMissions() {
@@ -6789,7 +6810,7 @@
       document.body.classList.remove("no-scroll");
       updateCharacterDisplay();
       updateUI();
-      saveProgress();
+      scheduleSave();
     }
 
     function loadOrGenerateStandardBanner() {
@@ -7148,7 +7169,7 @@
       updateCharacterDisplay();
       updateItemDisplay();
       updateUI();
-      saveProgress();
+      scheduleSave();
     }
 
     function updateLimitBreakTabDisplay() {
@@ -7272,7 +7293,7 @@
         updateCharacterDisplay();
         updateItemDisplay();
         updateUI();
-        saveProgress();
+        scheduleSave();
     }
 
     function startEvolution(id) {
@@ -7621,7 +7642,7 @@
       updateItemDisplay();        // Pour refléter les objets consommés
       updateIndexDisplay();       // Si le nom ou l'image change dans l'index
       updateUI();                 // Pour les stats générales (gemmes, pièces, etc.)
-      saveProgress();             // Sauvegarder toutes les modifications
+      scheduleSave();             // Sauvegarder toutes les modifications
     }
 
     function updateEvolutionDisplay() {
@@ -7749,7 +7770,7 @@
 
         console.log(`Personnage ${char.name} ${char.locked ? 'verrouillé' : 'déverrouillé'}.`);
         updateCharacterDisplay(); // Met à jour l'affichage de l'inventaire pour montrer/cacher l'icône
-        saveProgress(); // Sauvegarde le nouvel état
+        scheduleSave(); // Sauvegarde le nouvel état
     }
 
         function showTab(tabId) {
@@ -8120,7 +8141,7 @@
         updateCharacterDisplay();
         updateItemDisplay();
         updateUI();
-        saveProgress();
+        scheduleSave();
     }
 
     function updateMaterialFarmDisplay() {
@@ -8624,7 +8645,7 @@
         updateCharacterDisplay();
         updateItemDisplay();
         updateUI();
-        saveProgress();
+        scheduleSave();
     }
 
     function upgradeSpecificTrait(traitIdToUpgrade) {
@@ -8675,7 +8696,7 @@
         updateCharacterDisplay();
         updateItemDisplay();
         updateUI();
-        saveProgress();
+        scheduleSave();
     }
 
     function rerollTrait() {
@@ -8751,7 +8772,7 @@
         updateCharacterDisplay();
         updateItemDisplay();
         updateUI();
-        saveProgress();
+        scheduleSave();
     }
 
 
@@ -8784,7 +8805,7 @@
         updateCharacterDisplay();
         updateItemDisplay();
         updateUI();
-        saveProgress();
+        scheduleSave();
     }
 
     function updateCurseTabDisplay() {
@@ -9043,7 +9064,7 @@
       updateCharacterDisplay(); 
       updateItemDisplay(); 
       updateUI();
-      saveProgress();
+      scheduleSave();
     }
 
     function openCurseConfirmModal(message, callback) {
@@ -9505,8 +9526,10 @@
         // La spécification requiert que returnValue soit défini pour certains navigateurs,
         // même si nous ne voulons pas afficher de message de confirmation.
         // On n'exécute que la sauvegarde.
-        console.log("Événement beforeunload déclenché. Tentative de sauvegarde...");
-        saveProgress();
+        console.log("Événement beforeunload déclenché. Tentative de sauvegarde immédiate...");
+        if (currentUser && isGameInitialized) { // Sauvegarde uniquement si une session de jeu est active
+             _performSave();
+        }
         // Note : Il n'est pas possible de garantir que la sauvegarde asynchrone aura le temps
         // de se terminer, mais c'est la meilleure tentative possible.
     });
