@@ -1440,12 +1440,3 @@ const standardCharacters = [
             ]
         }
     };
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyDcNkyF9_fUdfzX5pv2V9Q-SzKQhGEbP-g",
-        authDomain: "jeu-gacha-93e4e.firebaseapp.com",
-        projectId: "jeu-gacha-93e4e",
-        storageBucket: "jeu-gacha-93e4e.firebasestorage.app",
-        messagingSenderId: "521750081576",
-        appId: "1:521750081576:web:6d8c26a2a67eb92b57451d"
-    };
