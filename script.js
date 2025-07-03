@@ -1,6 +1,15 @@
-// --- NOUVEAU: Initialisation de Firebase ---
-    // Note: The actual firebaseConfig object has been moved to data.js
-    // We still need to initialize Firebase here using that config.
+        // --- NOUVEAU: Initialisation de Firebase ---
+    // TODO: COLLEZ VOTRE CONFIGURATION FIREBASE ICI
+    const firebaseConfig = {
+        apiKey: "AIzaSyDcNkyF9_fUdfzX5pv2V9Q-SzKQhGEbP-g",
+        authDomain: "jeu-gacha-93e4e.firebaseapp.com",
+        projectId: "jeu-gacha-93e4e",
+        storageBucket: "jeu-gacha-93e4e.firebasestorage.app",
+        messagingSenderId: "521750081576",
+        appId: "1:521750081576:web:6d8c26a2a67eb92b57451d"
+    };
+
+    // Initialiser Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
@@ -255,7 +264,7 @@
       if (infiniteLevelProgress && infiniteLevelDef && !infiniteLevelProgress.unlocked) {
           const allStandardStoryLevels = baseStoryLevels.filter(l => l.type === 'story' && !l.isInfinite);
           const allStandardStoryLevelsCompleted = allStandardStoryLevels.every(stdLevel => {
-              const progress = currentProgress.find(p => p.id === stdLvl.id);
+              const progress = currentProgress.find(p => p.id === stdLevel.id);
               return progress && progress.completed;
           });
 
@@ -2210,7 +2219,7 @@
                             onclick="startLevel(${level.id})" ${isDisabled ? 'disabled' : ''}>
                         ${buttonText}
                     </button>
-                    <div class="text-xs text-gray-300 px-2 mt-1">
+                    <div class="text-xs text-gray-300 px-2">
                       <p>Ennemi: ${level.enemy.name} (Vie: ${level.enemy.power.toLocaleString()})</p>
                       <p>Récompenses: ${level.rewards.gems}G, ${level.rewards.coins}P, ${level.rewards.exp}EXP</p>
                       ${itemDropText}
@@ -2610,8 +2619,6 @@
         "Majan Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/63/Mojon_Essence.png/revision/latest/scale-to-width-down/200?cb=20250507174026",
         "Donut": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9b/Donut.png/revision/latest/scale-to-width-down/200?cb=20250507160557",
         "Atomic Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/6a/Atomic_Essence.png/revision/latest/scale-to-width-down/200?cb=20250507160544",
-        "Alien Core": "https://static.wikia.nocookie.net/animeadventures/images/e/e9/Alien_Core.png/revision/latest?cb=20230129102904",
-        "Tavern Pie": "https://static.wikia.nocookie.net/animeadventures/images/c/cc/Tavern_Pie.png/revision/latest?cb=20230606150016",
         "Plume Céleste": "https://png.pngtree.com/png-vector/20250517/ourlarge/pngtree-vibrant-and-detailed-feather-on-white-background-png-image_16308203.png",
         "Sablier Ancien": "https://static.wikia.nocookie.net/animeadventures/images/5/5f/Miracle_Timepiece.png/revision/latest?cb=20221119040302",
         "Restricting Headband": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/fd/Restricting_Headband.png/revision/latest/scale-to-width-down/200?cb=20250603203745",
@@ -4517,3 +4524,2541 @@
         if (effect.power) {
           totalPowerGained += effect.power * quantity;
           effectsApplied.push(`+${effect.power * quantity} Puissance`);
+        }
+        inventory[item] -= quantity;
+        itemSummary += effectsApplied.join(', ') + ')';
+        summary.push(itemSummary);
+      });
+
+      // Appeler addCharacterExp seulement si de l'EXP a été calculée et si nécessaire
+      if (totalExpGained > 0) {
+         addCharacterExp(char, totalExpGained); // La fonction gère le cap interne
+      }
+      if (totalPowerGained > 0) {
+            char.basePower += totalPowerGained; // MODIFIÉ: Affecte basePower
+            recalculateCharacterPower(char);  // MODIFIÉ: Recalculer
+        }
+
+      // --- MODIFICATION : Message de résultat plus précis ---
+      resultElement.innerHTML = `
+        <p class="text-green-400">Objets donnés à ${char.name} (Niv. ${char.level}) !</p>
+        ${totalExpGained > 0 ? `<p class="text-white">EXP ajoutée: ${totalExpGained}</p>` : (selectedItemsForGiving.has(item => itemEffects[item]?.exp) && !canGainExp ? `<p class="text-yellow-400">EXP des objets ignorée (Niveau Max atteint).</p>` : '')}
+        ${totalPowerGained > 0 ? `<p class="text-white">Puissance augmentée à ${char.power}</p>` : ''}
+        <p class="text-white">Objets utilisés: ${summary.join(", ")}</p>
+      `;
+      // --- FIN MODIFICATION ---
+
+      selectedItemsForGiving.clear();
+      giveItemsModal.classList.add("hidden");
+      disableNoScroll();
+      updateCharacterDisplay();
+      updateItemDisplay();
+      updateUI();
+      scheduleSave();
+    }
+
+    function updateLimitBreakTabDisplay() {
+      console.log("--- updateLimitBreakTabDisplay ---");
+
+      // Vérification des éléments DOM essentiels
+      if (!transcendenceOrbCountElement) {
+          console.error("ERREUR: transcendenceOrbCountElement est null! L'élément HTML avec l'ID 'transcendence-orb-count' est manquant ou non chargé.");
+          // Vous pourriez afficher un message d'erreur dans l'onglet lui-même si c'est critique
+          if (limitBreakElement) limitBreakElement.innerHTML = "<p class='text-red-500'>Erreur: Impossible d'afficher le compteur d'orbes.</p>";
+          return;
+      }
+      if (!limitBreakSelectedCharDisplayElement) {
+          console.error("ERREUR: limitBreakSelectedCharDisplayElement est null!");
+          return;
+      }
+      if (!limitBreakCharSelectionGridElement) {
+          console.error("ERREUR: limitBreakCharSelectionGridElement est null!");
+          return;
+      }
+      if (!applyLimitBreakButton) {
+          console.error("ERREUR: applyLimitBreakButton est null!");
+          return;
+      }
+      if (!inventory) {
+          console.error("ERREUR: L'objet inventory n'est pas défini !");
+          transcendenceOrbCountElement.textContent = "Erreur";
+          return;
+      }
+
+
+      transcendenceOrbCountElement.textContent = inventory["Divin Wish"] || 0;
+      const searchInput = document.getElementById("limit-break-char-search"); // Peut être null si l'ID est incorrect ou l'élément n'est pas dans l'onglet
+      const searchTerm = searchInput ? searchInput.value.toLowerCase() : "";
+
+      let char = null;
+      if (currentLimitBreakCharacterId) {
+          char = ownedCharacters.find(c => c.id === currentLimitBreakCharacterId);
+      }
+
+      if (char) {
+          const currentCharacterMaxLevel = char.maxLevelCap || 60;
+          limitBreakSelectedCharDisplayElement.innerHTML = `
+              <div class="bg-gray-800 bg-opacity-50 p-3 rounded-lg border-2 ${getRarityBorderClass(char.rarity)} w-full max-w-xs mx-auto">
+                  <img src="${char.image}" alt="${char.name}" class="w-full h-28 object-contain rounded mb-1">
+                  <p class="${char.color} font-semibold text-center text-sm">${char.name} (${char.rarity})</p>
+                  <p class="text-white text-center text-xs">Niveau: ${char.level} / ${currentCharacterMaxLevel}</p>
+                  <p class="text-white text-center text-xs">Puissance: ${char.power}</p>
+                  ${currentCharacterMaxLevel >= MAX_POSSIBLE_LEVEL_CAP ? '<p class="text-center text-yellow-400 text-xs font-bold">Cap Max Atteint!</p>' : ''}
+              </div>
+          `;
+      } else {
+          limitBreakSelectedCharDisplayElement.innerHTML = '<p class="text-gray-400">Aucun personnage sélectionné.</p>';
+      }
+
+      limitBreakCharSelectionGridElement.innerHTML = "";
+      const availableCharacters = ownedCharacters.filter(c => c.name.toLowerCase().includes(searchTerm));
+
+      if (availableCharacters.length === 0) {
+          limitBreakCharSelectionGridElement.innerHTML = `<p class="text-gray-400 col-span-full">${searchTerm ? 'Aucun personnage trouvé pour "' + searchTerm + '".' : 'Aucun personnage.'}</p>`;
+      } else {
+          availableCharacters.sort((a, b) => b.power - a.power).forEach(c => {
+              const charElement = document.createElement("div");
+              const currentMax = c.maxLevelCap || 60;
+              const isAtCurrentCap = c.level >= currentMax;
+              const canBreakLimit = isAtCurrentCap && currentMax < MAX_POSSIBLE_LEVEL_CAP && (inventory["Divin Wish"] || 0) >= LIMIT_BREAK_COST;
+
+              charElement.className = `bg-gray-800 bg-opacity-50 p-2 rounded-lg transition transform hover:scale-105 cursor-pointer border-2
+                  ${currentLimitBreakCharacterId === c.id ? 'border-amber-500' : (getRarityBorderClass(c.rarity) || 'border-gray-600 hover:border-gray-500')}
+                  ${!isAtCurrentCap && currentMax < MAX_POSSIBLE_LEVEL_CAP ? 'opacity-60' : ''} 
+                  ${currentMax >= MAX_POSSIBLE_LEVEL_CAP ? 'opacity-40' : ''}`;
+
+              charElement.innerHTML = `
+                  <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1">
+                  <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
+                  <p class="text-white text-xs text-center">Niv: ${c.level} / ${currentMax}</p>
+                  ${currentMax >= MAX_POSSIBLE_LEVEL_CAP ? '<p class="text-yellow-500 text-xs text-center">Cap Ultime Atteint</p>' : (isAtCurrentCap ? (canBreakLimit ? '<p class="text-green-400 text-xs text-center">Prêt pour Limit Break</p>' : '<p class="text-red-400 text-xs text-center">Orbes manquants</p>') : `<p class="text-gray-400 text-xs text-center">Atteindre Niv. ${currentMax}</p>`)}
+              `;
+              charElement.addEventListener("click", () => selectLimitBreakCharacter(c.id));
+              limitBreakCharSelectionGridElement.appendChild(charElement);
+          });
+      }
+
+      const isCharacterSelected = char !== null;
+      const hasOrbs = (inventory["Divin Wish"] || 0) >= LIMIT_BREAK_COST;
+      const characterAtCap = isCharacterSelected && char.level >= (char.maxLevelCap || 60);
+      const notAtHardCap = isCharacterSelected && (char.maxLevelCap || 60) < MAX_POSSIBLE_LEVEL_CAP;
+
+      applyLimitBreakButton.disabled = !(isCharacterSelected && hasOrbs && characterAtCap && notAtHardCap);
+      applyLimitBreakButton.classList.toggle("opacity-50", applyLimitBreakButton.disabled);
+      applyLimitBreakButton.classList.toggle("cursor-not-allowed", applyLimitBreakButton.disabled);
+      console.log("--- Fin updateLimitBreakTabDisplay ---");
+    }
+
+    function selectLimitBreakCharacter(charId) {
+        currentLimitBreakCharacterId = (currentLimitBreakCharacterId === charId) ? null : charId;
+        updateLimitBreakTabDisplay();
+    }
+
+    function applyLimitBreak() {
+        if (!currentLimitBreakCharacterId || (inventory["Divin Wish"] || 0) < LIMIT_BREAK_COST) return;
+        const charIndex = ownedCharacters.findIndex(c => c.id === currentLimitBreakCharacterId);
+        if (charIndex === -1) return;
+        const char = ownedCharacters[charIndex];
+        if (char.level < (char.maxLevelCap || 60) || (char.maxLevelCap || 60) >= MAX_POSSIBLE_LEVEL_CAP) return;
+
+        inventory["Divin Wish"]--;
+
+        missions.forEach(mission => {
+            if (mission.type === "limit_break_char" && !mission.completed) {
+                mission.progress++;
+            }
+        });
+
+        char.maxLevelCap = (char.maxLevelCap || 60) + LIMIT_BREAK_LEVEL_INCREASE;
+        
+        resultElement.innerHTML = `<p class="text-amber-400">${char.name} a brisé ses limites ! Nouveau cap: ${char.maxLevelCap}.</p>`;
+        if (animationsEnabled) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#F59E0B', '#FBBF24', '#FCD34D'] });
+        
+        updateLimitBreakTabDisplay();
+        updateCharacterDisplay();
+        updateItemDisplay();
+        updateUI();
+        scheduleSave();
+    }
+
+    function startEvolution(id) {
+        console.log("startEvolution appelé avec id:", id);
+        const char = ownedCharacters.find(c => c.id === id);
+        if (!char) {
+            console.log("Personnage non trouvé pour id:", id);
+            resultElement.innerHTML = '<p class="text-red-400">Personnage non trouvé !</p>';
+            return;
+        }
+        if (char.hasEvolved) {
+            resultElement.innerHTML = `<p class="text-yellow-400">${char.name} a déjà évolué et ne peut pas évoluer à nouveau.</p>`;
+            return;
+        }
+        const baseChar = allCharacters.find(c => c.name === char.name);
+        if (!baseChar.evolutionRequirements || baseChar.evolutionRequirements.length === 0) {
+            resultElement.innerHTML = '<p class="text-red-400">Ce personnage ne peut pas évoluer !</p>';
+            return;
+        }
+        currentEvolutionCharacterId = id;
+        selectedEvolutionItems.clear();
+        statsModal.classList.add("hidden");
+        evolutionModal.classList.remove("hidden");
+        enableNoScroll();
+        updateEvolutionSelectionDisplay();
+    }
+
+    function updateEvolutionSelectionDisplay() {
+        const char = ownedCharacters.find(c => c.id === currentEvolutionCharacterId);
+        if (!char) return;
+
+        const baseChar = allCharacters.find(c => c.name === char.name);
+        const requirements = baseChar.evolutionRequirements || [];
+
+        // Afficher les exigences, y compris le coût en pièces
+        evolutionRequirementsElement.innerHTML = `
+        <p><strong>Exigences pour évoluer ${char.name} (${char.rarity}):</strong></p>
+        ${requirements.length > 0 ? `
+        <ul class="list-disc pl-5">
+            ${requirements.map(req => {
+            if (req.item) {
+                const available = inventory[req.item] || 0;
+                const sufficient = available >= req.quantity;
+                return `<li class="${sufficient ? 'text-green-400' : 'text-red-400'}">${req.quantity} ${req.item} (Possédé: ${available})</li>`;
+            } else if (req.coins) {
+                const sufficient = coins >= req.coins;
+                return `<li class="${sufficient ? 'text-green-400' : 'text-red-400'}">${req.coins} Pièces (Possédé: ${coins})</li>`;
+            }
+            return '';
+            }).join('')}
+        </ul>
+        ` : '<p class="text-white">Aucune exigence d\'évolution pour ce personnage.</p>'}
+        `;
+
+        evolutionSelectionList.innerHTML = "";
+        const itemImages = {
+        "Haricots": "https://static.wikia.nocookie.net/animeadventures/images/6/6c/Senzu_Bean.png/revision/latest?cb=20230101141509",
+        "Fluide mystérieux": "https://static.wikia.nocookie.net/animeadventures/images/7/72/Mysterious_Fluid.png/revision/latest?cb=20230101141428",
+        "Pièces": "https://via.placeholder.com/150?text=Pièces",
+        "Tickets de Tirage": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/3/35/Pass_XP.png/revision/latest/scale-to-width-down/200?cb=20240912054111",
+        "Cursed Token": "https://via.placeholder.com/150?text=Fragments",
+        "Shadow Tracer": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/11/Shadow_Trace.png/revision/latest/scale-to-width-down/200?cb=20240925095144",
+        "Blood-Red Armor": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/42/Blood-Red_Armor.png/revision/latest/scale-to-width-down/200?cb=20240925095521",
+        "Green Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/7d/Green_Essence.png/revision/latest/scale-to-width-down/200?cb=20240925095259",
+        "Yellow Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/d6/Yellow_Essence.png/revision/latest/scale-to-width-down/200?cb=20240925095305",
+        "Purple Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/f2/Purple_Essence.png/revision/latest/scale-to-width-down/200?cb=20240925095542",
+        "Red Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/fe/Red_Essence.png/revision/latest/scale-to-width-down/200?cb=20240925095246",
+        "Blue Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/2a/Blue_Essence.png/revision/latest/scale-to-width-down/200?cb=20240925100144",
+        "Pink Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/5a/Pink_Essence.png/revision/latest/scale-to-width-down/200?cb=20240925095536",
+        "Rainbow Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/c1/Rainbow_Essence.png/revision/latest/scale-to-width-down/200?cb=20240925095210",
+        "Head Captain's Coat": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/76/Head_Captain%27s_Coat.png/revision/latest/scale-to-width-down/200?cb=20250301094746",
+        "Broken Sword": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/b7/Broken_Sword.png/revision/latest/scale-to-width-down/200?cb=20240925095613",
+        "Chipped Blade": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/d3/Chipped_Blade.png/revision/latest/scale-to-width-down/200?cb=20250301095941",
+        "Cast Blades": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/e/e4/Cast_Blades.png/revision/latest/scale-to-width-down/200?cb=20241228195617",
+        "Hellsing Arms": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/56/Hellsing_Arms.png/revision/latest/scale-to-width-down/200?cb=20240925095219",
+        "Hardened Blood": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/2a/Hardened_Blood.png/revision/latest/scale-to-width-down/200?cb=20241027175015",
+        "Silverite Sword": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9c/Silverite_Sword.png/revision/latest/scale-to-width-down/200?cb=20250129015816",
+        "Cursed Finger": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9a/Cursed_Finger.png/revision/latest/scale-to-width-down/200?cb=20241108232910",
+        "Magma Stone": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/3/33/Magma_Stone.png/revision/latest/scale-to-width-down/200?cb=20250325084958",
+        "Broken Pendant": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/d0/Broken_Pendant.png/revision/latest/scale-to-width-down/200?cb=20241027174604",
+        "Demon Beads": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/28/Demon_Beads.png/revision/latest/scale-to-width-down/200?cb=20240925095328",
+        "Broken Heart": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9e/Broken_Heart.png/revision/latest/scale-to-width-down/200?cb=20240925095301",
+        "Nichirin Cleavers": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/d9/Nichirin_Cleavers.png/revision/latest/scale-to-width-down/200?cb=20240925095532",
+        "Blue Chakra": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/bb/Blue_Chakra.png/revision/latest/scale-to-width-down/200?cb=20240908064022",
+        "Red Chakra": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/1e/Red_Chakra.png/revision/latest/scale-to-width-down/200?cb=20240908064022",
+        "Skin Patch": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/c7/Skin_Patch.png/revision/latest/scale-to-width-down/200?cb=20240925095526",
+        "Snake Scale": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/d/d5/Snake_Scale.png/revision/latest/scale-to-width-down/200?cb=20240925095139",
+        "Senzu Bean": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/6c/Senzu_Bean.png/revision/latest/scale-to-width-down/200?cb=20250404123542",
+        "Holy Corpse Eyes": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/a/a5/Holy_Corpse_Eyes.png/revision/latest/scale-to-width-down/200?cb=20241228041057",
+        "Holy Corpse Arms": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9d/Holy_Corpse_Arms.png/revision/latest/scale-to-width-down/200?cb=20241228042407",
+        "Completed Holy Corpse": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/91/Completed_Holy_Corpse.png/revision/latest/scale-to-width-down/200?cb=20241228201349",
+        "Gorgon's Blindfold": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/1f/Gorgon%27s_Blindfold.png/revision/latest/scale-to-width-down/200?cb=20241228195652",
+        "Caster's Headpiece": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/4f/Caster%27s_Headpiece.png/revision/latest/scale-to-width-down/200?cb=20241228195633",
+        "Avalon": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/b7/Avalon.png/revision/latest/scale-to-width-down/200?cb=20241228195608",
+        "Goddess' Sword": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/a/a5/Goddess%27_Sword.png/revision/latest/scale-to-width-down/200?cb=20241228195642",
+        "Blade of Death": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/ba/Blade_of_Death.png/revision/latest/scale-to-width-down/200?cb=20241228195625",
+        "Berserker's Blade": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/8/87/Berserker%27s_Blade.png/revision/latest/scale-to-width-down/200?cb=20250301095923",
+        "Shunpo Spirit": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9b/Shunpo_Spirit.png/revision/latest/scale-to-width-down/200?cb=20250301094718",
+        "Energy Arrow": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/c/c4/Energy_Arrow.png/revision/latest/scale-to-width-down/200?cb=20250301084925",
+        "Hair Ornament": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/5/5d/Hair_Ornament.png/revision/latest/scale-to-width-down/200?cb=20250301094807",
+        "Bucket Hat": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/2e/Bucket_Hat.png/revision/latest/scale-to-width-down/200?cb=20250301094814",
+        "Horn of Salvation": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/f9/Horn_of_Salvation.png/revision/latest/scale-to-width-down/200?cb=20250301094802",
+        "Energy Bone": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/2/21/Energy_Bone.png/revision/latest/scale-to-width-down/200?cb=20250301094756",
+        "Prison Chair": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/b3/Prison_Chair.png/revision/latest/scale-to-width-down/200?cb=20250301084509",
+        "Rotara Earring 2": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/10/Rotara_Earring_2.png/revision/latest/scale-to-width-down/200?cb=20250508200230",
+        "Rotara Earring 1": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/f1/Rotara_Earring_1.png/revision/latest/scale-to-width-down/200?cb=20250507164632",
+        "Z Blade": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/1/16/Z_Blade.png/revision/latest/scale-to-width-down/200?cb=20250507174034",
+        "Champ's Belt": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/fb/Champ%27s_Belt.png/revision/latest/scale-to-width-down/200?cb=20250507164406",
+        "Dog Bone": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9d/Dog_Bone.png/revision/latest/scale-to-width-down/200?cb=20250507160505",
+        "Six Eyes": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/91/Six_Eyes.png/revision/latest/scale-to-width-down/200?cb=20241108232222",
+        "Tome of Wisdom": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/02/Tome_Of_Wisdom.png/revision/latest?cb=20250130224612",
+        "Corrupted Visor": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/48/Corrupted_Visor.png/revision/latest/scale-to-width-down/200?cb=20250205094632",
+        "Tainted Ribbon": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/0/0e/Tainted_Ribbon.png/revision/latest/scale-to-width-down/200?cb=20250301095928",
+        "Demon Chalice": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/8/8c/Demon_Chalice.png/revision/latest/scale-to-width-down/200?cb=20250205094729",
+        "Essence of the Spirit King": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/4/44/Essence_of_the_Spirit_King.png/revision/latest/scale-to-width-down/200?cb=20250301094735",
+        "Ring of Friendship": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/75/Ring_of_Friendship.png/revision/latest/scale-to-width-down/200?cb=20250321000834",
+        "Red Jewel": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/7/74/Red_Jewel.png/revision/latest/scale-to-width-down/200?cb=20250321000706",
+        "Majan Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/63/Mojon_Essence.png/revision/latest/scale-to-width-down/200?cb=20250507174026",
+        "Donut": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9b/Donut.png/revision/latest/scale-to-width-down/200?cb=20250507160557",
+        "Atomic Essence": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/6/6a/Atomic_Essence.png/revision/latest/scale-to-width-down/200?cb=20250507160544",
+        "Restricting Headband": "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/f/fd/Restricting_Headband.png/revision/latest/scale-to-width-down/200?cb=20250603203745",
+        "Toil Ribbon" : "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/bb/Tail_Ribbon.png/revision/latest/scale-to-width-down/200?cb=20250603203730",
+        };
+      
+        requirements.forEach(req => {
+        if (!req.item) return; // Ignorer les exigences de pièces pour la sélection d'objets
+        const item = req.item;
+        const quantity = req.quantity;
+        const availableQuantity = inventory[item] || 0;
+        const selectedQuantity = selectedEvolutionItems.get(item) || 0;
+        const itemElement = document.createElement("div");
+        itemElement.className = `bg-gray-800 bg-opacity-50 p-4 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 border-gray-400 ${
+            selectedQuantity > 0 ? 'selected-for-evolution' : ''
+        }`;
+        itemElement.innerHTML = `
+            <img src="${itemImages[item]}" alt="${item}" class="w-full h-24 object-contain rounded mb-1">
+            <p class="text-white font-semibold">${item}</p>
+            <p class="text-white">Requis: ${quantity}</p>
+            <p class="text-white">Disponible: ${availableQuantity}</p>
+            <p class="text-white">Sélectionné: ${selectedQuantity}</p>
+            <div class="flex gap-2 mt-2">
+            <button class="bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded-lg decrease-evolution-item" data-item="${item}">-</button>
+            <button class="bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded-lg increase-evolution-item" data-item="${item}">+</button>
+            </div>
+        `;
+        evolutionSelectionList.appendChild(itemElement);
+        });
+
+        // Vérifier si toutes les exigences sont satisfaites, y compris les pièces
+        const canEvolve = requirements.every(req => {
+        if (req.item) {
+            return (selectedEvolutionItems.get(req.item) || 0) >= req.quantity;
+        } else if (req.coins) {
+            return coins >= req.coins;
+        }
+        return true;
+        });
+        evolutionSelectedCountElement.textContent = Array.from(selectedEvolutionItems.values()).reduce((sum, qty) => sum + qty, 0);
+        confirmEvolutionButton.disabled = !canEvolve;
+        confirmEvolutionButton.classList.toggle("opacity-50", !canEvolve);
+        confirmEvolutionButton.classList.toggle("cursor-not-allowed", !canEvolve);
+
+        // Attacher les écouteurs pour les boutons +/-
+        document.querySelectorAll(".increase-evolution-item").forEach(button => {
+        button.addEventListener("click", () => {
+            const item = button.dataset.item;
+            selectEvolutionItem(item, 1);
+        });
+        });
+        document.querySelectorAll(".decrease-evolution-item").forEach(button => {
+        button.addEventListener("click", () => {
+            const item = button.dataset.item;
+            selectEvolutionItem(item, -1);
+        });
+        });
+    }
+
+    function selectEvolutionItem(item, change) {
+        const char = ownedCharacters.find(c => c.id === currentEvolutionCharacterId);
+        if (!char) return;
+        const baseChar = allCharacters.find(c => c.name === char.name);
+        const requirements = baseChar.evolutionRequirements || [];
+        const req = requirements.find(r => r.item === item);
+        if (!req) return;
+        const currentQuantity = selectedEvolutionItems.get(item) || 0;
+        const availableQuantity = inventory[item] || 0;
+        const maxQuantity = req.quantity;
+        const newQuantity = Math.max(0, Math.min(currentQuantity + change, Math.min(availableQuantity, maxQuantity)));
+        if (newQuantity === 0) {
+            selectedEvolutionItems.delete(item);
+        } else {
+            selectedEvolutionItems.set(item, newQuantity);
+        }
+        updateEvolutionSelectionDisplay();
+    }
+
+    function cancelEvolution() {
+      console.log("cancelEvolution appelé");
+      selectedEvolutionItems.clear();
+      evolutionModal.classList.add("hidden");
+      disableNoScroll();
+      updateEvolutionDisplay();
+    }
+
+    function confirmEvolution() {
+      const charIndex = ownedCharacters.findIndex(c => c.id === currentEvolutionCharacterId);
+      if (charIndex === -1) {
+          resultElement.innerHTML = '<p class="text-red-400">Personnage non trouvé !</p>';
+          evolutionModal.classList.add("hidden");
+          disableNoScroll();
+          return;
+      }
+      const char = ownedCharacters[charIndex]; // Obtenir la référence directe à l'objet
+
+      const baseCharDefinition = allCharacters.find(c => c.name === (char.originalName || char.name));
+      if (!baseCharDefinition) {
+          resultElement.innerHTML = '<p class="text-red-400">Erreur de configuration du personnage de base !</p>';
+          evolutionModal.classList.add("hidden");
+          disableNoScroll();
+          return;
+      }
+
+      const requirements = baseCharDefinition.evolutionRequirements || [];
+      const canEvolve = requirements.every(req => {
+          if (req.item) {
+              return (selectedEvolutionItems.get(req.item) || 0) >= req.quantity;
+          } else if (req.coins) {
+              return coins >= req.coins;
+          }
+          return true; // Pour des exigences futures qui ne sont ni item ni coins
+      });
+
+      if (!canEvolve) {
+          resultElement.innerHTML = '<p class="text-red-400">Exigences d\'évolution non satisfaites !</p>';
+          // Garder la modale ouverte pour que l'utilisateur voie ce qui manque
+          return;
+      }
+      if (char.hasEvolved) {
+          resultElement.innerHTML = `<p class="text-yellow-400">${char.name} a déjà évolué.</p>`;
+          evolutionModal.classList.add("hidden");
+          disableNoScroll();
+          return;
+      }
+
+      const evolutionData = baseCharDefinition.evolutionData;
+      let evolutionMessageParts = [];
+
+      if (evolutionData) {
+          // Stocker le nom original seulement si ce n'est pas déjà fait ET si le nom va effectivement changer
+          if (!char.originalName && evolutionData.newName && evolutionData.newName !== char.name) {
+              char.originalName = char.name;
+          }
+
+          if (evolutionData.newName) {
+              char.name = evolutionData.newName;
+              evolutionMessageParts.push(`nommé ${char.name}`);
+          }
+          if (evolutionData.newImage) {
+              char.image = evolutionData.newImage;
+          }
+          if (typeof evolutionData.basePowerIncrease === 'number') {
+              char.basePower = (char.basePower || 0) + evolutionData.basePowerIncrease;
+              evolutionMessageParts.push(`puissance de base augmentée de ${evolutionData.basePowerIncrease}`);
+          }
+          if (evolutionData.newRarity) {
+              char.rarity = evolutionData.newRarity;
+              // S'assurer que la couleur est bien celle de la NOUVELLE rareté
+              if (evolutionData.newColor) {
+                  char.color = evolutionData.newColor;
+              } else {
+                  // Fallback si newColor n'est pas spécifié dans evolutionData
+                  const rarityColors = { "Rare": "text-gray-400", "Épique": "text-purple-400", "Légendaire": "text-yellow-400", "Mythic": "rainbow-text", "Secret": "text-secret" };
+                  char.color = rarityColors[char.rarity] || "text-white";
+              }
+              evolutionMessageParts.push(`rareté à ${char.rarity}`);
+          }
+
+          if (evolutionData.additionalEffects) {
+              for (const [effect, value] of Object.entries(evolutionData.additionalEffects)) {
+                  if (typeof char[effect] === 'number') {
+                      char[effect] = (char[effect] || 0) + value;
+                  } else {
+                      char[effect] = value;
+                  }
+                  evolutionMessageParts.push(`${effect} augmenté(e)`);
+              }
+          }
+      } else {
+          // Fallback si evolutionData n'existe pas (ne devrait pas arriver si bien configuré)
+          const fallbackPowerBonus = 100;
+          char.basePower = (char.basePower || 0) + fallbackPowerBonus;
+          evolutionMessageParts.push(`puissance augmentée (fallback +${fallbackPowerBonus})`);
+          console.warn(`EvolutionData manquant pour ${baseCharDefinition.name}, application d'un bonus de puissance fallback.`);
+      }
+
+      char.hasEvolved = true; // Marquer comme évolué
+
+      // AJOUTER CE BLOC POUR LA MISSION
+      missions.forEach(mission => {
+          if (mission.type === "evolve_char" && !mission.completed) {
+              mission.progress++;
+          }
+      });
+
+      // Recalculer la puissance APRÈS toutes les modifications de basePower, statModifier (si la rareté le change), etc.
+      recalculateCharacterPower(char); // Ceci met à jour char.power
+
+      // Déduire les objets et les pièces de l'inventaire
+      let coinsUsed = 0;
+      selectedEvolutionItems.forEach((quantity, item) => {
+          inventory[item] = (inventory[item] || 0) - quantity;
+          if (inventory[item] < 0) inventory[item] = 0; // S'assurer de ne pas avoir de quantité négative
+      });
+      requirements.forEach(req => {
+          if (req.coins) {
+              coins -= req.coins;
+              coinsUsed = req.coins;
+          }
+      });
+
+      // Construire le message de résultat
+      let resultText = `<p class="text-green-400">Évolution réussie pour ${char.name} !</p>`;
+      if (evolutionMessageParts.length > 0) {
+          resultText += `<p class="text-white">Le personnage a été ${evolutionMessageParts.join(', ')}.</p>`;
+      }
+      resultText += `<p class="text-white">Nouvelle Puissance totale: ${char.power}</p>`; // Afficher la puissance MISE À JOUR
+      resultText += `<p class="text-white">Ressources utilisées: ${[
+          ...Array.from(selectedEvolutionItems.entries()).map(([item, qty]) => `${qty} ${item}`),
+          coinsUsed > 0 ? `${coinsUsed} Pièces` : ''
+      ].filter(Boolean).join(", ")}</p>`;
+
+      resultElement.innerHTML = resultText;
+
+      if (animationsEnabled) {
+          confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, colors: ['#EC4899', '#DB2777', '#FBCFE8'] });
+      }
+      if (soundEnabled) { /* Si vous avez un son d'évolution: evolutionSound.play(); */ }
+
+      // Nettoyage et mise à jour de l'UI
+      selectedEvolutionItems.clear();
+      evolutionModal.classList.add("hidden");
+      disableNoScroll();
+
+      updateEvolutionDisplay();   // Pour rafraîchir la liste des persos encore évoluables
+      updateCharacterDisplay();   // Pour rafraîchir l'inventaire principal avec le perso évolué
+      updateItemDisplay();        // Pour refléter les objets consommés
+      updateIndexDisplay();       // Si le nom ou l'image change dans l'index
+      updateUI();                 // Pour les stats générales (gemmes, pièces, etc.)
+      scheduleSave();             // Sauvegarder toutes les modifications
+    }
+
+    function updateEvolutionDisplay() {
+      const eligibleCharacters = ownedCharacters.filter(char => {
+          // Pour un personnage non évolué, char.name EST son nom de base.
+          // La recherche de baseChar devrait donc fonctionner avec char.name.
+          const baseChar = allCharacters.find(c => c.name === char.name);
+
+          if (!baseChar) {
+              // Si aucune définition de base n'est trouvée pour le nom actuel du personnage,
+              // il ne peut pas être considéré pour l'évolution (cela pourrait arriver pour des noms évolués
+              // ou des données incohérentes, mais !char.hasEvolved devrait déjà filtrer les noms évolués).
+              return false;
+          }
+
+          // Le personnage est éligible s'il a des conditions d'évolution
+          // ET si CETTE INSTANCE du personnage n'a PAS ENCORE évolué.
+          const hasRequirements = baseChar.evolutionRequirements && baseChar.evolutionRequirements.length > 0;
+          const notYetEvolved = !char.hasEvolved;
+
+          return hasRequirements && notYetEvolved;
+      });
+
+      if (!eligibleCharacters.length) {
+          evolutionDisplay.innerHTML = '<p class="text-white">Aucun personnage éligible pour l\'évolution pour le moment.</p>';
+          return;
+      }
+
+      // Trier les personnages éligibles (votre logique de tri existante)
+      const sortedCharacters = eligibleCharacters.sort((a, b) => {
+          if (sortCriteria === "power") {
+              return b.power - a.power;
+          } else if (sortCriteria === "rarity") {
+              return rarityOrder[b.rarity] - rarityOrder[a.rarity];
+          } else if (sortCriteria === "level") {
+              return b.level - a.level;
+          }
+          return 0;
+      });
+
+      evolutionDisplay.innerHTML = sortedCharacters.map(char => {
+          // Pour l'affichage, on utilise toujours char.name qui est le nom de base ici,
+          // car on a filtré pour n'avoir que les personnages non évolués.
+          const baseCharForDisplay = allCharacters.find(c => c.name === char.name);
+          const requirements = baseCharForDisplay.evolutionRequirements || []; // S'assurer que requirements existe
+
+          // Vérifier si toutes les exigences matérielles (items + pièces) sont satisfaites
+          // Cette vérification est pour l'affichage ("Évolution possible" / "Exigences non satisfaites")
+          // La vérification finale se fait dans startEvolution/confirmEvolution.
+          let canEvolveDisplayCheck = true; // Supposons que oui initialement
+          if (requirements.length > 0) {
+              canEvolveDisplayCheck = requirements.every(req => {
+                  if (req.item) {
+                      return (inventory[req.item] || 0) >= req.quantity;
+                  } else if (req.coins) {
+                      return coins >= req.coins;
+                  }
+                  return true; // Pour les exigences futures
+              });
+          } else {
+              canEvolveDisplayCheck = false; // S'il n'y a pas d'requirements, il ne peut pas évoluer par ce biais
+          }
+
+
+          let rarityTextColorClass = char.color;
+          if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
+          else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
+
+          return `
+          <div class="relative p-2 rounded-lg border ${getRarityBorderClass(char.rarity)} cursor-pointer" 
+              onclick="startEvolution('${char.id}')">
+              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded">
+              <p class="text-center text-white font-semibold mt-2">${char.name}</p>
+              <p class="text-center ${rarityTextColorClass}">${char.rarity}</p>
+              <p class="text-center text-white">Niveau: ${char.level}</p>
+              <p class="text-center text-white">Puissance: ${char.power}</p>
+              <p class="text-center text-sm ${canEvolveDisplayCheck ? 'text-green-400' : 'text-red-400'}">${canEvolveDisplayCheck ? 'Prêt à évoluer' : 'Matériaux manquants'}</p>
+          </div>
+          `;
+      }).join("");
+    }
+
+    function toggleLockCharacter(id) {
+        const charIndex = ownedCharacters.findIndex(c => c.id === id);
+        if (charIndex === -1) return;
+
+        ownedCharacters[charIndex].locked = !ownedCharacters[charIndex].locked; // Inverse l'état locked
+        const char = ownedCharacters[charIndex]; // Récupère le personnage mis à jour
+
+        // Mettre à jour le texte et le style du bouton de verrouillage dans la modale
+        const lockButton = document.getElementById("lock-button");
+        if (lockButton) {
+            lockButton.textContent = char.locked ? "Déverrouiller" : "Verrouiller";
+            lockButton.disabled = isDeleteMode; // Le bouton lock/unlock lui-même ne doit pas être désactivé par l'état lock
+            lockButton.classList.toggle("opacity-50", lockButton.disabled);
+            lockButton.classList.toggle("cursor-not-allowed", lockButton.disabled);
+            lockButton.classList.toggle("bg-red-500", char.locked);
+            lockButton.classList.toggle("hover:bg-red-600", char.locked);
+            lockButton.classList.toggle("bg-gray-500", !char.locked);
+            lockButton.classList.toggle("hover:bg-gray-600", !char.locked);
+        }
+
+        // --- AJOUT : Mettre à jour explicitement l'état des autres boutons ---
+        const fuseButton = document.getElementById("fuse-button");
+        const evolveButton = document.getElementById("evolve-button"); // Peut exister ou non
+        const giveItemsButton = document.getElementById("give-items-button");
+
+        if (fuseButton) {
+            fuseButton.disabled = char.level >= 100 || isDeleteMode || ownedCharacters.length <= 1 || char.locked;
+            fuseButton.classList.toggle("opacity-50", fuseButton.disabled);
+            fuseButton.classList.toggle("cursor-not-allowed", fuseButton.disabled);
+        }
+        if (evolveButton) {
+            evolveButton.disabled = isDeleteMode || char.locked;
+            evolveButton.classList.toggle("opacity-50", evolveButton.disabled);
+            evolveButton.classList.toggle("cursor-not-allowed", evolveButton.disabled);
+        }
+        // Donner objets n'est pas affecté par le verrouillage, seulement par le mode suppression
+        if (giveItemsButton) {
+            giveItemsButton.disabled = isDeleteMode;
+            giveItemsButton.classList.toggle("opacity-50", giveItemsButton.disabled);
+            giveItemsButton.classList.toggle("cursor-not-allowed", giveItemsButton.disabled);
+        }
+        // --- FIN DE L'AJOUT ---
+
+        console.log(`Personnage ${char.name} ${char.locked ? 'verrouillé' : 'déverrouillé'}.`);
+        updateCharacterDisplay(); // Met à jour l'affichage de l'inventaire pour montrer/cacher l'icône
+        scheduleSave(); // Sauvegarde le nouvel état
+    }
+
+        function showTab(tabId) {
+        // Cacher tous les contenus d'onglets principaux
+        shopElement.classList.add("hidden");
+        missionsElement.classList.add("hidden");
+        inventoryElement.classList.add("hidden");
+        playElement.classList.add("hidden");
+        indexElement.classList.add("hidden");
+        evolutionElement.classList.add("hidden");
+        statChangeElement.classList.add("hidden");
+        curseElement.classList.add("hidden");
+        traitElement.classList.add("hidden");
+        limitBreakElement.classList.add("hidden");
+
+        // Retirer la classe spéciale d'arrière-plan du body par défaut
+        document.body.classList.remove("curse-tab-active-bg");
+
+        // Afficher le contenu de l'onglet sélectionné
+        const tabToShow = document.getElementById(tabId);
+        if (tabToShow) {
+            tabToShow.classList.remove("hidden");
+        }
+
+        // Mettre à jour l'apparence des boutons d'onglet
+        const allVisibleTabButtons = document.querySelectorAll(".tab-button:not(.hidden)");
+        allVisibleTabButtons.forEach(btn => {
+            btn.classList.toggle("border-blue-500", btn.dataset.tab === tabId);
+            btn.classList.toggle("border-transparent", btn.dataset.tab !== tabId);
+        });
+
+        // Logique spécifique à chaque onglet lors de son affichage
+        if (tabId === "inventory") {
+            showSubTab("units");
+        } else if (tabId === "play") {
+            showSubTab("story");
+        } else if (tabId === "index") {
+            updateIndexDisplay();
+        } else if (tabId === "evolution") {
+            updateEvolutionDisplay();
+        } else if (tabId === "stat-change") {
+            updateStatChangeTabDisplay();
+        } else if (tabId === "curse") {
+            updateCurseTabDisplay();
+            if (theme === "dark") {
+                document.body.classList.add("curse-tab-active-bg");
+            }
+        } else if (tabId === "trait") {
+            updateTraitTabDisplay();
+        } else if (tabId === "limit-break") {
+            updateLimitBreakTabDisplay(); // Appel correct ici
+        } else {
+            if (isDeleteMode) {
+                isDeleteMode = false;
+                selectedCharacterIndices.clear();
+                updateCharacterDisplay();
+            }
+        }
+        updateUI();
+    }
+
+
+    function showSubTab(subtabId) {
+        // Cacher les sous-onglets de Play
+        document.getElementById("story")?.classList.add("hidden");
+        document.getElementById("legende")?.classList.add("hidden");
+        document.getElementById("challenge")?.classList.add("hidden");
+        document.getElementById("materiaux")?.classList.add("hidden");
+        // Cacher les sous-onglets d'Inventory
+        document.getElementById("units")?.classList.add("hidden");
+        document.getElementById("items")?.classList.add("hidden");
+
+        // Afficher le bon
+        const subTabElement = document.getElementById(subtabId);
+        if (subTabElement) {
+            subTabElement.classList.remove("hidden");
+        }
+
+
+        let currentSubtabButtons;
+        if (playElement.contains(subTabElement)) { // Si le sous-onglet est dans "Play"
+            currentSubtabButtons = document.querySelectorAll('#play .subtab-button');
+        } else if (inventoryElement.contains(subTabElement)) { // Si le sous-onglet est dans "Inventory"
+            currentSubtabButtons = document.querySelectorAll('#inventory .subtab-button');
+        }
+        // Note: Les sous-onglets d'Évolution sont gérés par showSubTabEvolution
+
+        if (currentSubtabButtons) {
+            currentSubtabButtons.forEach(btn => {
+                btn.classList.toggle("border-blue-500", btn.dataset.subtab === subtabId);
+                btn.classList.toggle("border-transparent", btn.dataset.subtab !== subtabId);
+            });
+        }
+
+      if (subtabId !== "units") {
+        isDeleteMode = false;
+        selectedCharacterIndices.clear();
+        updateCharacterDisplay();
+      }
+
+      if (subtabId === "items") {
+        updateItemDisplay();
+      } else if (subtabId === "story") {
+        updateLevelDisplay();
+      } else if (subtabId === "legende") {
+        updateLegendeDisplay();
+      } else if (subtabId === "challenge") { // AJOUT
+        updateChallengeDisplay();
+      } else if (subtabId === "materiaux") { // AJOUT DE CETTE CONDITION
+        updateMaterialFarmDisplay();
+      }
+      updateUI();
+    }
+
+    function updateStatChangeTabDisplay() {
+        document.getElementById("stat-chip-count").textContent = inventory["Stat Chip"] || 0;
+        const selectedCharDisplay = document.getElementById("stat-change-selected-char-display");
+        const charSelectionGrid = document.getElementById("stat-change-char-selection-grid");
+        const applyButton = document.getElementById("apply-stat-change-button");
+        const searchInput = document.getElementById("stat-change-search");
+        const searchTerm = searchInput.value.toLowerCase();
+
+        let disableApplyButton = !currentStatChangeCharacterId || (inventory["Stat Chip"] || 0) < 1;
+        let char = null;
+
+        clearTimeout(statChangeInfoTimeoutId);
+        statChangeInfoTimeoutId = null;
+
+        if (resultElement.innerHTML.includes("Info: Le personnage") || resultElement.innerHTML.includes("Info:")) {
+            resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+        }
+
+        if (currentStatChangeCharacterId) {
+            char = ownedCharacters.find(c => c.id === currentStatChangeCharacterId);
+            if (char) {
+                selectedCharDisplay.innerHTML = `
+                    <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${statRanks[char.statRank]?.borderColor || 'border-gray-400'} w-full max-w-xs mx-auto">
+                        <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2">
+                        <p class="${char.color} font-semibold text-center">${char.name} (${char.rarity}) ${char.locked ? '🔒' : ''}</p>
+                        <p class="text-white text-center">Niv: ${char.level}, P: ${char.power}</p>
+                        <p class="text-center font-bold ${statRanks[char.statRank]?.color || 'text-white'}">Stat Actuel: ${char.statRank}</p>
+                    </div>
+                `;
+
+                const currentRankIsSSS = (char.statRank === "SSS");
+                const currentSelectedTargetRanks = Array.from(statTargetRanksSelectionElement.querySelectorAll(".stat-target-rank-checkbox:checked")).map(cb => cb.value);
+                
+                let infoMsgContent = "";
+
+                if (currentRankIsSSS) {
+                    infoMsgContent = `Info: ${char.name} a le rang SSS. "Changer Stat" demandera confirmation.`;
+                } else if (statKeepBetterToggle.checked && currentSelectedTargetRanks.length > 0 && currentSelectedTargetRanks.includes(char.statRank)) {
+                    infoMsgContent = `Info: ${char.name} a le rang cible coché "${char.statRank}". "Changer Stat" demandera confirmation pour continuer à chercher d'autres cibles (ou le même rang).`;
+                }
+                // Si aucune des conditions ci-dessus n'est remplie, aucun message d'info spécifique lié à une cible atteinte ou SSS.
+                // Le bouton reste actif tant qu'il y a des chips.
+
+                if (infoMsgContent && (inventory["Stat Chip"] || 0) >= 1 && !disableApplyButton) {
+                     if (!resultElement.innerHTML.includes("Changement de Stat pour") && 
+                         !resultElement.innerHTML.includes("Changement de stat annulé") &&
+                         !resultElement.innerHTML.includes("malédiction") && 
+                         !resultElement.innerHTML.includes("a été maudit")) {
+                        resultElement.innerHTML = `<p class="text-blue-400">${infoMsgContent}</p>`;
+                        statChangeInfoTimeoutId = setTimeout(() => {
+                            if (resultElement.innerHTML.includes("Info:")) {
+                                resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+                            }
+                            statChangeInfoTimeoutId = null;
+                        }, 7000);
+                    }
+                }
+            } else { // char non trouvé
+                selectedCharDisplay.innerHTML = '<p class="text-gray-400">Personnage non trouvé.</p>';
+                currentStatChangeCharacterId = null;
+                disableApplyButton = true;
+            }
+        } else { // Aucun perso sélectionné
+            selectedCharDisplay.innerHTML = '<p class="text-gray-400">Aucun personnage sélectionné.</p>';
+            disableApplyButton = true;
+        }
+
+        charSelectionGrid.innerHTML = "";
+        const availableCharacters = ownedCharacters
+            .filter(c => c.name.toLowerCase().includes(searchTerm));
+
+        if (availableCharacters.length === 0) {
+            charSelectionGrid.innerHTML = `<p class="text-gray-400 col-span-full">${searchTerm ? 'Aucun personnage trouvé pour "' + searchTerm + '".' : 'Aucun personnage disponible.'}</p>`;
+        } else {
+            availableCharacters.sort((a,b) => (statRanks[b.statRank]?.order || 0) - (statRanks[a.statRank]?.order || 0) || b.power - a.power)
+            .forEach(c => {
+                const charElement = document.createElement("div");
+                charElement.className = `bg-gray-800 bg-opacity-50 p-2 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 
+                    ${currentStatChangeCharacterId === c.id ? 'border-green-500' : (statRanks[c.statRank]?.borderColor || 'border-gray-600')}
+                    hover:border-gray-500`;
+                charElement.innerHTML = `
+                    <img src="${c.image}" alt="${c.name}" class="w-full h-24 object-contain rounded mb-1">
+                    <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
+                    <p class="text-white text-xs text-center ${statRanks[c.statRank]?.color || 'text-white'}">Stat: ${c.statRank}</p>
+                    <p class="text-white text-xs text-center">P: ${c.power}</p>
+                `;
+                charElement.addEventListener("click", () => {
+                  selectStatChangeCharacter(c.id);
+                });
+                charSelectionGrid.appendChild(charElement);
+            });
+        }
+
+        // La logique de disableApplyButton est maintenant plus simple:
+        // elle est vraie si pas de perso sélectionné ou pas de chips.
+        // Les confirmations dans applyStatChange gèrent les cas SSS ou cible cochée.
+        applyButton.disabled = disableApplyButton;
+        applyButton.classList.toggle("opacity-50", disableApplyButton);
+        applyButton.classList.toggle("cursor-not-allowed", disableApplyButton);
+
+        const checkboxesDisabled = !statKeepBetterToggle.checked;
+        statTargetRanksSelectionElement.classList.toggle("stat-target-ranks-disabled", checkboxesDisabled);
+        statTargetRanksSelectionElement.querySelectorAll(".stat-target-rank-checkbox").forEach(cb => {
+            cb.disabled = checkboxesDisabled;
+            if (checkboxesDisabled) {
+                cb.checked = false; 
+            }
+        });
+    }
+
+    function calculateMaxTeamSize() {
+      let baseSize = 3;
+      let bonus = 0;
+      selectedBattleCharacters.forEach(index => {
+          const char = ownedCharacters[index];
+          // AJOUT DE LA VÉRIFICATION : s'assurer que char existe ET qu'il a un passif valide
+          if (char && char.passive && typeof char.passive.teamSizeBonus === 'number') {
+              bonus = Math.max(bonus, char.passive.teamSizeBonus);
+          }
+      });
+      return baseSize + bonus;
+    }
+    
+    function calculateMaxPresetTeamSize() { // NOUVELLE FONCTION
+      let baseSize = 3;
+      let bonus = 0;
+      selectedPresetCharacters.forEach(index => { // Utilise selectedPresetCharacters
+          const char = ownedCharacters[index];
+          if (char && char.passive && typeof char.passive.teamSizeBonus === 'number') {
+              bonus = Math.max(bonus, char.passive.teamSizeBonus);
+          }
+      });
+      return baseSize + bonus;
+    }
+
+    function openStatChangeConfirmModal(message, callback) {
+        statChangeConfirmMessageElement.textContent = message;
+        statChangeConfirmationCallback = callback;
+        statChangeConfirmContinueModal.classList.remove("hidden"); // Affiche la modale
+        enableNoScroll();
+    }
+
+    function closeStatChangeConfirmModal() {
+        statChangeConfirmContinueModal.classList.add("hidden");
+        statChangeConfirmationCallback = null;
+        disableNoScroll();
+    }
+
+    function selectStatChangeCharacter(id) {
+        currentStatChangeCharacterId = (currentStatChangeCharacterId === id) ? null : id;
+        updateStatChangeTabDisplay();
+    }
+
+    async function applyStatChange() {
+        if (!currentStatChangeCharacterId) {
+            resultElement.innerHTML = '<p class="text-red-400">Veuillez sélectionner un personnage.</p>';
+            return;
+        }
+        if ((inventory["Stat Chip"] || 0) < 1) {
+            resultElement.innerHTML = '<p class="text-red-400">Vous n\'avez pas de Stat Chips !</p>';
+            return;
+        }
+
+        const charIndex = ownedCharacters.findIndex(c => c.id === currentStatChangeCharacterId);
+        if (charIndex === -1) {
+            resultElement.innerHTML = '<p class="text-red-400">Personnage sélectionné non trouvé !</p>';
+            currentStatChangeCharacterId = null;
+            updateStatChangeTabDisplay();
+            return;
+        }
+
+        const char = ownedCharacters[charIndex];
+        const oldStatRank = char.statRank;
+        const selectedTargetRanks = Array.from(statTargetRanksSelectionElement.querySelectorAll(".stat-target-rank-checkbox:checked")).map(cb => cb.value);
+        let needsConfirmation = false;
+        let confirmMessage = "";
+
+        // Confirmation si SSS
+        if (oldStatRank === "SSS") {
+            needsConfirmation = true;
+            confirmMessage = `Le personnage ${char.name} a déjà le rang de stat exceptionnel "SSS". Si vous continuez, un Stat Chip sera utilisé et un nouveau rang (qui pourrait être inférieur) sera appliqué. Êtes-vous sûr ?`;
+        } 
+        // Confirmation si le toggle "garder si meilleur" est coché ET que le rang actuel est une des cibles cochées
+        else if (statKeepBetterToggle.checked && selectedTargetRanks.length > 0 && selectedTargetRanks.includes(oldStatRank)) {
+            needsConfirmation = true;
+            confirmMessage = `Le personnage ${char.name} a déjà le rang de stat "${oldStatRank}", qui est l'un de vos rangs cibles cochés. Voulez-vous vraiment utiliser un Stat Chip pour tenter un autre rang ? Le nouveau rang obtenu sera appliqué.`;
+        }
+
+        if (needsConfirmation) {
+            const userConfirmed = await new Promise(resolve => {
+                statChangeConfirmationCallback = (confirmed) => resolve(confirmed);
+                openStatChangeConfirmModal(confirmMessage, statChangeConfirmationCallback);
+            });
+            statChangeConfirmationCallback = null; 
+
+            if (!userConfirmed) {
+                resultElement.innerHTML = `<p class="text-blue-400">Changement de stat annulé. Aucun Stat Chip utilisé.</p>`;
+                updateStatChangeTabDisplay(); 
+                return; 
+            }
+        }
+        
+        // S'assurer que le chip est toujours disponible après une confirmation asynchrone
+        if ((inventory["Stat Chip"] || 0) < 1) { 
+             resultElement.innerHTML = '<p class="text-red-500">Erreur : Plus de Stat Chips disponibles après confirmation.</p>';
+             updateStatChangeTabDisplay();
+             return;
+        }
+        
+        inventory["Stat Chip"]--;
+
+        missions.forEach(mission => {
+            if (mission.type === "change_stat_rank" && !mission.completed) {
+                mission.progress++;
+            }
+        });
+        
+        const newStatRankKey = getRandomStatRank(); // Obtenir un nouveau rang aléatoire
+        
+        // Le nouveau rang est TOUJOURS appliqué ici
+        char.statRank = newStatRankKey;
+        char.statModifier = statRanks[newStatRankKey].modifier;
+        recalculateCharacterPower(char);
+
+        let resultMessageContent = `
+            <p class="text-green-400">Changement de Stat pour ${char.name} !</p>
+            <p class="text-white"><span class="font-semibold">Ancien:</span> ${oldStatRank} -> <span class="font-semibold ${statRanks[newStatRankKey]?.color || ''}">Nouveau:</span> ${newStatRankKey}</p>
+            <p class="text-white">Nouvelle Puissance: ${char.power}</p>
+        `;
+
+        // Message additionnel si le toggle était coché et le résultat n'est pas une cible
+        if (statKeepBetterToggle.checked && !selectedTargetRanks.includes(newStatRankKey) && selectedTargetRanks.length > 0) {
+            resultMessageContent += `<p class="text-yellow-300 text-sm">(Le rang obtenu "${newStatRankKey}" n'était pas une cible cochée, mais a été appliqué.)</p>`;
+        } else if (statKeepBetterToggle.checked && selectedTargetRanks.includes(newStatRankKey)) {
+             resultMessageContent += `<p class="text-green-300 text-sm">(Le rang obtenu "${newStatRankKey}" est une cible cochée !)</p>`;
+        }
+
+
+        resultElement.innerHTML = resultMessageContent + `<p class="text-white">1 Stat Chip utilisé.</p>`;
+        
+        const newStatRankOrder = statRanks[newStatRankKey]?.order || 0;
+        const oldStatRankOrder = statRanks[oldStatRank]?.order || 0;
+
+        if (animationsEnabled && newStatRankOrder > oldStatRankOrder ) {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#22c55e', '#facc15', '#f97316'] });
+        } else if (animationsEnabled && newStatRankOrder < oldStatRankOrder && (oldStatRank === "SSS" || (statKeepBetterToggle.checked && selectedTargetRanks.includes(oldStatRank)) ) ) {
+            // Peut-être une petite animation "négative" si on perd un rang SSS ou une cible
+            // Pour l'instant, pas d'animation spécifique pour la perte.
+        }
+        
+        if (soundEnabled) { /* play some sound */ }
+        
+        updateStatChangeTabDisplay(); 
+        updateCharacterDisplay();
+        updateItemDisplay();
+        updateUI();
+        scheduleSave();
+    }
+
+    function updateMaterialFarmDisplay() {
+      const materialLevelListElement = document.getElementById("materiaux-level-list");
+      if (!materialLevelListElement) {
+          console.error("Élément 'materiaux-level-list' non trouvé !");
+          return;
+      }
+
+      // Vider le contenu et appliquer le style de grille au conteneur principal
+      materialLevelListElement.innerHTML = "";
+      materialLevelListElement.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4";
+
+      if (materialFarmLevels.length === 0) {
+          materialLevelListElement.innerHTML = "<p class='text-white col-span-full text-center'>Aucun niveau de farm de matériaux disponible.</p>";
+          return;
+      }
+
+      // Grouper les niveaux par 'world' pour créer une colonne par monde
+      const groupedByWorld = materialFarmLevels.reduce((acc, level) => {
+          (acc[level.world] = acc[level.world] || []).push(level);
+          return acc;
+      }, {});
+
+      // Itérer sur chaque groupe (monde) pour créer une colonne
+      Object.entries(groupedByWorld).forEach(([worldName, levels]) => {
+          const worldColumnDiv = document.createElement('div');
+          
+          const worldTitle = document.createElement('h3');
+          worldTitle.className = 'text-xl text-white font-bold mb-4';
+          worldTitle.textContent = `${worldName} - Farm`;
+          worldColumnDiv.appendChild(worldTitle);
+
+          const buttonsContainer = document.createElement('div');
+          buttonsContainer.className = 'flex flex-col gap-4'; // Empiler les boutons verticalement dans la colonne
+          
+          levels.forEach(level => {
+              const progress = storyProgress.find(p => p.id === level.id) || { unlocked: true, completed: false };
+              const isDisabled = !progress.unlocked;
+              const buttonText = level.name;
+
+              // Extraire les noms des drops possibles pour l'affichage
+              const itemDrops = Array.isArray(level.rewards.itemChance) 
+                  ? level.rewards.itemChance.map(ic => ic.item).join(', ') 
+                  : (level.rewards.itemChance?.item || 'N/A');
+
+              const levelWrapper = document.createElement('div');
+              levelWrapper.innerHTML = `
+                  <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
+                          onclick="startLevel(${level.id})" ${isDisabled ? 'disabled' : ''}>
+                      ${buttonText}
+                  </button>
+                  <div class="text-xs text-gray-300 px-2 mt-1">
+                      <p>Ennemi: ${level.enemy.name} (Puissance: ${level.enemy.power})</p>
+                      <p>Drop possible: ${itemDrops}</p>
+                  </div>
+              `;
+              buttonsContainer.appendChild(levelWrapper);
+          });
+
+          worldColumnDiv.appendChild(buttonsContainer);
+          materialLevelListElement.appendChild(worldColumnDiv);
+      });
+    }
+
+    function updateTraitTabDisplay() {
+        traitEssenceCountElement.textContent = inventory["Reroll Token"] || 0;
+        const searchInput = document.getElementById("trait-char-search");
+        const searchTerm = searchInput.value.toLowerCase();
+
+        let char = null;
+        if (currentTraitCharacterId) {
+            char = ownedCharacters.find(c => c.id === currentTraitCharacterId);
+        }
+
+        // Gérer le message d'info qui pourrait être affiché dans resultElement
+        clearTimeout(infoMsgTraitTimeoutId); 
+        infoMsgTraitTimeoutId = null;
+        let infoMsgContentForDisplay = ""; 
+
+        // Afficher le personnage sélectionné pour l'onglet Traits
+        if (char) {
+            let currentTraitNameHtml = "Aucun trait actif.";
+            let currentTraitDescriptionHtml = "";
+
+            if (char.trait && char.trait.id && char.trait.grade > 0) {
+                const traitDef = TRAIT_DEFINITIONS[char.trait.id];
+                if (traitDef && traitDef.grades) {
+                    const gradeDef = traitDef.grades.find(g => g.grade === char.trait.grade);
+                    if (gradeDef) {
+                        let traitNameDisplay = traitDef.name;
+                        let nameHtmlClass = ""; // Sera utilisé pour le nom du trait
+                        let descriptionHtmlClass = "text-xs text-gray-300"; // Classe par défaut
+
+                        if (traitDef.gradeProbabilities && traitDef.gradeProbabilities.length > 0) {
+                            traitNameDisplay += ` (Grade ${gradeDef.grade})`;
+                        }
+                        
+                        if (traitDef.id === 'golder' && gradeDef.description === "+15% Gemmes & Pièces (Tous modes)") {
+                            nameHtmlClass = 'class="text-gold-brilliant"';
+                            descriptionHtmlClass = "text-xs text-gold-brilliant";
+                        } else if (traitDef.id === 'monarch') {
+                            // Vous pouvez ajouter un style spécial pour Monarch ici si désiré
+                            // nameHtmlClass = 'class="text-purple-400 font-bold"'; // Exemple
+                        }
+                        currentTraitNameHtml = `<span ${nameHtmlClass}>${traitNameDisplay}</span>`;
+                        currentTraitDescriptionHtml = `<p class="${descriptionHtmlClass}"><em>${gradeDef.description}</em></p>`;
+                    }
+                }
+            }
+            traitSelectedCharacterDisplayElement.innerHTML = `
+                <div class="bg-gray-800 bg-opacity-50 p-3 rounded-lg border-2 ${getRarityBorderClass(char.rarity)} w-full max-w-xs mx-auto">
+                    <img src="${char.image}" alt="${char.name}" class="w-full h-28 object-contain rounded mb-1">
+                    <p class="${char.color} font-semibold text-center text-sm">${char.name} (${char.rarity})</p>
+                    <p class="text-white text-center text-xs">Niv: ${char.level}, P: ${char.power}</p>
+                    <p class="text-white text-center text-xs">Trait: ${currentTraitNameHtml}</p>
+                    ${currentTraitDescriptionHtml}
+                </div>
+            `;
+            
+            // Logique pour le message d'info concernant les traits cibles
+            const currentTraitId = char.trait?.id;
+            const currentTraitGrade = char.trait?.grade;
+            const currentTraitDef = currentTraitId ? TRAIT_DEFINITIONS[currentTraitId] : null;
+
+            if (traitKeepBetterToggle.checked && currentTraitId && currentTraitGrade > 0 && currentTraitDef) {
+                const selectedTargetCheckboxes = Array.from(traitTargetSelectionElement.querySelectorAll(".trait-target-checkbox:checked"));
+                const selectedTargetValues = selectedTargetCheckboxes.map(cb => cb.value);
+                
+                let currentTraitValueForCheck = null;
+                if (currentTraitDef.gradeProbabilities && currentTraitDef.gradeProbabilities.length > 0) { 
+                    currentTraitValueForCheck = `${currentTraitId}_${currentTraitGrade}`;
+                } else { 
+                    currentTraitValueForCheck = currentTraitId;
+                }
+
+                if (selectedTargetValues.includes(currentTraitValueForCheck)) {
+                    let traitNameDisplayInfo = currentTraitDef.name;
+                    if (currentTraitDef.gradeProbabilities && currentTraitDef.gradeProbabilities.length > 0) {
+                        traitNameDisplayInfo += ` G${currentTraitGrade}`;
+                    }
+                    infoMsgContentForDisplay = `Info: ${char.name} a le trait cible coché "${traitNameDisplayInfo}". "Appliquer Trait" demandera confirmation.`;
+                }
+            }
+        } else { // Aucun personnage sélectionné
+            traitSelectedCharacterDisplayElement.innerHTML = '<p class="text-gray-400">Aucun personnage sélectionné.</p>';
+        }
+        
+        // Afficher le message d'info si pertinent et si les conditions le permettent
+        if (infoMsgContentForDisplay && (inventory["Reroll Token"] || 0) >= APPLY_NEW_TRAIT_COST && char) {
+            // Vérifier que le message actuel n'est pas déjà un message important d'une autre feature
+            if (!resultElement.innerHTML.includes("appliqué") && 
+                !resultElement.innerHTML.includes("remplacé") && 
+                !resultElement.innerHTML.includes("enlevé") &&
+                !resultElement.innerHTML.includes("Changement de Stat") &&
+                !resultElement.innerHTML.includes("malédiction") &&
+                !resultElement.innerHTML.includes("Info: Le personnage")) { // Évite de remplacer un message d'info de curse/stat
+               resultElement.innerHTML = `<p class="text-blue-400">${infoMsgContentForDisplay}</p>`;
+               infoMsgTraitTimeoutId = setTimeout(() => {
+                   if (resultElement.innerHTML.includes(infoMsgContentForDisplay)) { // Vérifie si c'est TOUJOURS ce message
+                        resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+                   }
+                   infoMsgTraitTimeoutId = null;
+               }, 7000);
+           }
+        } else if (resultElement.innerHTML.startsWith('<p class="text-blue-400">Info: ') && resultElement.innerHTML.includes("trait cible coché")) {
+            // Si un message d'info de trait était là et n'est plus pertinent (ex: perso désélectionné)
+            if (!infoMsgContentForDisplay && char === null) { // Uniquement si aucun nouveau message d'info et aucun perso
+                if (!resultElement.innerHTML.includes("Changement de Stat") && !resultElement.innerHTML.includes("malédiction")) {
+                     resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+                }
+            }
+        }
+
+
+        // Grille de sélection des personnages
+        traitCharacterSelectionGridElement.innerHTML = "";
+        const availableCharacters = ownedCharacters.filter(c =>
+            c.name.toLowerCase().includes(searchTerm)
+        );
+
+        if (availableCharacters.length === 0) {
+            traitCharacterSelectionGridElement.innerHTML = `<p class="text-gray-400 col-span-full">${searchTerm ? 'Aucun personnage trouvé pour "' + searchTerm + '".' : 'Aucun personnage disponible.'}</p>`;
+        } else {
+            availableCharacters.sort((a, b) => b.power - a.power).forEach(c => {
+                const charElement = document.createElement("div");
+                charElement.className = `bg-gray-800 bg-opacity-50 p-2 rounded-lg transition transform hover:scale-105 cursor-pointer border-2
+                    ${currentTraitCharacterId === c.id ? 'selected-for-trait' : (getRarityBorderClass(c.rarity) || 'border-gray-600 hover:border-gray-500')}`;
+
+                let traitDisplayMini = '';
+                if (c.trait && c.trait.id && c.trait.grade > 0) {
+                    const tDef = TRAIT_DEFINITIONS[c.trait.id];
+                    if (tDef) {
+                        const gradeDefMini = tDef.grades.find(g => g.grade === c.trait.grade);
+                        let traitNameMini = tDef.name;
+                        let miniTextColorClass = 'text-emerald-400'; 
+                        
+                        if (tDef.id === 'golder' && gradeDefMini?.description === "+15% Gemmes & Pièces (Tous modes)") {
+                           miniTextColorClass = 'text-gold-brilliant'; 
+                        }
+
+                        if (tDef.gradeProbabilities && tDef.gradeProbabilities.length > 0) { 
+                            traitDisplayMini = `<p class="text-xs text-center ${miniTextColorClass}">${traitNameMini} G${c.trait.grade}</p>`;
+                        } else { 
+                            traitDisplayMini = `<p class="text-xs text-center ${miniTextColorClass}">${traitNameMini}</p>`;
+                        }
+                    }
+                }
+
+                charElement.innerHTML = `
+                    <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1">
+                    <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
+                    <p class="text-white text-xs text-center">P: ${c.power}</p>
+                    ${traitDisplayMini}
+                `;
+                charElement.addEventListener("click", () => selectTraitCharacter(c.id));
+                traitCharacterSelectionGridElement.appendChild(charElement);
+            });
+        }
+
+        // Activer/désactiver les checkboxes cibles
+        const checkboxesDisabledTrait = !traitKeepBetterToggle.checked;
+        traitTargetSelectionElement.classList.toggle("trait-target-disabled", checkboxesDisabledTrait);
+        traitTargetSelectionElement.querySelectorAll(".trait-target-checkbox").forEach(cb => {
+            cb.disabled = checkboxesDisabledTrait;
+            if (checkboxesDisabledTrait) {
+                cb.checked = false; 
+            }
+        });
+        
+        displayTraitActions(char); // Mettre à jour les boutons d'action en fonction du personnage sélectionné
+    }
+
+    function populateTargetTraits() {
+        traitTargetSelectionElement.innerHTML = "";
+        Object.entries(TRAIT_DEFINITIONS)
+            .sort(([,a], [,b]) => (a.order || 0) - (b.order || 0)) // Trier par 'order'
+            .forEach(([traitId, traitDef]) => {
+                if (traitDef.grades && traitDef.grades.length > 0) {
+                    const isMultiGrade = traitDef.gradeProbabilities && traitDef.gradeProbabilities.length > 0;
+
+                    if (isMultiGrade) { // Pour les traits multi-grades (Force, Fortune)
+                        traitDef.grades.forEach(gradeDef => {
+                            const uniqueValue = `${traitId}_${gradeDef.grade}`;
+                            const label = document.createElement("label");
+                            label.className = `flex items-center p-1.5 rounded hover:bg-gray-600 transition-colors duration-150`;
+                            
+                            let displayName = traitDef.name;
+                            let nameClass = 'text-white';
+                            // Actuellement, Golder est mono-grade. Si un trait multi-grade devenait brillant,
+                            // une logique similaire à celle des mono-grades serait nécessaire ici.
+
+                            label.innerHTML = `
+                                <input type="checkbox" value="${uniqueValue}" class="trait-target-checkbox mr-2 h-4 w-4 text-emerald-400 border-gray-400 rounded focus:ring-transparent">
+                                <img src="${traitDef.image || 'https://via.placeholder.com/16?text=T'}" alt="${displayName}" class="w-4 h-4 mr-1 object-contain">
+                                <span class="text-xs ${nameClass}">${displayName} G${gradeDef.grade}</span>
+                            `;
+                            const checkbox = label.querySelector('.trait-target-checkbox');
+                            checkbox.addEventListener('change', () => {
+                                if (traitKeepBetterToggle.checked) {
+                                    updateTraitTabDisplay(); 
+                                }
+                            });
+                            traitTargetSelectionElement.appendChild(label);
+                        });
+                    } else { // Pour les traits à grade unique
+                        const uniqueValue = traitId; 
+                        const label = document.createElement("label");
+                        label.className = `flex items-center p-1.5 rounded hover:bg-gray-600 transition-colors duration-150`;
+                        
+                        let displayName = traitDef.name;
+                        let nameClass = 'text-white';
+                        if (traitDef.id === 'golder' && traitDef.grades[0]?.description === "+15% Gemmes & Pièces (Tous modes)") {
+                            nameClass = 'text-gold-brilliant';
+                        } else if (traitDef.id === 'monarch') { 
+                            // Exemple: si Monarch doit avoir un style spécial
+                            // nameClass = 'text-purple-400 font-bold'; // ou une autre classe
+                        }
+
+
+                        label.innerHTML = `
+                            <input type="checkbox" value="${uniqueValue}" class="trait-target-checkbox mr-2 h-4 w-4 text-emerald-400 border-gray-400 rounded focus:ring-transparent">
+                            <img src="${traitDef.image || 'https://via.placeholder.com/16?text=T'}" alt="${displayName}" class="w-4 h-4 mr-1 object-contain">
+                            <span class="text-xs ${nameClass}">${displayName}</span>
+                        `;
+                        const checkbox = label.querySelector('.trait-target-checkbox');
+                        checkbox.addEventListener('change', () => {
+                            if (traitKeepBetterToggle.checked) {
+                                updateTraitTabDisplay();
+                            }
+                        });
+                        traitTargetSelectionElement.appendChild(label);
+                    }
+                }
+            });
+    }
+
+    function openTraitActionConfirmModal(message, callback) {
+        traitActionConfirmMessageElement.textContent = message;
+        traitConfirmationCallback = callback;
+        traitActionConfirmModal.classList.remove("hidden");
+        enableNoScroll();
+    }
+
+    function closeTraitActionConfirmModal() {
+        traitActionConfirmModal.classList.add("hidden");
+        traitConfirmationCallback = null;
+        disableNoScroll();
+    }
+
+
+    function selectTraitCharacter(charId) {
+        currentTraitCharacterId = (currentTraitCharacterId === charId) ? null : charId;
+        updateTraitTabDisplay();
+    }
+
+    function displayTraitActions(character) {
+        const actionsContainer = document.getElementById('trait-actions-container');
+        actionsContainer.innerHTML = ""; 
+
+        const actionsTitle = document.createElement('h3');
+        actionsTitle.className = "text-lg text-white font-semibold mb-3";
+        actionsTitle.textContent = "Actions :";
+        actionsContainer.appendChild(actionsTitle);
+
+        const buttonsFlexContainer = document.createElement('div');
+        buttonsFlexContainer.className = "flex flex-col md:flex-row md:flex-wrap md:items-center gap-3";
+        actionsContainer.appendChild(buttonsFlexContainer);
+
+        const rerollTokenCount = inventory["Reroll Token"] || 0;
+        const APPLY_NEW_TRAIT_COST = 1; // Coût pour appliquer/écraser un trait
+
+        const isCharSelected = character !== null;
+        // const hasActiveTrait = isCharSelected && character.trait && character.trait.id && character.trait.grade > 0; // Plus nécessaire pour la logique du bouton principal
+
+        // --- Bouton principal : Toujours "Appliquer Trait Aléatoire" ---
+        const primaryActionButton = document.createElement('button');
+        primaryActionButton.id = "primary-trait-action-button";
+        primaryActionButton.className = "font-bold py-2 px-4 rounded-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed";
+        
+        // Le texte du bouton est toujours le même, indique juste le coût
+        primaryActionButton.textContent = `Appliquer Trait Aléatoire (${APPLY_NEW_TRAIT_COST} Reroll Token)`;
+        primaryActionButton.classList.add("bg-sky-500", "hover:bg-sky-600", "text-white");
+
+        // Désactivé si pas de personnage sélectionné, pas assez de tokens, ou aucun trait défini dans le jeu
+        primaryActionButton.disabled = !isCharSelected || rerollTokenCount < APPLY_NEW_TRAIT_COST || Object.keys(TRAIT_DEFINITIONS).length === 0;
+
+        if (!isCharSelected) {
+            primaryActionButton.title = "Sélectionnez un personnage";
+        } else if (rerollTokenCount < APPLY_NEW_TRAIT_COST) {
+            primaryActionButton.title = "Reroll Token insuffisants";
+        } else if (Object.keys(TRAIT_DEFINITIONS).length === 0) {
+            primaryActionButton.title = "Aucun trait n'est défini dans le jeu";
+        }
+        
+        // L'action est toujours d'essayer d'appliquer un nouveau trait (qui écrasera l'ancien si existant)
+        primaryActionButton.addEventListener('click', () => tryRandomTrait()); // On ne passe plus 'true' ou 'false'
+
+        buttonsFlexContainer.appendChild(primaryActionButton);
+
+        // Le bouton "Enlever le Trait" n'est plus créé.
+    }
+
+    function getRandomTraitIdByProbability() {
+        const traitIds = Object.keys(TRAIT_DEFINITIONS);
+        if (traitIds.length === 0) return null;
+
+        let randomNumber = Math.random();
+        let cumulativeProbability = 0;
+
+        for (const traitId of traitIds) {
+            const traitDef = TRAIT_DEFINITIONS[traitId];
+            if (traitDef && typeof traitDef.probability === 'number') {
+                cumulativeProbability += traitDef.probability;
+                if (randomNumber <= cumulativeProbability) {
+                    return traitId;
+                }
+            } else {
+                console.warn(`Trait ${traitId} n'a pas de probabilité définie ou est mal configuré.`);
+            }
+        }
+        // Fallback si la somme des probabilités n'est pas 1 ou en cas d'erreur
+        console.warn("Fallback dans getRandomTraitIdByProbability - la somme des probabilités n'est peut-être pas 1 ou une erreur de configuration.");
+        return traitIds[Math.floor(Math.random() * traitIds.length)];
+    }
+
+    async function tryRandomTrait() {
+        if (!currentTraitCharacterId) {
+            resultElement.innerHTML = '<p class="text-red-400">Aucun personnage sélectionné.</p>';
+            return;
+        }
+        const charIndex = ownedCharacters.findIndex(c => c.id === currentTraitCharacterId);
+        if (charIndex === -1) {
+            resultElement.innerHTML = '<p class="text-red-400">Erreur: Personnage non trouvé.</p>';
+            return;
+        }
+        const character = ownedCharacters[charIndex];
+
+        const APPLY_COST = 1; 
+        if ((inventory["Reroll Token"] || 0) < APPLY_COST) {
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de Reroll Token (${APPLY_COST} requis).</p>`;
+            return;
+        }
+
+        let needsConfirmation = false;
+        let confirmMessage = "";
+        const currentTraitId = character.trait?.id;
+        const currentTraitGrade = character.trait?.grade;
+        const currentTraitDef = currentTraitId ? TRAIT_DEFINITIONS[currentTraitId] : null;
+
+
+        if (traitKeepBetterToggle.checked && currentTraitId && currentTraitGrade > 0 && currentTraitDef) {
+            const selectedTargetCheckboxes = Array.from(traitTargetSelectionElement.querySelectorAll(".trait-target-checkbox:checked"));
+            const selectedTargetValues = selectedTargetCheckboxes.map(cb => cb.value);
+            
+            let currentTraitValueForCheck = null;
+            if (currentTraitDef.gradeProbabilities && currentTraitDef.gradeProbabilities.length > 0) { 
+                currentTraitValueForCheck = `${currentTraitId}_${currentTraitGrade}`;
+            } else { 
+                currentTraitValueForCheck = currentTraitId;
+            }
+
+            if (selectedTargetValues.includes(currentTraitValueForCheck)) {
+                needsConfirmation = true;
+                let traitNameDisplay = currentTraitDef.name;
+                if (currentTraitDef.gradeProbabilities && currentTraitDef.gradeProbabilities.length > 0) {
+                    traitNameDisplay += ` G${currentTraitGrade}`;
+                }
+                confirmMessage = `Le personnage ${character.name} a déjà le trait cible "${traitNameDisplay}". Voulez-vous vraiment utiliser un Reroll Token pour tenter un autre trait ? Le nouveau trait obtenu sera appliqué.`;
+            }
+        }
+
+        if (needsConfirmation) {
+            const userConfirmed = await new Promise(resolve => {
+                traitConfirmationCallback = (confirmed) => resolve(confirmed);
+                openTraitActionConfirmModal(confirmMessage, traitConfirmationCallback); // Utilise la nouvelle modale
+            });
+            traitConfirmationCallback = null;
+
+            if (!userConfirmed) {
+                resultElement.innerHTML = `<p class="text-blue-400">Application de trait annulée. Aucun Reroll Token utilisé.</p>`;
+                updateTraitTabDisplay();
+                return;
+            }
+        }
+        
+        if ((inventory["Reroll Token"] || 0) < APPLY_COST) {
+            resultElement.innerHTML = '<p class="text-red-500">Erreur : Plus de Reroll Tokens disponibles après confirmation.</p>';
+            updateTraitTabDisplay();
+            return;
+        }
+
+        inventory["Reroll Token"] -= APPLY_COST;
+
+        missions.forEach(mission => {
+            if (mission.type === "apply_trait" && !mission.completed) {
+                mission.progress++;
+            }
+        });
+
+        const randomTraitId = getRandomTraitIdByProbability();
+        if (!randomTraitId) {
+            resultElement.innerHTML = `<p class="text-yellow-400">Aucun trait n'a pu être tiré.</p>`;
+            inventory["Reroll Token"] += APPLY_COST; 
+            updateTraitTabDisplay();
+            return;
+        }
+
+        const newTraitDef = TRAIT_DEFINITIONS[randomTraitId];
+        if (!newTraitDef || !newTraitDef.grades || newTraitDef.grades.length === 0) {
+            resultElement.innerHTML = `<p class="text-red-500">Erreur de configuration pour le trait ${randomTraitId}.</p>`;
+            inventory["Reroll Token"] += APPLY_COST; 
+            updateTraitTabDisplay();
+            return;
+        }
+
+        const chosenGrade = getRandomGradeForTrait(newTraitDef);
+
+        const oldTraitExisted = character.trait && character.trait.id && character.trait.grade > 0;
+        const oldTraitName = oldTraitExisted && TRAIT_DEFINITIONS[character.trait.id] ? (TRAIT_DEFINITIONS[character.trait.id].name) : null;
+        const oldTraitGrade = oldTraitExisted ? character.trait.grade : null;
+        const oldTraitDef = oldTraitExisted && TRAIT_DEFINITIONS[character.trait.id] ? TRAIT_DEFINITIONS[character.trait.id] : null;
+
+        character.trait = { id: randomTraitId, grade: chosenGrade.grade };
+        recalculateCharacterPower(character);
+
+        let message = "";
+        if (oldTraitExisted && oldTraitName && oldTraitDef) {
+            message = `<p class="text-orange-400">Trait ${oldTraitName}${oldTraitDef.gradeProbabilities && oldTraitDef.gradeProbabilities.length > 0 ? ` (Grade ${oldTraitGrade})` : ''} remplacé sur ${character.name}!</p>`;
+        } else {
+            message = `<p class="text-green-400">Trait aléatoire appliqué à ${character.name}!</p>`;
+        }
+        message += `<p class="text-white">Nouveau trait: ${newTraitDef.name}${newTraitDef.gradeProbabilities && newTraitDef.gradeProbabilities.length > 0 ? ` (Grade ${chosenGrade.grade})` : ''}.</p>`;
+        message += `<p class="text-white">Effet: ${chosenGrade.description}</p>`;
+        message += `<p class="text-white">Nouvelle Puissance: ${character.power}. Coût: ${APPLY_COST} Reroll Token.</p>`;
+        resultElement.innerHTML = message;
+
+        if (animationsEnabled) confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#3B82F6', '#8B5CF6'] });
+        
+        updateTraitTabDisplay();
+        updateCharacterDisplay();
+        updateItemDisplay();
+        updateUI();
+        scheduleSave();
+    }
+
+    function upgradeSpecificTrait(traitIdToUpgrade) {
+        // Cette fonction est appelée si le personnage a déjà le trait traitIdToUpgrade et qu'il n'est pas au max.
+        if (!currentTraitCharacterId) { /* ... error ... */ return; }
+        const charIndex = ownedCharacters.findIndex(c => c.id === currentTraitCharacterId);
+        if (charIndex === -1) { /* ... error ... */ return; }
+        const character = ownedCharacters[charIndex];
+
+        if (!character.trait || character.trait.id !== traitIdToUpgrade || character.trait.level === 0) {
+            resultElement.innerHTML = `<p class="text-red-400">Le personnage n'a pas ce trait actif ou une erreur s'est produite.</p>`;
+            return;
+        }
+
+        const traitDef = TRAIT_DEFINITIONS[traitIdToUpgrade];
+        if (!traitDef) { /* ... error ... */ return; }
+
+        const currentLevel = character.trait.level;
+        if (currentLevel >= traitDef.maxLevel) {
+            resultElement.innerHTML = `<p class="text-yellow-400">${traitDef.name} est déjà au niveau maximum.</p>`;
+            return;
+        }
+
+        const nextLevelInfo = traitDef.effectsPerLevel.find(e => e.level === currentLevel + 1);
+        if (!nextLevelInfo) {
+            resultElement.innerHTML = `<p class="text-red-500">Erreur de configuration pour le prochain niveau de ${traitDef.name}.</p>`;
+            return;
+        }
+
+        if ((inventory["Reroll Token"] || 0) < nextLevelInfo.cost) {
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de Reroll Token (${nextLevelInfo.cost} requis pour améliorer).</p>`;
+            return;
+        }
+
+        inventory["Reroll Token"] -= nextLevelInfo.cost;
+        character.trait.level++; // Incrémenter le niveau du trait existant
+        recalculateCharacterPower(character);
+
+        resultElement.innerHTML = `
+            <p class="text-green-400">Trait ${traitDef.name} amélioré au Niv. ${character.trait.level} pour ${character.name}!</p>
+            <p class="text-white">Effet: ${nextLevelInfo.description}</p>
+            <p class="text-white">Nouvelle Puissance: ${character.power}. Coût: ${nextLevelInfo.cost} Essences.</p>
+        `;
+
+        if (animationsEnabled) confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#10B981', '#6EE7B7'] });
+
+        updateTraitTabDisplay();
+        updateCharacterDisplay();
+        updateItemDisplay();
+        updateUI();
+        scheduleSave();
+    }
+
+    function rerollTrait() {
+        if (!currentTraitCharacterId) {
+            resultElement.innerHTML = '<p class="text-red-400">Aucun personnage sélectionné.</p>';
+            return;
+        }
+        const charIndex = ownedCharacters.findIndex(c => c.id === currentTraitCharacterId);
+        if (charIndex === -1) {
+            resultElement.innerHTML = '<p class="text-red-400">Erreur: Personnage non trouvé.</p>';
+            return;
+        }
+        const character = ownedCharacters[charIndex];
+
+        if (!character.trait || !character.trait.id || character.trait.grade === 0) { // MODIFIÉ: .grade
+            resultElement.innerHTML = '<p class="text-yellow-400">Le personnage n\'a pas de trait actif à changer.</p>';
+            return;
+        }
+
+        const REROLL_TRAIT_COST = 2;
+        if ((inventory["Reroll Token"] || 0) < REROLL_TRAIT_COST) {
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de Reroll Token (${REROLL_TRAIT_COST} requis pour changer).</p>`;
+            return;
+        }
+
+        const currentTraitId = character.trait.id;
+        const oldTraitName = TRAIT_DEFINITIONS[currentTraitId]?.name || "Trait Précédent";
+
+        const availableNewTraitIds = Object.keys(TRAIT_DEFINITIONS).filter(id => id !== currentTraitId);
+
+        if (availableNewTraitIds.length === 0 && Object.keys(TRAIT_DEFINITIONS).length <= 1) {
+             resultElement.innerHTML = `<p class="text-yellow-400">Aucun autre type de trait disponible pour un changement. (Actuellement ${Object.keys(TRAIT_DEFINITIONS).length} trait(s) défini(s) au total)</p>`;
+            return;
+        }
+        
+        let randomNewTraitId;
+        if (availableNewTraitIds.length > 0) {
+            randomNewTraitId = availableNewTraitIds[Math.floor(Math.random() * availableNewTraitIds.length)];
+        } else { // S'il n'y a pas d'AUTRE trait, on re-tire le même type de trait (mais potentiellement un grade différent)
+            randomNewTraitId = currentTraitId;
+        }
+
+
+        inventory["Reroll Token"] -= REROLL_TRAIT_COST;
+        
+        const newTraitDef = TRAIT_DEFINITIONS[randomNewTraitId];
+        if (!newTraitDef || !newTraitDef.grades || newTraitDef.grades.length === 0) {
+            resultElement.innerHTML = `<p class="text-red-500">Erreur de configuration pour le nouveau trait ${randomNewTraitId}.</p>`;
+            inventory["Reroll Token"] += REROLL_TRAIT_COST; // Rembourser
+            updateTraitTabDisplay();
+            return;
+        }
+
+        // Assigner un grade aléatoire (1, 2, ou 3) pour le nouveau trait basé sur ses probabilités
+        const chosenGrade = getRandomGradeForTrait(newTraitDef); // MODIFIÉ ICI
+        
+        character.trait = { id: randomNewTraitId, grade: chosenGrade.grade };
+        recalculateCharacterPower(character);
+
+        let message = `<p class="text-green-400">Trait changé aléatoirement pour ${character.name}!</p>`;
+        if (randomNewTraitId === currentTraitId) {
+            message += `<p class="text-white">Le trait ${oldTraitName} a été re-tiré avec un nouveau Grade ${chosenGrade.grade}.</p>`;
+        } else {
+            message += `<p class="text-white">Ancien trait (${oldTraitName}) remplacé par ${newTraitDef.name} (Grade ${chosenGrade.grade}).</p>`;
+        }
+        message += `<p class="text-white">Effet: ${chosenGrade.description}</p>`;
+        message += `<p class="text-white">Nouvelle Puissance: ${character.power}. Coût: ${REROLL_TRAIT_COST} Reroll Token.</p>`;
+        resultElement.innerHTML = message;
+
+        if (animationsEnabled) confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#F97316', '#FDBA74'] });
+        
+        updateTraitTabDisplay();
+        updateCharacterDisplay();
+        updateItemDisplay();
+        updateUI();
+        scheduleSave();
+    }
+
+
+    function removeTrait() {
+        if (!currentTraitCharacterId) { /* ... error ... */ return; }
+        const charIndex = ownedCharacters.findIndex(c => c.id === currentTraitCharacterId);
+        if (charIndex === -1) { /* ... error ... */ return; }
+        const character = ownedCharacters[charIndex];
+
+        if (!character.trait || !character.trait.id || character.trait.level === 0) {
+            resultElement.innerHTML = `<p class="text-yellow-400">${character.name} n'a pas de trait actif à enlever.</p>`;
+            return;
+        }
+        if ((inventory["Reroll Token"] || 0) < TRAIT_REMOVAL_COST) {
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de Reroll Token pour enlever le trait (${TRAIT_REMOVAL_COST} requis).</p>`;
+            return;
+        }
+
+        inventory["Reroll Token"] -= TRAIT_REMOVAL_COST;
+        const removedTraitName = TRAIT_DEFINITIONS[character.trait.id]?.name || "Trait Inconnu";
+        character.trait = { id: null, level: 0 };
+        recalculateCharacterPower(character);
+
+        resultElement.innerHTML = `
+            <p class="text-orange-400">Le trait ${removedTraitName} a été enlevé de ${character.name}.</p>
+            <p class="text-white">Nouvelle Puissance: ${character.power}. Coût: ${TRAIT_REMOVAL_COST} Reroll Token.</p>
+        `;
+
+        updateTraitTabDisplay();
+        updateCharacterDisplay();
+        updateItemDisplay();
+        updateUI();
+        scheduleSave();
+    }
+
+    function updateCurseTabDisplay() {
+      cursedTokenCountElement.textContent = inventory["Cursed Token"] || 0;
+      const searchInputCurse = document.getElementById("curse-char-search");
+      const searchTermCurse = searchInputCurse.value.toLowerCase();
+
+      // Afficher le personnage sélectionné pour la malédiction
+      if (currentCurseCharacterId) {
+        const char = ownedCharacters.find(c => c.id === currentCurseCharacterId);
+        if (char) {
+          let selectedCurseInfoHtml = ''; // HTML pour l'info de la malédiction du perso sélectionné
+          if (char.curseEffect && char.curseEffect !== 0) {
+              const basePowerForSelected = char.basePower * char.statModifier;
+              let percentageChangeSelected = 0;
+              if (basePowerForSelected !== 0) {
+                   percentageChangeSelected = ((char.curseEffect / basePowerForSelected) * 100);
+              } else if (char.basePower !== 0) {
+                   percentageChangeSelected = ((char.curseEffect / char.basePower) * 100);
+              }
+              const displayPercentageSelected = percentageChangeSelected.toFixed(percentageChangeSelected % 1 === 0 ? 0 : (Math.abs(percentageChangeSelected) < 1 ? 2 : 1));
+              const curseClassSelected = char.curseEffect > 0 ? 'text-green-400' : 'text-red-400';
+              const signSelected = char.curseEffect > 0 ? '+' : '';
+              selectedCurseInfoHtml = `<p class="text-white text-center">Curse: <span class="${curseClassSelected}">${signSelected}${displayPercentageSelected}%</span></p>`;
+          }
+
+          curseSelectedCharacterDisplayElement.innerHTML = `
+            <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${getRarityBorderClass(char.rarity)} w-full max-w-xs mx-auto">
+              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2">
+              <p class="${char.color} font-semibold text-center">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level})</p>
+              <p class="text-white text-center">Puissance: ${char.power}</p>
+              ${selectedCurseInfoHtml}
+            </div>
+          `;
+        } else {
+          curseSelectedCharacterDisplayElement.innerHTML = '<p class="text-gray-400">Personnage non trouvé.</p>';
+          currentCurseCharacterId = null; 
+        }
+      } else {
+        curseSelectedCharacterDisplayElement.innerHTML = '<p class="text-gray-400">Aucun personnage sélectionné.</p>';
+      }
+
+      // Remplir la grille de sélection des personnages
+      curseCharacterSelectionGridElement.innerHTML = "";
+      const availableCharacters = ownedCharacters.filter(char => 
+          char.name.toLowerCase().includes(searchTermCurse)
+      ); 
+
+      if (availableCharacters.length === 0) {
+        curseCharacterSelectionGridElement.innerHTML = `<p class="text-gray-400 col-span-full">${searchTermCurse ? 'Aucun personnage trouvé pour "' + searchTermCurse + '".' : 'Aucun personnage disponible pour la malédiction.'}</p>`;
+      } else {
+        availableCharacters.sort((a, b) => b.power - a.power).forEach(char => {
+          const charElement = document.createElement("div");
+          charElement.className = `bg-gray-800 bg-opacity-50 p-2 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 ${
+            currentCurseCharacterId === char.id ? 'selected-for-curse' : (getRarityBorderClass(char.rarity) || 'border-gray-600 hover:border-gray-500')
+          }`; 
+          
+          let curseDisplayHtml = '';
+            if (char.curseEffect && char.curseEffect !== 0) {
+                const basePowerForCurseDisplay = (char.basePower || char.power) * (char.statModifier || 1); // Fallback pour basePower et statModifier
+                let cursePercentage = 0;
+                if (basePowerForCurseDisplay !== 0) {
+                    cursePercentage = (char.curseEffect / basePowerForCurseDisplay) * 100;
+                } else if ((char.basePower || char.power) !== 0) { 
+                    cursePercentage = (char.curseEffect / (char.basePower || char.power)) * 100;
+                }
+                const displayCursePercentage = cursePercentage.toFixed(cursePercentage % 1 === 0 ? 0 : (Math.abs(cursePercentage) < 0.1 ? 2 : 1));
+                const curseColor = char.curseEffect > 0 ? 'text-green-400' : 'text-red-400';
+                const curseSign = char.curseEffect > 0 ? '+' : '';
+                curseDisplayHtml = `, <span class="text-xs ${curseColor}">Curse: ${curseSign}${displayCursePercentage}%</span>`;
+            }
+
+          charElement.innerHTML = `
+            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-1">
+            <p class="${char.rarity === 'Secret' ? 'text-secret' : char.color} font-semibold text-xs text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
+            <p class="text-white text-xs text-center">
+              <span class="${char.rarity === 'Mythic' ? 'rainbow-text' : (char.rarity === 'Secret' ? 'text-secret' : '')}">${char.rarity}</span>, 
+              P: ${char.power}${curseDisplayHtml}
+            </p>
+          `;
+          charElement.addEventListener("click", () => {
+            selectCurseCharacter(char.id);
+          });
+          curseCharacterSelectionGridElement.appendChild(charElement);
+        });
+      }
+
+      let disableApplyCurseButton = !currentCurseCharacterId || (inventory["Cursed Token"] || 0) < 1;
+      
+      if (currentCurseCharacterId && curseKeepBetterToggle.checked) {
+          const char = ownedCharacters.find(c => c.id === currentCurseCharacterId);
+          if (char) {
+              const basePowerForCheck = (char.basePower || char.power) * (char.statModifier || 1);
+              let currentCurseEffectPercentageForCheck = 0;
+              if ((char.curseEffect || 0) !== 0 && basePowerForCheck !== 0) {
+                  currentCurseEffectPercentageForCheck = ((char.curseEffect || 0) / basePowerForCheck) * 100;
+              }
+
+              const minTargetPercentageCheck = parseFloat(curseMinPercentageInput.value);
+
+              if (currentCurseEffectPercentageForCheck >= minTargetPercentageCheck) {
+                  // Le bouton reste actif, mais on informe l'utilisateur.
+                  // La pop-up gérera la confirmation avant d'utiliser un token.
+                  if ((inventory["Cursed Token"] || 0) >= 1 && resultElement.innerHTML.indexOf("malédiction cible") === -1) {
+                      resultElement.innerHTML = `<p class="text-blue-400">Info: Le personnage ${char.name} a déjà un effet de malédiction (${currentCurseEffectPercentageForCheck.toFixed(1)}%) qui atteint ou dépasse votre cible. Utiliser "Apply Curse" demandera confirmation.</p>`;
+                      setTimeout(() => {
+                          if (resultElement.innerHTML.includes("Info: Le personnage")) {
+                              resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+                          }
+                      }, 7000);
+                  }
+              }
+          }
+      }
+
+      applyCurseButton.disabled = disableApplyCurseButton;
+      applyCurseButton.classList.toggle("opacity-50", applyCurseButton.disabled);
+      applyCurseButton.classList.toggle("cursor-not-allowed", applyCurseButton.disabled);
+      
+      curseMinPercentageInput.disabled = !curseKeepBetterToggle.checked;
+      if (!curseKeepBetterToggle.checked) {
+        curseMinPercentageInput.classList.add("opacity-50", "cursor-not-allowed");
+      } else {
+        curseMinPercentageInput.classList.remove("opacity-50", "cursor-not-allowed");
+      }
+    }
+
+    // NOUVELLE FONCTION : selectCurseCharacter
+    function selectCurseCharacter(id) {
+      if (currentCurseCharacterId === id) { // Déselectionner si on clique sur le même
+        currentCurseCharacterId = null;
+      } else {
+        currentCurseCharacterId = id;
+      }
+      updateCurseTabDisplay();
+    }
+
+    // NOUVELLE FONCTION : applyCurse
+    async function applyCurse() {
+      if (!currentCurseCharacterId) {
+        resultElement.innerHTML = '<p class="text-red-400">Veuillez sélectionner un personnage !</p>';
+        return;
+      }
+      if ((inventory["Cursed Token"] || 0) < 1) {
+        resultElement.innerHTML = '<p class="text-red-400">Vous n\'avez pas de Cursed Tokens !</p>';
+        return;
+      }
+
+      const charIndex = ownedCharacters.findIndex(c => c.id === currentCurseCharacterId);
+      if (charIndex === -1) {
+        resultElement.innerHTML = '<p class="text-red-400">Personnage sélectionné non trouvé !</p>';
+        currentCurseCharacterId = null;
+        updateCurseTabDisplay();
+        return;
+      }
+
+      const char = ownedCharacters[charIndex];
+      
+      if (typeof char.basePower === 'undefined' || char.basePower <= 0) {
+          char.basePower = char.power > (char.curseEffect || 0) ? char.power - (char.curseEffect || 0) : (char.power / (char.statModifier || 1));
+          if (char.basePower <= 0) char.basePower = 50; // Ultime fallback
+          console.warn(`basePower manquant ou invalide pour ${char.name}, recalculé à ${char.basePower}`);
+          recalculateCharacterPower(char); // S'assurer que la puissance est à jour avant de maudire
+      }
+      if (typeof char.statModifier === 'undefined') {
+          char.statModifier = statRanks[char.statRank]?.modifier || 1;
+      }
+
+
+      let needsCurseConfirmation = false;
+      let curseConfirmMessage = "";
+      const basePowerWithStatForCheck = char.basePower * char.statModifier;
+      let currentCurseEffectPercentageForCheck = 0;
+
+      if ((char.curseEffect || 0) !== 0 && basePowerWithStatForCheck !== 0) {
+          currentCurseEffectPercentageForCheck = ((char.curseEffect || 0) / basePowerWithStatForCheck) * 100;
+      }
+
+      if (curseKeepBetterToggle.checked) {
+        const minTargetPercentageCheck = parseFloat(curseMinPercentageInput.value);
+        if (currentCurseEffectPercentageForCheck >= minTargetPercentageCheck) {
+          needsCurseConfirmation = true;
+          curseConfirmMessage = `Le personnage ${char.name} a déjà un effet de malédiction de ${currentCurseEffectPercentageForCheck.toFixed(1)}%, ce qui est supérieur ou égal à votre cible de ${minTargetPercentageCheck}%. Voulez-vous vraiment utiliser un Cursed Token pour tenter d'obtenir un autre effet ? La nouvelle malédiction sera appliquée quel que soit son effet.`;
+        }
+      }
+      
+      console.log(`[applyCurse] currentCurseEffectPercentageForCheck: ${currentCurseEffectPercentageForCheck.toFixed(1)}%, curseKeepBetterToggle.checked: ${curseKeepBetterToggle.checked}, needsCurseConfirmation: ${needsCurseConfirmation}`);
+
+      if (needsCurseConfirmation) {
+        console.log(`[applyCurse] Ouverture de la modale de confirmation de malédiction avec le message : "${curseConfirmMessage}"`);
+        const userConfirmed = await new Promise(resolve => {
+          curseConfirmationCallback = (confirmed) => resolve(confirmed);
+          openCurseConfirmModal(curseConfirmMessage, curseConfirmationCallback);
+        });
+        curseConfirmationCallback = null;
+
+        if (!userConfirmed) {
+          resultElement.innerHTML = `<p class="text-blue-400">Application de la malédiction annulée. Aucun Cursed Token n'a été utilisé.</p>`;
+          updateCurseTabDisplay();
+          return; 
+        }
+      } else {
+        console.log(`[applyCurse] Aucune confirmation de malédiction nécessaire.`);
+      }
+      
+      if ((inventory["Cursed Token"] || 0) < 1) { 
+           resultElement.innerHTML = '<p class="text-red-500">Erreur : Plus de Cursed Tokens disponibles pour cette tentative.</p>';
+           updateCurseTabDisplay();
+           return;
+      }
+
+      inventory["Cursed Token"]--; 
+
+      missions.forEach(mission => {
+          if (mission.type === "curse_char" && !mission.completed) {
+              mission.progress++;
+          }
+      });
+
+      const powerBeforeThisCurse = char.power; 
+      // const currentCurseEffectValue = char.curseEffect || 0; // Plus utilisé directement pour la décision d'appliquer
+
+      const basePowerWithStat = char.basePower * char.statModifier;
+      // Générer un effet de malédiction entre -20% et +20% de la puissance de base (avant malédiction mais après stat rank)
+      const percentageChangeRandom = (Math.random() * 0.40) - 0.20; // De -0.20 à +0.20
+      const newPowerDeltaFromCurse = Math.round(basePowerWithStat * percentageChangeRandom);
+
+      let newCurseEffectPercentage = 0;
+      if (basePowerWithStat !== 0) {
+          newCurseEffectPercentage = (newPowerDeltaFromCurse / basePowerWithStat) * 100;
+      } else if (char.basePower !== 0) { // Fallback
+          newCurseEffectPercentage = (newPowerDeltaFromCurse / char.basePower) * 100;
+      }
+      
+      // La nouvelle malédiction est TOUJOURS appliquée si on arrive ici
+      char.curseEffect = newPowerDeltaFromCurse;
+      recalculateCharacterPower(char); 
+
+      const displayPercentageForResult = newCurseEffectPercentage.toFixed(newCurseEffectPercentage % 1 === 0 ? 0 : (Math.abs(newCurseEffectPercentage) < 0.1 ? 2 : 1));
+      const signForResult = newPowerDeltaFromCurse >= 0 ? '+' : '';
+
+      resultElement.innerHTML = `
+        <p class="text-green-400">${char.name} a été maudit !</p>
+        <p class="text-white">Puissance avant cette malédiction: ${powerBeforeThisCurse}.</p>
+        <p class="text-white">Effet de la nouvelle malédiction: <span class="${newPowerDeltaFromCurse >= 0 ? 'text-green-400' : 'text-red-400'}">${signForResult}${displayPercentageForResult}%</span>.</p>
+        <p class="text-white">Nouvelle Puissance totale: ${char.power}.</p>
+        <p class="text-white">1 Cursed Token utilisé.</p>
+      `;
+      if (animationsEnabled && Math.abs(newPowerDeltaFromCurse) > basePowerWithStat * 0.05) { // Confetti pour les changements notables
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#7F00FF', '#000000', '#DC143C'] });
+      }
+      
+      if (soundEnabled) { /* curseSound.play(); */ } 
+
+      updateCurseTabDisplay();
+      updateCharacterDisplay(); 
+      updateItemDisplay(); 
+      updateUI();
+      scheduleSave();
+    }
+
+    function openCurseConfirmModal(message, callback) {
+        curseConfirmMessageElement.textContent = message;
+        curseConfirmationCallback = callback; // Stocker la fonction à appeler après le choix
+        curseConfirmContinueModal.classList.remove("hidden");
+        enableNoScroll(); // Empêcher le défilement de l'arrière-plan
+    }
+
+    function closeCurseConfirmModal() {
+        curseConfirmContinueModal.classList.add("hidden");
+        curseConfirmationCallback = null; // Réinitialiser le callback
+        disableNoScroll(); // Rétablir le défilement
+    }
+
+    function launchMiniGame(levelData, selectedTeam) {
+        console.log("Lancement du mini-jeu avec le niveau:", levelData.name);
+
+        // 1. Calculer les paramètres du jeu
+        miniGameState.levelData = levelData;
+        miniGameState.bossMaxHealth = levelData.enemy.power;
+        miniGameState.bossCurrentHealth = levelData.enemy.power;
+        miniGameState.damagePerClick = selectedTeam.reduce((sum, char) => sum + char.power, 0);
+        miniGameState.timer = 30;
+        miniGameState.isActive = false;
+
+        // 2. Initialiser l'affichage
+        document.getElementById('mini-game-title').textContent = levelData.name;
+        document.getElementById('mini-game-boss-name').textContent = levelData.enemy.name;
+        
+        // NOUVELLE LIGNE : Met à jour dynamiquement l'image du boss
+        document.getElementById('mini-game-boss-image').src = levelData.enemy.image || './images/default-boss.png'; // Utilise une image par défaut si non spécifiée
+
+        miniGameTimerEl.textContent = miniGameState.timer;
+        miniGameHealthBar.style.width = '100%';
+        miniGameHealthText.textContent = `${miniGameState.bossCurrentHealth.toLocaleString()} / ${miniGameState.bossMaxHealth.toLocaleString()}`;
+
+        // 3. Afficher le bon écran et la modale
+        miniGameStartScreen.classList.remove('hidden');
+        miniGameMainScreen.classList.add('hidden');
+        miniGameResultScreen.classList.add('hidden');
+        miniGameModal.classList.remove('hidden');
+        enableNoScroll();
+    }
+
+    function startMiniGame() {
+        console.log("Début du timer et du jeu.");
+        miniGameState.isActive = true;
+
+        miniGameStartScreen.classList.add('hidden');
+        miniGameMainScreen.classList.remove('hidden');
+
+        miniGameState.intervalId = setInterval(() => {
+            miniGameState.timer--;
+            miniGameTimerEl.textContent = miniGameState.timer;
+
+            if (miniGameState.timer <= 0) {
+                endMiniGame(false); // Défaite
+            }
+        }, 1000);
+    }
+
+    function handleBossClick(event) {
+        if (!miniGameState.isActive) return;
+
+        // Appliquer les dégâts
+        miniGameState.bossCurrentHealth -= miniGameState.damagePerClick;
+
+        // Effet visuel sur le boss
+        miniGameBossImage.classList.add('hit');
+        setTimeout(() => miniGameBossImage.classList.remove('hit'), 75);
+
+        // Afficher un numéro de dégât flottant
+        const damageNumber = document.createElement('div');
+        damageNumber.className = 'damage-number';
+        damageNumber.textContent = `-${miniGameState.damagePerClick.toLocaleString()}`;
+        // Positionner le numéro aléatoirement autour du point de clic
+        const rect = miniGameClickArea.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        damageNumber.style.left = `${x - 20}px`;
+        damageNumber.style.top = `${y - 20}px`;
+        miniGameDamageContainer.appendChild(damageNumber);
+        // Nettoyer l'élément du DOM après l'animation
+        setTimeout(() => damageNumber.remove(), 700);
+
+
+        // Mettre à jour la barre de vie
+        if (miniGameState.bossCurrentHealth <= 0) {
+            miniGameState.bossCurrentHealth = 0;
+            updateHealthBar();
+            endMiniGame(true); // Victoire
+        } else {
+            updateHealthBar();
+        }
+    }
+
+    function updateHealthBar() {
+        const healthPercentage = (miniGameState.bossCurrentHealth / miniGameState.bossMaxHealth) * 100;
+        miniGameHealthBar.style.width = `${healthPercentage}%`;
+        miniGameHealthText.textContent = `${miniGameState.bossCurrentHealth.toLocaleString()} / ${miniGameState.bossMaxHealth.toLocaleString()}`;
+    }
+
+    function endMiniGame(isVictory) {
+        clearInterval(miniGameState.intervalId);
+        miniGameState.isActive = false;
+
+        const resultTitleEl = document.getElementById('mini-game-result-title');
+        const resultRewardsEl = document.getElementById('mini-game-result-rewards');
+        
+        if (isVictory) {
+            resultTitleEl.textContent = "Victoire !";
+            resultTitleEl.className = "text-4xl font-bold mb-4 text-green-400";
+
+            // Appliquer les récompenses
+            const rewards = miniGameState.levelData.rewards;
+            addGems(rewards.gems);
+            coins += rewards.coins;
+            addExp(rewards.exp);
+            
+            let rewardText = `Vous avez gagné : +${rewards.gems} gemmes, +${rewards.coins} pièces, +${rewards.exp} EXP.`;
+
+            // Gérer le drop d'objet
+            if (rewards.itemChance && Math.random() < rewards.itemChance.probability) {
+                const item = rewards.itemChance.item;
+                const quantity = rewards.itemChance.minQuantity; // Pour la simplicité
+                inventory[item] = (inventory[item] || 0) + quantity;
+                rewardText += ` Et +${quantity} ${item} !`;
+            }
+
+            resultRewardsEl.textContent = rewardText;
+            if (animationsEnabled) confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+
+        } else {
+            resultTitleEl.textContent = "Temps Écoulé !";
+            resultTitleEl.className = "text-4xl font-bold mb-4 text-red-500";
+            resultRewardsEl.textContent = "Vous n'avez pas réussi à vaincre le boss à temps. Améliorez votre équipe et réessayez !";
+        }
+
+        // Afficher l'écran de résultat
+        miniGameMainScreen.classList.add('hidden');
+        miniGameResultScreen.classList.remove('hidden');
+
+        // Mettre à jour l'UI principale et sauvegarder
+        updateCharacterDisplay();
+        updateUI();
+        saveProgress();
+    }
+
+    function closeMiniGame() {
+        miniGameModal.classList.add('hidden');
+        disableNoScroll();
+        selectedBattleCharacters.clear(); // Vider la sélection après avoir fini
+    }
+
+
+    function openTraitProbabilitiesModal() {
+        traitProbabilitiesContent.innerHTML = ""; // Vider le contenu précédent
+
+        const introDiv = document.createElement("div");
+        introDiv.className = "text-white mb-3 text-sm";
+        introDiv.innerHTML = `
+            <p>Ces probabilités s'appliquent lors de l'obtention d'un <strong>nouveau trait aléatoire via le bouton "Appliquer Trait Aléatoire"</strong> (coût: ${APPLY_NEW_TRAIT_COST} Reroll Token).</p>
+            <p>Les probabilités ci-dessous indiquent la chance d'obtenir chaque <strong>type</strong> de trait. Pour les traits "Force" et "Fortune", le grade (1, 2, ou 3) est ensuite déterminé aléatoirement selon les probabilités spécifiques à ce grade (cliquez pour voir les détails). Les autres traits ont un effet unique.</p>
+        `;
+        traitProbabilitiesContent.appendChild(introDiv);
+
+        const totalDefinedProbability = Object.values(TRAIT_DEFINITIONS).reduce((sum, traitDef) => sum + (traitDef.probability || 0), 0);
+        let probabilitySumForDisplay = 0;
+
+        Object.entries(TRAIT_DEFINITIONS).forEach(([traitId, traitDef]) => {
+            if (traitDef.grades && traitDef.grades.length > 0) {
+                const typePercentage = (traitDef.probability * 100).toFixed(traitDef.probability < 0.01 ? 2 : 1);
+                probabilitySumForDisplay += traitDef.probability;
+
+                const typeProbDiv = document.createElement("div");
+                typeProbDiv.className = "p-2 bg-gray-700 rounded mb-2";
+
+                let typeHtml = "";
+
+                const isMultiGradeTrait = (traitId === "strength" || traitId === "fortune") && traitDef.gradeProbabilities && traitDef.gradeProbabilities.length > 0;
+
+                if (isMultiGradeTrait) {
+                    // ... (partie pour les traits multi-grades, inchangée)
+                    typeHtml = `
+                        <details class="cursor-pointer">
+                            <summary class="flex justify-between items-center mb-1 list-none focus:outline-none group">
+                                <span class="flex items-center">
+                                    <img src="${traitDef.image || 'https://via.placeholder.com/24?text=T'}" alt="${traitDef.name}" class="w-6 h-6 mr-2 object-contain">
+                                    <span class="text-white font-semibold group-hover:text-blue-300">${traitDef.name}</span>
+                                    <svg class="w-4 h-4 ml-2 text-gray-400 group-open:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </span>
+                                <span class="text-white">${typePercentage}%</span>
+                            </summary>
+                            <div class="pl-4 mt-1 border-l-2 border-gray-600 text-xs">`;
+
+                    traitDef.gradeProbabilities.forEach(gp => {
+                        const gradeDefDetails = traitDef.grades.find(g => g.grade === gp.grade);
+                        typeHtml += `
+                            <div class="flex justify-between items-center py-0.5">
+                                <span class="text-gray-300">Grade ${gp.grade}${gradeDefDetails ? `: ${gradeDefDetails.description}` : ''}</span>
+                                <span class="text-gray-300">${(gp.probability * 100).toFixed(0)}% de chance pour ce grade</span>
+                            </div>
+                        `;
+                    });
+                    typeHtml += `
+                            </div>
+                        </details>`;
+                } else { // Trait à grade unique
+                    typeHtml = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="flex items-center">
+                                <img src="${traitDef.image || 'https://via.placeholder.com/24?text=T'}" alt="${traitDef.name}" class="w-6 h-6 mr-2 object-contain">
+                                <span class="text-white font-semibold">${traitDef.name}</span>
+                            </span>
+                            <span class="text-white">${typePercentage}%</span>
+                        </div>`;
+
+                    if (traitDef.grades && traitDef.grades.length > 0) {
+                        const gradeDefDetails = traitDef.grades[0];
+                        if (gradeDefDetails && gradeDefDetails.description) {
+                            let textColorClass = 'text-gray-300'; // Couleur par défaut
+                            // Vérifier si la description correspond à celle à mettre en surbrillance
+                            if (gradeDefDetails.description === "+15% Gemmes & Pièces (Tous modes)") {
+                                textColorClass = 'text-gold-brilliant'; // Utilise la nouvelle classe CSS
+                            }
+                            typeHtml += `
+                                <div class="pl-4 border-l-2 border-gray-600 text-xs">
+                                    <div class="py-0.5">
+                                        <span class="${textColorClass}">Effet: ${gradeDefDetails.description}</span>
+                                    </div>
+                                </div>`;
+                        }
+                    }
+                }
+
+                typeProbDiv.innerHTML = typeHtml;
+                traitProbabilitiesContent.appendChild(typeProbDiv);
+            }
+        });
+
+        if (Math.abs(probabilitySumForDisplay - 1.0) > 0.001 && Object.keys(TRAIT_DEFINITIONS).length > 0) {
+            const warningDiv = document.createElement("div");
+            warningDiv.className = "mt-3 p-2 bg-yellow-700 text-yellow-200 text-xs rounded";
+            warningDiv.textContent = `Attention : La somme des probabilités des types de traits est de ${(probabilitySumForDisplay * 100).toFixed(1)}%, ce qui n'est pas 100%. Les probabilités pourraient être normalisées ou imprévisibles.`;
+            traitProbabilitiesContent.appendChild(warningDiv);
+        }
+
+        traitProbabilitiesModal.classList.remove("hidden");
+        enableNoScroll();
+    }
+
+    function closeTraitProbabilitiesModal() {
+        traitProbabilitiesModal.classList.add("hidden");
+        disableNoScroll();
+    }
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener("click", () => showTab(btn.dataset.tab));
+    });
+
+    subtabButtons.forEach(btn => {
+      btn.addEventListener("click", () => showSubTab(btn.dataset.subtab));
+    });
+
+    document.getElementById("battle-sort-criteria").addEventListener("change", () => {
+      battleSortCriteria = document.getElementById("battle-sort-criteria").value;
+      localStorage.setItem("battleSortCriteria", battleSortCriteria);
+      updateCharacterSelectionDisplay();
+    });
+
+    pullWithGemsButton.addEventListener("click", () => {
+      pullMethodModal.classList.add("hidden");
+      document.body.classList.remove("no-scroll");
+      executePull(false);
+    });
+    pullWithTicketButton.addEventListener("click", () => {
+      pullMethodModal.classList.add("hidden");
+      document.body.classList.remove("no-scroll");
+      executePull(true);
+    });
+    curseKeepBetterToggle.addEventListener("change", () => {
+        updateCurseTabDisplay(); // Mettre à jour l'affichage pour activer/désactiver l'input
+    });
+    document.getElementById("battle-search-name").addEventListener("input", (e) => {
+      battleSearchName = e.target.value.toLowerCase();
+      localStorage.setItem("battleSearchName", battleSearchName);
+      updateCharacterSelectionDisplay();
+    });
+    document.getElementById("battle-filter-rarity").addEventListener("change", (e) => {
+      battleFilterRarity = e.target.value;
+      localStorage.setItem("battleFilterRarity", battleFilterRarity);
+      updateCharacterSelectionDisplay();
+    });
+    // Filtres pour la modale de sélection de preset
+    document.getElementById("preset-search-name").addEventListener("input", (e) => {
+      presetSearchName = e.target.value.toLowerCase();
+      localStorage.setItem("presetSearchName", presetSearchName);
+      updatePresetSelectionDisplay();
+    });
+    document.getElementById("preset-filter-rarity").addEventListener("change", (e) => {
+      presetFilterRarity = e.target.value;
+      localStorage.setItem("presetFilterRarity", presetFilterRarity);
+      updatePresetSelectionDisplay();
+    });
+    // Filtres pour la modale de fusion
+    document.getElementById("fusion-search-name").addEventListener("input", (e) => {
+      fusionSearchName = e.target.value.toLowerCase();
+      localStorage.setItem("fusionSearchName", fusionSearchName);
+      updateFusionSelectionDisplay();
+    });
+    document.getElementById("fusion-filter-rarity").addEventListener("change", (e) => {
+      fusionFilterRarity = e.target.value;
+      localStorage.setItem("fusionFilterRarity", fusionFilterRarity);
+      updateFusionSelectionDisplay();
+    });
+
+    cancelPullMethodButton.addEventListener("click", cancelPullMethod);
+    pullButton.addEventListener("click", pullCharacter);
+    multiPullButton.addEventListener("click", multiPull);
+    specialPullButton.addEventListener("click", specialPull);
+    document.getElementById("special-multi-pull-button").addEventListener("click", specialMultiPull); 
+    deleteButton.addEventListener("click", toggleDeleteMode);
+    closeModalButton.addEventListener("click", closeModal);
+    cancelSelectionButton.addEventListener("click", cancelSelection);
+    confirmSelectionButton.addEventListener("click", confirmSelection);
+    cancelFusionButton.addEventListener("click", cancelFusion);
+    confirmFusionButton.addEventListener("click", confirmFusion);
+    settingsButton.addEventListener("click", () => settingsModal.classList.remove("hidden"));
+    saveSettingsButton.addEventListener("click", saveSettings);
+    closeSettingsButton.addEventListener("click", () => settingsModal.classList.add("hidden"));
+    resetGameButton.addEventListener("click", resetGame);
+    confirmResetButton.addEventListener("click", confirmReset);
+    cancelResetButton.addEventListener("click", cancelReset);
+    cancelGiveItemsButton.addEventListener("click", cancelGiveItems);
+    confirmGiveItemsButton.addEventListener("click", confirmGiveItems);
+    cancelEvolutionButton.addEventListener("click", cancelEvolution);
+    confirmEvolutionButton.addEventListener("click", confirmEvolution);
+    document.getElementById("open-preset-modal-button").addEventListener("click", openPresetSelectionModal);
+    document.getElementById("apply-stat-change-button").addEventListener("click", applyStatChange);
+    document.getElementById("stat-change-search").addEventListener("input", updateStatChangeTabDisplay);
+    document.getElementById("curse-char-search").addEventListener("input", updateCurseTabDisplay);
+    statRankInfoButton.addEventListener("click", openStatRankProbabilitiesModal);
+    closeStatRankProbabilitiesModalButton.addEventListener("click", closeStatRankProbabilitiesModal);
+    autofuseSettingsButton.addEventListener("click", startAutofuse);
+    cancelAutofuseButton.addEventListener("click", cancelAutofuse);
+    confirmAutofuseButton.addEventListener("click", confirmAutofuse);
+    traitCharSearchInput.addEventListener("input", updateTraitTabDisplay);
+    document.getElementById("limit-break-char-search").addEventListener("input", updateLimitBreakTabDisplay);
+    applyLimitBreakButton.addEventListener("click", applyLimitBreak);
+    applyCurseButton.addEventListener("click", applyCurse);
+    miniGameStartButton.addEventListener('click', startMiniGame);
+    miniGameBossImage.addEventListener('click', handleBossClick);
+    miniGameCloseButton.addEventListener('click', closeMiniGame);
+    document.getElementById("character-selection-title").textContent = `Sélectionner ${currentMaxTeamSize} Personnage(s) pour le Combat`;
+
+    // Ouvrir la modale
+    infoButton.addEventListener("click", () => {
+      probabilitiesModal.classList.remove("hidden");
+      enableNoScroll();
+      updateProbabilitiesDisplay(); // Ceci va créer l'élément #standard-banner-timer
+      showProbTab("standard");
+
+      // Démarrer le minuteur dynamique pour la bannière standard
+      if (bannerTimerIntervalId) clearInterval(bannerTimerIntervalId); // Nettoyer un ancien intervalle au cas où
+      bannerTimerIntervalId = setInterval(() => {
+        // Toujours re-chercher le span dans le DOM car updateProbabilitiesDisplay peut le recréer
+        const timerSpanInTitle = document.getElementById("standard-banner-timer-title");
+
+        if (timerSpanInTitle && currentStandardBanner && currentStandardBanner.generatedAt) {
+            const nextChangeTime = currentStandardBanner.generatedAt + TWO_HOURS_MS;
+            let timeLeftMs = Math.max(0, nextChangeTime - Date.now());
+            
+            timerSpanInTitle.textContent = formatTime(timeLeftMs);
+
+            if (timeLeftMs <= 0) {
+                // Vérifier si la modale est visible et que l'onglet n'est pas caché
+                if (!probabilitiesModal.classList.contains("hidden") && !document.hidden) {
+                    console.log("Minuteur atteint 0. Régénération de la bannière et mise à jour de l'affichage.");
+                    loadOrGenerateStandardBanner(); // Ceci met à jour currentStandardBanner.generatedAt
+                    updateProbabilitiesDisplay(); // Ceci redessinera le H3 et son span de minuteur avec la nouvelle valeur.
+                                                 // Le prochain tick de l'intervalle trouvera le *nouveau* span.
+                }
+            }
+        } else if (timerSpanInTitle) {
+            timerSpanInTitle.textContent = "Calcul...";
+          }
+      }, 1000);
+    });
+
+    // Fermer la modale
+    closeProbabilitiesButton.addEventListener("click", () => {
+      probabilitiesModal.classList.add("hidden");
+      disableNoScroll();
+      if (bannerTimerIntervalId) { // Effacer l'intervalle lorsque la modale est fermée
+        clearInterval(bannerTimerIntervalId);
+        bannerTimerIntervalId = null;
+      }
+    });
+
+    // Gérer les onglets
+    probTabButtons.forEach(btn => {
+      btn.addEventListener("click", () => showProbTab(btn.dataset.tab));
+    });
+
+    Object.entries(autofuseRarityCheckboxes).forEach(([rarity, checkbox]) => {
+      checkbox.addEventListener("change", () => selectAutofuseRarity(rarity, checkbox.checked));
+    });
+
+     curseConfirmYesButton.addEventListener("click", () => {
+        if (curseConfirmationCallback) {
+            curseConfirmationCallback(true); // L'utilisateur a confirmé
+        }
+        closeCurseConfirmModal();
+    });
+
+    curseConfirmNoButton.addEventListener("click", () => {
+        if (curseConfirmationCallback) {
+            curseConfirmationCallback(false); // L'utilisateur a annulé
+        }
+        closeCurseConfirmModal();
+    });
+
+    if (traitProbabilitiesInfoButton) { // Vérifier si l'élément existe (au cas où)
+        traitProbabilitiesInfoButton.addEventListener("click", openTraitProbabilitiesModal);
+    }
+    if (closeTraitProbabilitiesModalButton) {
+        closeTraitProbabilitiesModalButton.addEventListener("click", closeTraitProbabilitiesModal);
+    }
+
+    statKeepBetterToggle.addEventListener("change", updateStatChangeTabDisplay);
+    
+    statChangeConfirmYesButton.addEventListener("click", () => {
+        if (statChangeConfirmationCallback) {
+            statChangeConfirmationCallback(true);
+        }
+        closeStatChangeConfirmModal();
+    });
+
+    statChangeConfirmNoButton.addEventListener("click", () => {
+        if (statChangeConfirmationCallback) {
+            statChangeConfirmationCallback(false);
+        }
+        closeStatChangeConfirmModal();
+    });
+
+    traitKeepBetterToggle.addEventListener("change", () => {
+        traitKeepBetterToggleState = traitKeepBetterToggle.checked; // Mettre à jour la variable globale si vous en avez une (optionnel ici)
+        updateTraitTabDisplay(); // Mettre à jour pour activer/désactiver les checkboxes et le bouton
+    });
+
+    traitActionConfirmYesButton.addEventListener("click", () => {
+        if (traitConfirmationCallback) {
+            traitConfirmationCallback(true);
+        }
+        closeTraitActionConfirmModal();
+    });
+
+    traitActionConfirmNoButton.addEventListener("click", () => {
+        if (traitConfirmationCallback) {
+            traitConfirmationCallback(false);
+        }
+        closeTraitActionConfirmModal();
+    });
+
+    const inventoryFilterNameInput = document.getElementById("inventory-filter-name");
+    if (inventoryFilterNameInput) {
+        inventoryFilterNameInput.value = inventoryFilterName; // Initialiser avec la valeur sauvegardée
+        inventoryFilterNameInput.addEventListener("input", (e) => {
+            inventoryFilterName = e.target.value;
+            localStorage.setItem("inventoryFilterName", inventoryFilterName);
+            updateCharacterDisplay();
+        });
+    }
+
+    const inventoryFilterRaritySelect = document.getElementById("inventory-filter-rarity");
+    if (inventoryFilterRaritySelect) {
+        inventoryFilterRaritySelect.value = inventoryFilterRarity; // Initialiser
+        inventoryFilterRaritySelect.addEventListener("change", (e) => {
+            inventoryFilterRarity = e.target.value;
+            localStorage.setItem("inventoryFilterRarity", inventoryFilterRarity);
+            updateCharacterDisplay();
+        });
+    }
+
+    const inventorySortCriteriaSelect = document.getElementById("sort-criteria-secondary"); // L'ID HTML reste le même pour l'instant
+      if (inventorySortCriteriaSelect) {
+          inventorySortCriteriaSelect.value = sortCriteria; // Initialiser avec la valeur de sortCriteria (le tri principal)
+          inventorySortCriteriaSelect.addEventListener("change", (e) => {
+              sortCriteria = e.target.value; // Met à jour sortCriteria (le tri principal)
+              localStorage.setItem("sortCriteria", sortCriteria); // Sauvegarde le tri principal
+              updateCharacterDisplay();
+          });
+    }
+
+    const inventoryFilterEvolvableCheckbox = document.getElementById("inventory-filter-evolvable");
+    if (inventoryFilterEvolvableCheckbox) {
+        inventoryFilterEvolvableCheckbox.checked = inventoryFilterEvolvable; // Initialiser
+        inventoryFilterEvolvableCheckbox.addEventListener("change", (e) => {
+            inventoryFilterEvolvable = e.target.checked;
+            localStorage.setItem("inventoryFilterEvolvable", inventoryFilterEvolvable);
+            updateCharacterDisplay();
+        });
+    }
+
+    const inventoryFilterLimitBreakCheckbox = document.getElementById("inventory-filter-limitbreak");
+    if (inventoryFilterLimitBreakCheckbox) {
+        inventoryFilterLimitBreakCheckbox.checked = inventoryFilterLimitBreak; // Initialiser
+        inventoryFilterLimitBreakCheckbox.addEventListener("change", (e) => {
+            inventoryFilterLimitBreak = e.target.checked;
+            localStorage.setItem("inventoryFilterLimitBreak", inventoryFilterLimitBreak);
+            updateCharacterDisplay();
+        });
+    }
+
+    const inventoryFilterCanReceiveExpCheckbox = document.getElementById("inventory-filter-canreceiveexp");
+    if (inventoryFilterCanReceiveExpCheckbox) {
+        inventoryFilterCanReceiveExpCheckbox.checked = inventoryFilterCanReceiveExp; // Initialiser
+        inventoryFilterCanReceiveExpCheckbox.addEventListener("change", (e) => {
+            inventoryFilterCanReceiveExp = e.target.checked;
+            localStorage.setItem("inventoryFilterCanReceiveExp", inventoryFilterCanReceiveExp);
+            updateCharacterDisplay();
+        });
+    }
+
+    applyCurseButton.addEventListener("click", applyCurse);
+    document.getElementById("load-preset-button").addEventListener("click", loadPreset);
+    document.getElementById("confirm-preset").addEventListener("click", confirmPreset);
+    document.getElementById("cancel-preset").addEventListener("click", cancelPreset);
+    document.getElementById("preset-sort-criteria").addEventListener("change", () => {
+      presetSortCriteria = document.getElementById("preset-sort-criteria").value;
+      localStorage.setItem("presetSortCriteria", presetSortCriteria);
+      updatePresetSelectionDisplay();
+    });
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            // L'utilisateur est connecté
+            currentUser = user;
+            // Extraire le pseudo de l'email synthétique
+            const username = user.email.split('@')[0];
+            console.log("Utilisateur connecté:", username);
+
+            // Afficher l'état de l'utilisateur et cacher les formulaires
+            document.getElementById('user-email').textContent = username; // MODIFIÉ ICI
+            authContainer.classList.add('hidden');
+            userStatus.classList.remove('hidden');
+            gameContainer.classList.remove('hidden');
+            
+            // Charger la progression du joueur
+            if (!isGameInitialized) {
+                loadProgress(user.uid);
+            }
+
+        } else {
+            // L'utilisateur est déconnecté
+            currentUser = null;
+            console.log("Aucun utilisateur connecté.");
+
+            // Cacher le jeu et le statut, afficher les formulaires
+            isGameInitialized = false;
+            gameContainer.classList.add('hidden');
+            userStatus.classList.add('hidden');
+            authContainer.classList.remove('hidden');
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('signup-view').classList.add('hidden');
+        }
+    });
+
+    // Initialiser l'interface d'authentification
+    setupAuthUI();
+
+
+    applySettings();
+    if (shopOffers.length !== 3) {
+      updateShopOffers();
+    } else {
+      updateShopDisplay();
+    }
+    if (missions.length !== 3) {
+      updateMissionPool();
+    } else {
+      updateMissions();
+    }
+    updateTimer();
+    updateCharacterDisplay();
+    updateItemDisplay();
+    updateUI();
+    loadOrGenerateStandardBanner();
+    if (!evolutionElement.classList.contains("hidden")) {
+        const activeSubTabButton = document.querySelector('#evolution .subtab-button.border-blue-500');
+        if (activeSubTabButton) {
+            showSubTabEvolution(activeSubTabButton.dataset.subtab);
+        } else {
+            showSubTabEvolution("evolve-char"); // Défaut
+        }
+    } else {
+        showTab("play"); // Onglet par défaut si rien d'autre n'est défini
+    }
+    populateTargetStatRanks();
+    populateTargetTraits();
+    window.addEventListener('beforeunload', (event) => {
+        // La spécification requiert que returnValue soit défini pour certains navigateurs,
+        // même si nous ne voulons pas afficher de message de confirmation.
+        // On n'exécute que la sauvegarde.
+        console.log("Événement beforeunload déclenché. Tentative de sauvegarde immédiate...");
+        if (currentUser && isGameInitialized) { // Sauvegarde uniquement si une session de jeu est active
+             _performSave();
+        }
+        // Note : Il n'est pas possible de garantir que la sauvegarde asynchrone aura le temps
+        // de se terminer, mais c'est la meilleure tentative possible.
+    });

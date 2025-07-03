@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gacha Anime Ultime</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-gradient-to-br from-purple-900 via-indigo-800 to-blue-900 min-h-screen flex items-center justify-center dark-theme sm:p-4">
+
+  <!-- NOUVEAU: Conteneur pour l'authentification et l'état du jeu -->
+  <div id="app-container" class="container mx-auto p-4 sm:p-6">
+    <h1 class="text-3xl sm:text-5xl font-extrabold text-white drop-shadow-lg text-center mb-6">Gacha Anime Ultime</h1>
+
+    <!-- Zone d'authentification (visible si non connecté) -->
+    <div id="auth-container" class="bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-4 sm:p-8 max-w-md mx-auto shadow-2xl">
+      <div id="login-view">
+        <h2 class="text-2xl text-white font-bold mb-4 text-center">Connexion</h2>
+        <form id="login-form">
+          <!-- MODIFIÉ: Input pour le pseudo -->
+          <input type="text" id="login-username" placeholder="Pseudo" class="w-full p-2 mb-3 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          <input type="password" id="login-password" placeholder="Mot de passe" class="w-full p-2 mb-4 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Se connecter</button>
+        </form>
+        <p class="text-center text-gray-300 text-sm mt-4">
+          Pas de compte ? <a href="#" id="show-signup" class="text-blue-400 hover:underline">S'inscrire</a>
+        </p>
+      </div>
+      <div id="signup-view" class="hidden">
+        <h2 class="text-2xl text-white font-bold mb-4 text-center">Inscription</h2>
+        <form id="signup-form">
+          <!-- MODIFIÉ: Input pour le pseudo -->
+          <input type="text" id="signup-username" placeholder="Pseudo (3-15 caractères)" class="w-full p-2 mb-3 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          <input type="password" id="signup-password" placeholder="Mot de passe (6 caractères min.)" class="w-full p-2 mb-4 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+          <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Créer un compte</button>
+        </form>
+        <p class="text-center text-gray-300 text-sm mt-4">
+          Déjà un compte ? <a href="#" id="show-login" class="text-blue-400 hover:underline">Se connecter</a>
+        </p>
+      </div>
+      <p id="auth-error" class="text-red-400 text-center mt-4"></p>
+    </div>
+
+    <!-- Zone de statut utilisateur (visible si connecté) -->
+    <div id="user-status" class="hidden text-center text-white mb-4">
+      <p>Bienvenue, <span id="user-email" class="font-bold"></span> !</p>
+      <button id="logout-button" class="mt-2 bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-3 text-sm rounded-lg">Déconnexion</button>
+    </div>
+    
+    <!-- MODIFIÉ: Le conteneur du jeu est maintenant caché par défaut -->
+    <div id="game-container" class="hidden bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-4 sm:p-8 max-w-full mx-auto shadow-2xl">
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+        <!-- L'ancien H1 a été déplacé en haut -->
+        <!-- Le bouton Paramètres reste ici -->
+        <button id="settings-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105">
+          Paramètres
+        </button>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center mb-6 gap-4 sm:gap-6 flex-wrap">
+        <div class="text-sm sm:text-lg text-white flex flex-wrap items-center gap-2 sm:gap-4">
+          <p>Niveau: <span id="level">1</span></p>
+          <p>EXP: <span id="exp">0</span>/<span id="exp-needed">100</span></p>
+          <p>Gemmes: <span id="gems">1000</span></p>
+          <p>Pièces: <span id="coins">0</span></p>
+          <p>Tirages: <span id="pull-count">0</span></p>
+        </div>
+        <div class="flex flex-wrap gap-2 sm:gap-4">
+          <button id="pull-button" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-4 sm:px-6 rounded-lg transition transform hover:scale-105 text-sm sm:text-base">
+            Tirer x1 (100 gemmes)
+          </button>
+          <button id="multi-pull-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 sm:px-6 rounded-lg transition transform hover:scale-105 text-sm sm:text-base">
+            Tirer x10 (1000 gemmes)
+          </button>
+          <button id="special-pull-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 sm:px-6 rounded-lg transition transform hover:scale-105 text-sm sm:text-base">
+            Bannière Spéciale x1 (150 gemmes)
+          </button>
+          <button id="special-multi-pull-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 sm:px-6 rounded-lg transition transform hover:scale-105 text-sm sm:text-base">
+            Bannière Spéciale x10 (1500 gemmes)
+          </button>
+          <button id="info-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105 text-sm sm:text-base">
+            i
+          </button>
+        </div>
+        <div class="w-full flex justify-center sm:justify-start text-xs text-gray-300 mt-2 gap-2 sm:gap-4">
+          <p>Pity Standard (Mythic): <span id="standard-pity-display">0</span>/10000</p>
+          <p>Pity Spéciale (Bannière): <span id="special-pity-display">0</span>/85000</p>
+        </div>
+      </div>
+      <div id="result" class="text-center mb-6 p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+        <p class="text-white text-sm sm:text-lg">Tire pour obtenir des personnages légendaires !</p>
+      </div>
+      <div class="mb-6">
+        <div class="flex flex-wrap border-b border-gray-600">
+          <button id="tab-play" class="px-4 py-2 text-white font-semibold border-b-2 border-blue-500 focus:outline-none tab-button" data-tab="play">Jouer</button>
+          <button id="tab-inventory" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none tab-button" data-tab="inventory">Inventaire</button>
+          <button id="tab-missions" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none tab-button" data-tab="missions">Missions</button>
+          <button id="tab-shop" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none tab-button" data-tab="shop">Boutique</button>
+          <button id="tab-evolution" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none tab-button" data-tab="evolution">Évolution</button>
+          <button id="tab-stat-change" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none tab-button" data-tab="stat-change">Changer Stat</button>
+          <button id="tab-curse" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none tab-button hidden" data-tab="curse">Curse</button>
+          <button id="tab-trait" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none tab-button" data-tab="trait">Traits</button>
+          <button id="tab-limit-break" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none tab-button" data-tab="limit-break">Limit Break</button>
+          <button id="tab-index" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none tab-button" data-tab="index">Index</button>
+        </div>
+        <div id="tab-content" class="mt-4">
+          <div id="play" class="p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Jouer</h2>
+            <div class="flex border-b border-gray-600 mb-4">
+              <button id="subtab-story" class="px-4 py-2 text-white font-semibold border-b-2 border-blue-500 subtab-button" data-subtab="story">Histoire</button>
+              <button id="subtab-legende" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 subtab-button" data-subtab="legende">Legende</button>
+              <button id="subtab-challenge" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 subtab-button" data-subtab="challenge">Challenge</button>
+              <button id="subtab-materiaux" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 subtab-button" data-subtab="materiaux">Matériaux</button>
+            </div>
+            <div id="subtab-content-play">
+              <div id="story" class="p-4">
+                <div id="level-list" class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3"></div>
+              </div>
+              <div id="legende" class="hidden p-4">
+                <div id="legende-level-list" class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3"></div>
+              </div>
+              <div id="challenge" class="hidden p-4">
+                <div id="challenge-level-list" class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3"></div>
+              </div>
+              <div id="materiaux" class="hidden p-4">
+                <div id="materiaux-level-list">
+                  <!-- Le contenu sera entièrement généré par JavaScript -->
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="inventory" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Inventaire</h2>
+            <div class="flex border-b border-gray-600 mb-4">
+              <button id="subtab-units" class="px-4 py-2 text-white font-semibold border-b-2 border-blue-500 subtab-button" data-subtab="units">Units</button>
+              <button id="subtab-items" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 subtab-button" data-subtab="items">Items</button>
+            </div>
+            <div id="subtab-content">
+              <div id="units" class="p-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-700 bg-opacity-30 rounded-lg">
+                    <div>
+                        <label for="inventory-filter-name" class="text-white mr-2 block mb-1 text-sm">Filtrer par Nom:</label>
+                        <input type="text" id="inventory-filter-name" class="bg-gray-600 text-white p-2 rounded w-full text-sm" placeholder="Entrez un nom...">
+                    </div>
+                    <div>
+                        <label for="inventory-filter-rarity" class="text-white mr-2 block mb-1 text-sm">Filtrer par Rareté:</label>
+                        <select id="inventory-filter-rarity" class="bg-gray-600 text-white p-2 rounded w-full text-sm">
+                            <option value="all">Toutes</option>
+                            <option value="Rare">Rare</option>
+                            <option value="Épique">Épique</option>
+                            <option value="Légendaire">Légendaire</option>
+                            <option value="Mythic">Mythic</option>
+                            <option value="Secret">Secret</option>
+                            <option value="Vanguard">Vanguard</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="sort-criteria-secondary" class="text-white mr-2 block mb-1 text-sm">Trier par :</label>
+                        <select id="sort-criteria-secondary" class="bg-gray-600 text-white p-2 rounded w-full text-sm">
+                            <option value="none">Aucun</option>
+                            <option value="power">Puissance</option>
+                            <option value="rarity">Rareté</option>
+                            <option value="level">Niveau</option>
+                            <option value="name">Nom</option>
+                        </select>
+                    </div>
+                    <div class="col-span-1 sm:col-span-2 md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                        <div>
+                            <label class="flex items-center text-white cursor-pointer">
+                                <input type="checkbox" id="inventory-filter-evolvable" class="mr-2 h-4 w-4 text-blue-500 border-gray-500 rounded focus:ring-blue-400">
+                                <span class="text-sm">Évoluable</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="flex items-center text-white cursor-pointer">
+                                <input type="checkbox" id="inventory-filter-limitbreak" class="mr-2 h-4 w-4 text-blue-500 border-gray-500 rounded focus:ring-blue-400">
+                                <span class="text-sm">Limit Break Possible</span>
+                            </label>
+                        </div>
+                        <div>
+                            <label class="flex items-center text-white cursor-pointer">
+                                <input type="checkbox" id="inventory-filter-canreceiveexp" class="mr-2 h-4 w-4 text-blue-500 border-gray-500 rounded focus:ring-blue-400">
+                                <span class="text-sm">Peut recevoir EXP</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row justify-end mb-4 gap-4">
+                  <div class="flex gap-4">
+                    <button id="open-preset-modal-button" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105">
+                      Enregistrer Preset
+                    </button>
+                    <button id="delete-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105">
+                      Activer le mode suppression
+                    </button>
+                  </div>
+                </div>
+                <div id="character-display" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+              </div>
+              <div id="items" class="hidden p-4">
+                <div id="item-display" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+              </div>
+            </div>
+          </div>
+          <div id="missions" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Missions (Renouvellent dans <span id="mission-timer"></span>)</h2>
+            <div id="mission-list" class="grid gap-2 grid-cols-1 sm:grid-cols-2"></div>
+          </div>
+          <div id="shop" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Boutique (Offres renouvellent dans <span id="shop-timer"></span>)</h2>
+            <div id="shop-items" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+          </div>
+          <div id="index" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Index des Personnages</h2>
+            <div id="index-display" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+          </div>
+
+          <div id="evolution" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Évolution des Personnages</h2>
+            <div id="evolve-char" class="p-4">
+                <div id="evolution-display" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+            </div>
+          </div>
+
+          <div id="stat-change" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Changer le Rang de Stat
+                <button id="stat-rank-info-button" class="ml-2 bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-2 rounded-full text-xs transition transform hover:scale-110">
+                    i
+                </button>
+            </h2>
+            <p class="text-white mb-2">Stat Chips: <span id="stat-chip-count">0</span></p>
+            
+            <div class="mb-4">
+                <h4 class="text-md text-white font-semibold mb-1">Personnage Sélectionné:</h4>
+                <div id="stat-change-selected-char-display" class="p-4 bg-gray-700 bg-opacity-50 rounded-lg min-h-[100px] flex justify-center items-center">
+                    <p class="text-gray-400">Aucun personnage sélectionné.</p>
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <label for="stat-change-search" class="text-white mr-2 text-sm sm:text-base">Rechercher par nom:</label>
+                <input type="text" id="stat-change-search" class="bg-gray-700 text-white p-2 rounded w-full sm:w-auto text-sm sm:text-base" placeholder="Nom du personnage...">
+            </div>
+
+            <div class="mb-4">
+                <h4 class="text-md text-white font-semibold mb-1">Choisissez un Personnage:</h4>
+                <div id="stat-change-char-selection-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[35vh] sm:max-h-[40vh] overflow-y-auto pr-2">
+                </div>
+            </div>
+
+            <div class="my-4 p-3 bg-gray-700 bg-opacity-30 rounded-lg">
+                <label class="flex items-center text-white mb-2">
+                    <input type="checkbox" id="stat-keep-better-toggle" class="mr-2 h-5 w-5 text-teal-500 border-gray-500 rounded focus:ring-teal-400">
+                    Garder le Stat Chip si le nouveau rang est :
+                </label>
+                <div id="stat-target-ranks-selection" class="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-1 mb-2 stat-target-ranks-disabled">
+                </div>
+                <p class="text-xs text-gray-400 mt-1">Si coché, vous pouvez sélectionner les rangs cibles. Le bouton "Changer Stat" restera actif tant qu'un rang cible n'est pas atteint. Un Stat Chip est consommé à chaque tentative. Le nouveau rang obtenu est toujours appliqué.</p>
+            </div>
+
+            <button id="apply-stat-change-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Changer Stat (1 Stat Chip)
+            </button>
+          </div>
+          
+          <div id="curse" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Curse a Character</h2>
+            <p class="text-white mb-4">Cursed Tokens: <span id="cursed-token-count">0</span></p>
+            
+            <div class="mb-4">
+                <h3 class="text-lg text-white font-semibold mb-1">Selectionner un personnage pour le Curse:</h3>
+                <div id="curse-selected-character-display" class="p-4 bg-gray-700 bg-opacity-50 rounded-lg min-h-[100px] flex justify-center items-center">
+                    <p class="text-gray-400">Pas de personnages selectionner.</p>
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <label for="curse-char-search" class="text-white mr-2 text-sm sm:text-base">Rechercher par nom:</label>
+                <input type="text" id="curse-char-search" class="bg-gray-700 text-white p-2 rounded w-full sm:w-auto text-sm sm:text-base" placeholder="Nom du personnage...">
+            </div>
+        
+            <div class="mb-4">
+                <h3 class="text-lg text-white font-semibold mb-1">Selectionner un personnage pour le Curse:</h3>
+                <div id="curse-character-selection-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[35vh] sm:max-h-[40vh] overflow-y-auto pr-2">
+                </div>
+            </div>
+        
+            <div class="my-4 p-3 bg-gray-700 bg-opacity-30 rounded-lg">
+                <label class="flex items-center text-white mb-2">
+                    <input type="checkbox" id="curse-keep-better-toggle" class="mr-2 h-5 w-5 text-red-600 border-gray-500 rounded focus:ring-red-500">
+                    Garder la malédiction si meilleure ou égale à :
+                </label>
+                <div class="flex items-center">
+                    <input type="number" id="curse-min-percentage" value="0" min="-20" max="20" step="1" class="bg-gray-600 text-white p-2 rounded w-20 text-center mr-2 appearance-none [-moz-appearance:_textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none" disabled>
+                    <span class="text-white">%</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">Si coché, la malédiction ne sera appliquée que si le nouveau pourcentage d'effet est supérieur ou égal à la valeur spécifiée ET supérieur à la malédiction actuelle (si positive) ou moins négative (si négative). Sinon, le token est consommé sans effet.</p>
+            </div>
+
+            <button id="apply-curse-button" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Reroll Curse (1 Cursed Token)
+            </button>
+          </div>
+
+          <div id="trait" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">
+                Gérer les Traits du Personnage
+                <button id="trait-probabilities-info-button" class="ml-2 bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-2 rounded-full text-xs transition transform hover:scale-110">
+                    i
+                </button>
+            </h2>
+            <p class="text-white mb-4">Reroll Token: <span id="trait-essence-count">0</span></p>
+        
+            <div class="mb-6">
+                <h3 class="text-lg text-white font-semibold mb-2">Personnage Sélectionné :</h3>
+                <div id="trait-selected-character-display" class="p-4 bg-gray-700 bg-opacity-50 rounded-lg min-h-[180px] flex justify-center items-center">
+                    <p class="text-gray-400">Aucun personnage sélectionné.</p>
+                </div>
+            </div>
+        
+            <div class="mb-6">
+                <div class="mb-2">
+                    <label for="trait-char-search" class="text-white mr-2 text-sm sm:text-base">Rechercher par nom:</label>
+                    <input type="text" id="trait-char-search" class="bg-gray-700 text-white p-2 rounded w-full sm:w-auto text-sm sm:text-base" placeholder="Nom du personnage...">
+                </div>
+                <h3 class="text-lg text-white font-semibold mb-2">Choisissez un Personnage :</h3>
+                <div id="trait-character-selection-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[40vh] sm:max-h-[35vh] overflow-y-auto pr-2">
+                </div>
+            </div>
+
+            <div class="my-4 p-3 bg-gray-700 bg-opacity-30 rounded-lg">
+              <label class="flex items-center text-white mb-2">
+                  <input type="checkbox" id="trait-keep-better-toggle" class="mr-2 h-5 w-5 text-emerald-500 border-gray-500 rounded focus:ring-emerald-400">
+                  Continuer à appliquer si le nouveau trait est :
+              </label>
+              <div id="trait-target-selection" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1 mb-2 trait-target-disabled">
+              </div>
+              <p class="text-xs text-gray-400 mt-1">Si coché, vous pouvez sélectionner des traits/grades cibles. Le bouton "Appliquer Trait Aléatoire" demandera confirmation si un trait cible est déjà actif et que vous souhaitez continuer. Un Reroll Token est consommé à chaque tentative. Le nouveau trait obtenu est toujours appliqué.</p>
+            </div>
+        
+            <div id="trait-actions-container" class="mt-4 pt-4 border-t border-gray-700">
+            </div>
+          </div>
+
+
+          <div id="limit-break" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Limit Break (Briser les Limites)</h2>
+            <p class="text-white mb-4">Divin Wish : <span id="transcendence-orb-count">0</span></p>
+
+            <div class="mb-4">
+                <h3 class="text-lg text-white font-semibold mb-1">Personnage Sélectionné :</h3>
+                <div id="limit-break-selected-char-display" class="p-4 bg-gray-700 bg-opacity-50 rounded-lg min-h-[100px] flex justify-center items-center">
+                    <p class="text-gray-400">Aucun personnage sélectionné.</p>
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <label for="limit-break-char-search" class="text-white mr-2 text-sm sm:text-base">Rechercher par nom:</label>
+                <input type="text" id="limit-break-char-search" class="bg-gray-700 text-white p-2 rounded w-full sm:w-auto text-sm sm:text-base" placeholder="Nom du personnage...">
+            </div>
+
+            <div class="mb-4">
+                <h3 class="text-lg text-white font-semibold mb-1">Choisissez un Personnage :</h3>
+                <div id="limit-break-char-selection-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[35vh] sm:max-h-[40vh] overflow-y-auto pr-2">
+                </div>
+            </div>
+
+            <button id="apply-limit-break-button" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Briser la Limite (1 Divin Wish)</button>
+            <p class="text-xs text-gray-400 mt-2">Augmente le niveau maximum du personnage de 5. Nécessite que le personnage soit à son niveau maximum actuel. Le cap ultime est de 100.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="stats" class="mb-6 p-4 bg-gray-800 bg-opacity-50 rounded-lg">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Statistiques</h2>
+        <p class="text-white text-sm sm:text-base">Rare: <span id="rare-count">0</span></p>
+        <p class="text-white text-sm sm:text-base">Épique: <span id="epic-count">0</span></p>
+        <p class="text-white text-sm sm:text-base">Légendaire: <span id="legendary-count">0</span></p>
+        <p class="text-white text-sm sm:text-base">Mythic: <span id="mythic-count">0</span></p>
+        <p class="text-white text-sm sm:text-base">Secret: <span id="secret-count">0</span></p>
+      </div>
+    </div> <!-- Fin de game-container -->
+
+    <!-- Toutes vos modales (stats-modal, character-selection-modal, etc.) restent ici, inchangées -->
+    <!-- Modal for Character Stats -->
+    <div id="stats-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Statistiques du Personnage</h2>
+        <div id="modal-content" class="text-white text-sm sm:text-base"></div>
+        <div class="flex flex-wrap gap-4 mt-4"> 
+          <button id="give-items-button" class="bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Donner des objets</button>
+          <button id="fuse-button" class="bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Fusionner</button>
+          <button id="lock-button" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Verrouiller</button> 
+          <button id="close-modal" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Fermer</button>
+          </div>
+      </div>
+    </div>
+
+    <!-- Modal for Character Selection in Story Mode -->
+    <div id="character-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="modal-content-wrapper bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <h2 id="character-selection-title" class="text-xl sm:text-2xl text-white font-bold mb-4">Sélectionner 3 Personnages pour le Combat</h2>
+        
+        <div class="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-4 gap-3">
+          <div class="flex-grow sm:flex-grow-0">
+            <label for="battle-search-name" class="text-white mr-2 text-sm sm:text-base">Nom:</label>
+            <input type="text" id="battle-search-name" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto" placeholder="Rechercher...">
+          </div>
+          <div class="flex-grow sm:flex-grow-0">
+            <label for="battle-filter-rarity" class="text-white mr-2 text-sm sm:text-base">Rareté:</label>
+            <select id="battle-filter-rarity" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto">
+              <option value="all">Toutes</option>
+              <option value="Rare">Rare</option>
+              <option value="Épique">Épique</option>
+              <option value="Légendaire">Légendaire</option>
+              <option value="Mythic">Mythic</option>
+              <option value="Secret">Secret</option>
+              <option value="Vanguard">Vanguard</option>
+            </select>
+          </div>
+          <div class="flex-grow sm:flex-grow-0">
+            <label for="battle-sort-criteria" class="text-white mr-2 text-sm sm:text-base">Trier par:</label>
+            <select id="battle-sort-criteria" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto">
+              <option value="power">Puissance</option>
+              <option value="rarity">Rareté</option>
+              <option value="level">Niveau</option>
+            </select>
+          </div>
+        </div>
+    
+        <div id="character-selection-list-container" class="modal-scroll-list-container max-h-[55vh] sm:max-h-[60vh]">
+          <div id="character-selection-list" class="modal-scroll-list modal-scroll-list-pb-7 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4"></div>
+        </div>
+        <p class="text-white mb-4 text-sm sm:text-base">Personnages sélectionnés: <span id="selected-count">0</span>/3</p>
+        <div class="modal-sticky-footer flex gap-4 bg-gray-800 bg-opacity-90 -mx-4 -mb-4 rounded-b-lg">
+          <button id="load-preset-button" class="bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Charger Preset</button>
+          <button id="confirm-selection" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Confirmer</button>
+          <button id="cancel-selection" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Fusion -->
+    <div id="fusion-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Fusionner le Personnage</h2>
+        
+        <!-- NOUVELLE SECTION DE FILTRES POUR FUSION -->
+        <div class="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-4 gap-3">
+            <div class="flex-grow sm:flex-grow-0">
+                <label for="fusion-search-name" class="text-white mr-2 text-sm sm:text-base">Nom:</label>
+                <input type="text" id="fusion-search-name" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto" placeholder="Rechercher...">
+            </div>
+            <div class="flex-grow sm:flex-grow-0">
+                <label for="fusion-filter-rarity" class="text-white mr-2 text-sm sm:text-base">Rareté:</label>
+                <select id="fusion-filter-rarity" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto">
+                <option value="all">Toutes</option>
+                <option value="Rare">Rare</option>
+                <option value="Épique">Épique</option>
+                <option value="Légendaire">Légendaire</option>
+                <option value="Mythic">Mythic</option>
+                <option value="Secret">Secret</option>
+                <option value="Vanguard">Vanguard</option>
+                </select>
+            </div>
+            <!-- Note: Le tri n'est généralement pas nécessaire pour la sélection de matériaux de fusion, mais pourrait être ajouté ici si désiré -->
+        </div>
+        <!-- FIN NOUVELLE SECTION -->
+
+        <div id="fusion-selection-list-container" class="max-h-[55vh] sm:max-h-[60vh] overflow-hidden">
+          <div id="fusion-selection-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto"></div>
+        </div>
+        <p class="text-white mb-4 text-sm sm:text-base">Personnages sélectionnés pour la fusion: <span id="fusion-selected-count">0</span></p>
+        <div class="flex gap-4 sticky bottom-0 bg-gray-800 bg-opacity-90 p-4 -mx-4 -mb-4 rounded-b-lg">
+          <button id="confirm-fusion" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Confirmer</button>
+          <button id="cancel-fusion" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Settings -->
+    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Paramètres</h2>
+        <div class="text-white mb-4 text-sm sm:text-base">
+          <label class="flex items-center">
+            <input type="checkbox" id="sound-toggle" class="mr-2">
+            Activer le son
+          </label>
+          <label class="flex items-center mt-2">
+            <input type="checkbox" id="animations-toggle" class="mr-2">
+            Activer les animations
+          </label>
+          <div class="mt-2">
+            <label for="theme-select" class="block">Thème:</label>
+            <select id="theme-select" class="bg-gray-700 text-white p-2 rounded w-full text-sm sm:text-base">
+              <option value="dark">Sombre</option>
+              <option value="light">Clair</option>
+            </select>
+          </div>
+          <div class="mt-4">
+            <p class="font-semibold">Vente automatique des personnages :</p>
+            <label class="flex items-center mt-2">
+              <input type="checkbox" id="autosell-rare" class="mr-2">
+              Rare
+            </label>
+            <label class="flex items-center mt-2">
+              <input type="checkbox" id="autosell-epic" class="mr-2">
+              Épique
+            </label>
+            <label class="flex items-center mt-2">
+              <input type="checkbox" id="autosell-legendary" class="mr-2">
+              Légendaire
+            </label>
+            <label class="flex items-center mt-2">
+              <input type="checkbox" id="autosell-mythic" class="mr-2">
+              Mythic
+            </label>
+            <label class="flex items-center mt-2">
+              <input type="checkbox" id="autosell-secret" class="mr-2">
+              Secret
+            </label>
+          </div>
+          <button id="autofuse-settings-button" class="mt-4 bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded-lg w-full text-sm sm:text-base">
+            Multifusion
+          </button>
+          <button id="reset-game" class="mt-4 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg w-full text-sm sm:text-base">
+            Réinitialiser la partie
+          </button>
+        </div>
+        <div class="flex gap-4">
+          <button id="save-settings" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Sauvegarder</button>
+          <button id="close-settings" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Reset Confirmation -->
+    <div id="reset-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Confirmer la réinitialisation</h2>
+        <p class="text-white mb-4 text-sm sm:text-base">Voulez-vous vraiment réinitialiser votre partie ? Toutes vos données seront perdues.</p>
+        <div class="flex gap-4">
+          <button id="confirm-reset" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Confirmer</button>
+          <button id="cancel-reset" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Giving Items -->
+    <div id="give-items-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Donner des Objets au Personnage</h2>
+        <div id="item-selection-list-container" class="max-h-[60vh] overflow-hidden">
+          <div id="item-selection-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4 max-h-[60vh] overflow-y-auto"></div>
+        </div>
+        <p class="text-white mb-4 text-sm sm:text-base">Objets sélectionnés: <span id="item-selected-count">0</span></p>
+        <div class="flex gap-4 sticky bottom-0 bg-gray-800 bg-opacity-90 p-4 -mx-4 -mb-4 rounded-b-lg">
+          <button id="confirm-give-items" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Confirmer</button>
+          <button id="cancel-give-items" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Evolution -->
+    <div id="evolution-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Évoluer le Personnage</h2>
+        <div id="evolution-requirements" class="text-white mb-4 text-sm sm:text-base"></div>
+        <div id="evolution-selection-list-container" class="max-h-[60vh] overflow-hidden">
+          <div id="evolution-selection-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4 max-h-[60vh] overflow-y-auto"></div>
+        </div>
+        <p class="text-white mb-4 text-sm sm:text-base">Objets sélectionnés: <span id="evolution-selected-count">0</span></p>
+        <div class="flex gap-4 sticky bottom-0 bg-gray-800 bg-opacity-90 p-4 -mx-4 -mb-4 rounded-b-lg">
+          <button id="confirm-evolution" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Confirmer</button>
+          <button id="cancel-evolution" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Battle Result -->
+    <div id="battle-result-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto text-center">
+        <h2 id="battle-result-title" class="text-2xl sm:text-3xl text-white font-bold mb-4"></h2>
+        <p id="battle-result-message" class="text-white mb-4 text-sm sm:text-base"></p>
+      </div>
+    </div>
+
+    <!-- Modal for Preset Selection -->
+    <div id="preset-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <h2 id="preset-selection-modal-title" class="text-xl sm:text-2xl text-white font-bold mb-4">Sélectionner 3 Personnages pour le Preset</h2>
+        
+        <!-- NOUVELLE SECTION DE FILTRES ET TRI POUR PRESET -->
+        <div class="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-4 gap-3">
+            <div class="flex-grow sm:flex-grow-0">
+                <label for="preset-search-name" class="text-white mr-2 text-sm sm:text-base">Nom:</label>
+                <input type="text" id="preset-search-name" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto" placeholder="Rechercher...">
+            </div>
+            <div class="flex-grow sm:flex-grow-0">
+                <label for="preset-filter-rarity" class="text-white mr-2 text-sm sm:text-base">Rareté:</label>
+                <select id="preset-filter-rarity" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto">
+                <option value="all">Toutes</option>
+                <option value="Rare">Rare</option>
+                <option value="Épique">Épique</option>
+                <option value="Légendaire">Légendaire</option>
+                <option value="Mythic">Mythic</option>
+                <option value="Secret">Secret</option>
+                <option value="Vanguard">Vanguard</option>
+                </select>
+            </div>
+            <div class="flex-grow sm:flex-grow-0">
+                <label for="preset-sort-criteria" class="text-white mr-2 text-sm sm:text-base">Trier par:</label>
+                <select id="preset-sort-criteria" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto">
+                <option value="power">Puissance</option>
+                <option value="rarity">Rareté</option>
+                <option value="level">Niveau</option>
+                </select>
+            </div>
+        </div>
+        <!-- FIN NOUVELLE SECTION -->
+
+        <div id="preset-selection-list-container" class="max-h-[55vh] sm:max-h-[60vh] overflow-hidden">
+          <div id="preset-selection-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto"></div>
+        </div>
+        <p class="text-white mb-4 text-sm sm:text-base">Personnages sélectionnés: <span id="preset-selected-count-display">0/3</span></p>
+        <div class="flex gap-4 sticky bottom-0 bg-gray-800 bg-opacity-90 p-4 -mx-4 -mb-4 rounded-b-lg">
+          <button id="confirm-preset" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Confirmer</button>
+          <button id="cancel-preset" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Autofusion -->
+    <div id="autofuse-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="modal-content-wrapper bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Multifusion</h2>
+        <div class="mb-4">
+          <p class="text-white block mb-2 text-sm sm:text-base">Personnage principal sélectionné :</p>
+          <div id="autofuse-main-character" class="mb-4"></div>
+          <p class="text-white block mb-2 text-sm sm:text-base">Sélectionnez le personnage principal :</p>
+          <div id="autofuse-character-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[300px] overflow-y-auto pr-2"></div>
+        </div>
+        <p class="text-white mb-2 text-sm sm:text-base">Sélectionnez les raretés à fusionner automatiquement :</p>
+        <div id="autofuse-rarity-selection" class="flex flex-wrap gap-4 mb-4">
+          <label class="flex items-center">
+            <input type="checkbox" id="autofuse-rare" class="mr-2">
+            <span class="text-gray-400 text-sm sm:text-base">Rare</span>
+          </label>
+          <label class="flex items-center">
+            <input type="checkbox" id="autofuse-epic" class="mr-2">
+            <span class="text-purple-400 text-sm sm:text-base">Épique</span>
+          </label>
+          <label class="flex items-center">
+            <input type="checkbox" id="autofuse-legendary" class="mr-2">
+            <span class="text-yellow-400 text-sm sm:text-base">Légendaire</span>
+          </label>
+          <label class="flex items-center">
+            <input type="checkbox" id="autofuse-mythic" class="mr-2">
+            <span class="rainbow-text text-sm sm:text-base">Mythic</span>
+          </label>
+          <label class="flex items-center">
+            <input type="checkbox" id="autofuse-secret" class="mr-2">
+            <span class="text-yellow-400 text-sm sm:text-base">Secret</span>
+          </label>
+        </div>
+        <p class="text-white mb-4 text-sm sm:text-base">Personnages à fusionner : <span id="autofuse-count">0</span></p>
+        <div class="modal-sticky-footer flex gap-4 bg-gray-800 bg-opacity-90 p-4 -mx-4 -mb-4">
+          <button id="confirm-autofuse" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Confirmer</button>
+          <button id="cancel-autofuse" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Pull Method Selection -->
+    <div id="pull-method-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Choisir la méthode de tirage</h2>
+        <p class="text-white mb-4 text-sm sm:text-base">Comment voulez-vous effectuer ce tirage ?</p>
+        <div class="flex flex-col gap-4">
+          <button id="pull-with-gems" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Utiliser des gemmes</button>
+          <button id="pull-with-ticket" class="bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Utiliser un ticket</button>
+          <button id="cancel-pull-method" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Pull Probabilities -->
+    <div id="probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Probabilités des Tirages</h2>
+        <div class="flex border-b border-gray-600 mb-4">
+          <button id="prob-standard-tab" class="px-4 py-2 text-white font-semibold border-b-2 border-blue-500 prob-tab-button" data-tab="standard">Tirage Standard</button>
+          <button id="prob-special-tab" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 prob-tab-button" data-tab="special">Bannière Spéciale</button>
+        </div>
+        <div id="prob-tab-content">
+          <div id="prob-standard" class="p-4">
+            <h3 class="text-lg sm:text-xl text-white font-semibold mb-2">Tirage Standard (x1 ou x10)</h3>
+            <div id="standard-probabilities" class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3"></div>
+          </div>
+          <div id="prob-special" class="hidden p-4">
+            <h3 class="text-lg sm:text-xl text-white font-semibold mb-2">Bannière Spéciale</h3>
+            <div id="special-probabilities" class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3"></div>
+          </div>
+        </div>
+        <div class="flex gap-4 mt-4">
+          <button id="close-probabilities" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Stat Rank Probabilities -->
+    <div id="stat-rank-probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-sm max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Probabilités des Rangs de Stat</h2>
+        <div id="stat-rank-probabilities-content" class="text-white text-sm sm:text-base space-y-2">
+        </div>
+        <div class="flex justify-end mt-6">
+          <button id="close-stat-rank-probabilities-modal-button" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Curse Confirmation -->
+    <div id="curse-confirm-continue-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-[9000]">
+      <div class="bg-gray-800 p-6 rounded-lg w-full max-w-md shadow-xl">
+        <h2 class="text-xl text-white font-bold mb-4">Confirmer l'action</h2>
+        <p id="curse-confirm-message" class="text-white mb-6">Message de confirmation ici.</p>
+        <div class="flex justify-end gap-4">
+          <button id="curse-confirm-yes-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
+            Oui, continuer
+          </button>
+          <button id="curse-confirm-no-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
+            Non, annuler
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Stat Change Confirmation -->
+    <div id="stat-change-confirm-continue-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-[9000]">
+      <div class="bg-gray-800 p-6 rounded-lg w-full max-w-md shadow-xl">
+        <h2 class="text-xl text-white font-bold mb-4">Confirmer l'action</h2>
+        <p id="stat-change-confirm-message" class="text-white mb-6">Message de confirmation ici.</p>
+        <div class="flex justify-end gap-4">
+          <button id="stat-change-confirm-yes-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
+            Oui, continuer
+          </button>
+          <button id="stat-change-confirm-no-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
+            Non, annuler
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for Trait Probabilities -->
+    <div id="trait-probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[8000]">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Probabilités des Traits</h2>
+        <div id="trait-probabilities-content" class="text-white text-sm sm:text-base space-y-2">
+            <!-- Les probabilités des types de traits seront injectées ici par JavaScript -->
+        </div>
+        <div class="flex justify-end mt-6">
+          <button id="close-trait-probabilities-modal-button" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="trait-action-confirm-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-[9000]">
+        <div class="bg-gray-800 p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h2 class="text-xl text-white font-bold mb-4">Confirmer l'action de Trait</h2>
+            <p id="trait-action-confirm-message" class="text-white mb-6">Message de confirmation ici.</p>
+            <div class="flex justify-end gap-4">
+            <button id="trait-action-confirm-yes-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">
+                Oui, continuer
+            </button>
+            <button id="trait-action-confirm-no-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
+                Non, annuler
+            </button>
+            </div>
+          </div>
+        </div>
+      
+    <!-- Modal for Mini-Game -->
+    <div id="mini-game-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-[10000]">
+      <div id="mini-game-arena" class="bg-gray-900 p-4 sm:p-6 rounded-lg w-full max-w-2xl text-center shadow-lg border-4 border-red-500" style="background-image: url('https://i.pinimg.com/originals/a1/81/d7/a181d76a163158485de067262b947c2b.gif'); background-size: cover; background-position: center;">
+        
+        <!-- Écran de démarrage -->
+        <div id="mini-game-start-screen">
+          <h2 id="mini-game-title" class="text-3xl text-white font-bold drop-shadow-md mb-4">Défi du Boss !</h2>
+          <p id="mini-game-instructions" class="text-white mb-6">Vous avez 30 secondes pour vaincre le boss. La puissance de votre équipe détermine vos dégâts par clic. Préparez-vous !</p>
+          <button id="mini-game-start-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition transform hover:scale-105">
+            Commencer !
+          </button>
+        </div>
+
+        <!-- Écran de jeu principal (caché au début) -->
+        <div id="mini-game-main-screen" class="hidden">
+          <div class="relative mb-4">
+            <h2 id="mini-game-boss-name" class="text-2xl text-yellow-300 font-bold drop-shadow-lg">Titan des Abysses</h2>
+            <!-- Barre de vie du boss -->
+            <div class="w-full bg-gray-700 rounded-full h-8 border-2 border-gray-500 mt-2">
+              <div id="mini-game-boss-health-bar" class="bg-red-600 h-full rounded-full transition-all duration-100 ease-linear" style="width: 100%;"></div>
+              <span id="mini-game-boss-health-text" class="absolute inset-0 flex items-center justify-center text-white font-bold">100%</span>
+            </div>
+            <!-- Chronomètre -->
+            <div id="mini-game-timer" class="absolute -top-2 -right-2 bg-blue-500 text-white text-2xl font-bold py-2 px-4 rounded-full">30</div>
+          </div>
+          
+          <!-- Zone de clic (le boss) -->
+          <div id="mini-game-click-area" class="relative mt-4">
+            <img id="mini-game-boss-image" src="https://static.wikia.nocookie.net/animeadventures/images/4/4b/Cooler_%28Final%29_Icon.png/revision/latest?cb=20220917173200" alt="Boss" class="mx-auto h-64 cursor-pointer transition-transform duration-75 ease-out hover:scale-105 active:scale-95">
+            <!-- Conteneur pour les numéros de dégâts -->
+            <div id="mini-game-damage-container" class="absolute inset-0"></div>
+          </div>
+        </div>
+
+        <!-- Écran de résultat (victoire/défaite) -->
+        <div id="mini-game-result-screen" class="hidden">
+          <h2 id="mini-game-result-title" class="text-4xl font-bold mb-4"></h2>
+          <p id="mini-game-result-rewards" class="text-white mb-6"></p>
+          <button id="mini-game-close-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-lg">
+            Fermer
+          </button>
+        </div>
+
+      </div>
+    </div>
+  
+  <script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+      return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+      if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+        try {
+          var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+          var firstSheetName = workbook.SheetNames[0];
+          var worksheet = workbook.Sheets[firstSheetName];
+          var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+          var filteredData = jsonData.filter(row => row.some(filledCell));
+          var headerRowIndex = filteredData.findIndex((row, index) =>
+            row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+          );
+          if (headerRowIndex === -1 || headerRowIndex > 25) {
+            headerRowIndex = 0;
+          }
+          var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+          csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+          return csv;
+        } catch (e) {
+          console.error(e);
+          return "";
+        }
+      }
+      return gk_fileData[filename] || "";
+    }
+  </script>
+
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+  <script>
+  </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'939104e50fc0d0b6',t:'MTc0NjEyMDc1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
