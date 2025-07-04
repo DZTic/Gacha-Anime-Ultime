@@ -726,7 +726,9 @@ const standardCharacters = [
         },
       ];
 
-    const specialCharacters = [
+    // --- MODIFICATION ICI ---
+    // Ajout de la propriété `chance` à chaque personnage
+        const specialCharacters = [
         {
           name: "Gogeta's Super Saiyan 4",
           rarity: "Vanguard",
@@ -734,7 +736,8 @@ const standardCharacters = [
           image: "./images/gogeta's super saiyan 4.webp",
           power: 1850,
           level: 1,
-          passive: { teamSizeBonus: 2 }
+          passive: { teamSizeBonus: 2 },
+          chance: 0.00001 // 0.001% de chance (1 sur 100,000)
         },  
         {
             name: "Igris",
@@ -748,19 +751,20 @@ const standardCharacters = [
                 newName: "Igris (Elite Knight)",
                 newImage: "./images/Igris (Elite Knight).webp",
                 basePowerIncrease: 800
-            }
+            },
+            chance: 0.0000125 // 0.00125% de chance (1 sur 80,000)
         },
-        { name: "Majin Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/majin boo (evil).webp", power: 1550, level: 1 },
-        { name: "Buuhan (Evil)", rarity: "Secret", color: "text-secret", image: "./images/buuhan (evil).webp", power: 1560, level: 1 },
-        { name: "Boockleo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/boockleo (evil).webp", power: 1570, level: 1 },
-        { name: "Super Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/super boo (evil).webp", power: 1520, level: 1 },
-        { name: "Kid Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/kid boo (evil).webp", power: 1580, level: 1 },
-        { name: "Super Vegetto", rarity: "Secret", color: "text-secret", image: "./images/super vegetto.webp", power: 1585, level: 1 },
-        { name: "Cid", rarity: "Secret", color: "text-secret", image: "./images/cid.webp", power: 1650, level: 1 },
-        { name: "Kaze-sensei", rarity: "Légendaire", color: "text-purple-400", image: "https://via.placeholder.com/150?text=Kaze", power: 800, level: 1 },
-        { name: "Mizu-chan", rarity: "Épique", color: "text-blue-400", image: "https://via.placeholder.com/150?text=Mizu", power: 500, level: 1 },
-        { name: "Tsuchi-kun", rarity: "Rare", color: "text-gray-400", image: "https://via.placeholder.com/150?text=Tsuchi", power: 360, level: 1 },
-        { name: "Sakura", rarity: "Légendaire", color: "text-pink-400", image: "https://via.placeholder.com/150?text=Sakura", power: 850, level: 1 }
+        { name: "Majin Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/majin boo (evil).webp", power: 1550, level: 1, chance: 0.0000125 },
+        { name: "Buuhan (Evil)", rarity: "Secret", color: "text-secret", image: "./images/buuhan (evil).webp", power: 1560, level: 1, chance: 0.0000125 },
+        { name: "Boockleo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/boockleo (evil).webp", power: 1570, level: 1, chance: 0.0000125 },
+        { name: "Super Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/super boo (evil).webp", power: 1520, level: 1, chance: 0.0000125 },
+        { name: "Kid Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/kid boo (evil).webp", power: 1580, level: 1, chance: 0.0000125 },
+        { name: "Super Vegetto", rarity: "Secret", color: "text-secret", image: "./images/super vegetto.webp", power: 1585, level: 1, chance: 0.0000125 },
+        { name: "Cid", rarity: "Secret", color: "text-secret", image: "./images/cid.webp", power: 1650, level: 1, chance: 0.0000125 },
+        { name: "Kaze-sensei", rarity: "Légendaire", color: "text-purple-400", image: "https://via.placeholder.com/150?text=Kaze", power: 800, level: 1, chance: 0.015 }, // 1.5% de chance
+        { name: "Mizu-chan", rarity: "Épique", color: "text-blue-400", image: "https://via.placeholder.com/150?text=Mizu", power: 500, level: 1, chance: 0.10 }, // 10% de chance
+        { name: "Tsuchi-kun", rarity: "Rare", color: "text-gray-400", image: "https://via.placeholder.com/150?text=Tsuchi", power: 360, level: 1, chance: 0.86989 }, // 86.989% de chance (le reste)
+        { name: "Sakura", rarity: "Légendaire", color: "text-pink-400", image: "https://via.placeholder.com/150?text=Sakura", power: 850, level: 1, chance: 0.015 } // 1.5% de chance
     ];
 
     const allCharacters = [...standardCharacters, ...specialCharacters];
