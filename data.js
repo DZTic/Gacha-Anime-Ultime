@@ -1347,7 +1347,7 @@ const standardCharacters = [
         "strength": {
             id: "strength",
             name: "Force",
-            image: "https://static.wikia.nocookie.net/animeadventures/images/b/bf/Trait_Superior.png/revision/latest/scale-to-width-down/65?cb=20220831131930",
+            image: "./images/traits/Superior.png", // Placeholder image
             probability: 0.48, // Adjusted probability
             order: 1,
             gradeProbabilities: [
@@ -1364,7 +1364,7 @@ const standardCharacters = [
         "fortune": {
             id: "fortune",
             name: "Fortune",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/b/bf/Fortune.png/revision/latest/scale-to-width-down/65?cb=20240911055432",
+            image: "./images/traits/Fortune.png", // Placeholder image
             probability: 0.48, // Adjusted probability
             order: 1,
             gradeProbabilities: [
@@ -1381,7 +1381,7 @@ const standardCharacters = [
         "berserk": {
             id: "berserk",
             name: "Berserk",
-            image: "https://static.wikia.nocookie.net/animeadventures/images/d/d9/Trait_Reaper.png/revision/latest/scale-to-width-down/65?cb=20220831133708", // Placeholder image
+            image: "./images/traits/Reaper.png", // Placeholder image
             probability: 0.01, // Assigned probability
             order: 2,
             // No gradeProbabilities for single-grade trait
@@ -1392,7 +1392,7 @@ const standardCharacters = [
         "legends": {
             id: "legends",
             name: "Héros de Légende", // "Legends" from image, translated for consistency
-            image: "https://static.wikia.nocookie.net/animeadventures/images/1/14/Trait_Divine.png/revision/latest/scale-to-width-down/65?cb=20220831133702", // Placeholder image
+            image: "./images/traits/Divine.png", // Placeholder image
             probability: 0.01, // Assigned probability
             order: 3,
             grades: [
@@ -1402,7 +1402,7 @@ const standardCharacters = [
         "challenge_master": {
             id: "challenge_master",
             name: "Maître des Challenges",
-            image: "https://static.wikia.nocookie.net/animeadventures/images/f/f9/Trait_Celestial.png/revision/latest/scale-to-width-down/65?cb=20221225203625",
+            image: "./images/traits/Celestial.png", // Placeholder image
             probability: 0.01,
             order: 4,
             grades: [
@@ -1422,7 +1422,7 @@ const standardCharacters = [
         "golder": {
             id: "golder",
             name: "Golden", // "Golder" from image
-            image: "https://static.wikia.nocookie.net/animeadventures/images/1/10/Trait_Golden.png/revision/latest/scale-to-width-down/65?cb=20220831133640", // Placeholder image
+            image: "./images/traits/Golden.png", // Placeholder image
             probability: 0.003, // Assigned probability
             order: 6,
             grades: [
@@ -1432,7 +1432,7 @@ const standardCharacters = [
         "monarch": {
             id: "monarch",
             name: "Monarque",
-            image: "https://static.wikia.nocookie.net/rbx-anime-vanguards/images/9/9f/Soverign.png/revision/latest/scale-to-width-down/65?cb=20240922070846", // Placeholder image
+            image: "./images/traits/Soverign.png", // Placeholder image
             probability: 0.001, 
             order: 7,
             grades: [
