@@ -83,6 +83,10 @@
           <button id="special-multi-pull-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 sm:px-6 rounded-lg transition transform hover:scale-105 text-sm sm:text-base">
             Bannière Spéciale x10 (1500 gemmes)
           </button>
+          <!-- NOUVEAU: Bouton pour les actions multiples -->
+          <button id="multi-action-button" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 sm:px-6 rounded-lg transition transform hover:scale-105 text-sm sm:text-base">
+            Auto
+          </button>
           <button id="info-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105 text-sm sm:text-base">
             i
           </button>
@@ -387,8 +391,64 @@
     </div> <!-- Fin de game-container -->
 
     <!-- Toutes vos modales (stats-modal, character-selection-modal, etc.) restent ici, inchangées -->
+    <!-- NOUVEAU: Modale pour les actions multiples -->
+    <div id="multi-action-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal z-[8500]">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Configurer les Actions Multiples</h2>
+        
+        <div class="flex border-b border-gray-600 mb-4">
+          <button class="px-4 py-2 text-white font-semibold border-b-2 border-blue-500 focus:outline-none ma-tab-button" data-tab="pulls">Tirages</button>
+          <button class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none ma-tab-button" data-tab="levels">Niveaux</button>
+        </div>
+
+        <div id="ma-tab-content">
+          <!-- Onglet Tirages -->
+          <div id="ma-pulls-tab">
+            <h3 class="text-lg text-white font-semibold mb-3">Répéter les Tirages</h3>
+            <div class="space-y-2 mb-4 text-white">
+              <label class="flex items-center"><input type="radio" name="ma-pull-type" value="standard-1" class="mr-2"> Tirage Standard x1</label>
+              <label class="flex items-center"><input type="radio" name="ma-pull-type" value="standard-10" class="mr-2"> Tirage Standard x10</label>
+              <label class="flex items-center"><input type="radio" name="ma-pull-type" value="special-1" class="mr-2"> Bannière Spéciale x1</label>
+              <label class="flex items-center"><input type="radio" name="ma-pull-type" value="special-10" class="mr-2"> Bannière Spéciale x10</label>
+            </div>
+            <div class="mb-4">
+              <label for="ma-pulls-repetitions" class="text-white block mb-1">Nombre de répétitions :</label>
+              <!-- MODIFICATION ICI -->
+              <input type="number" id="ma-pulls-repetitions" min="1" max="10000" value="10" class="w-full p-2 bg-gray-700 text-white rounded border border-gray-600">
+            </div>
+            <div id="ma-pulls-status" class="text-yellow-300 mb-4 min-h-[1.5rem]"></div>
+            <div class="flex gap-4">
+              <button id="ma-start-pulls" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Lancer</button>
+              <button id="ma-stop-pulls" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg hidden">Arrêter</button>
+            </div>
+          </div>
+          <!-- Onglet Niveaux -->
+          <div id="ma-levels-tab" class="hidden">
+            <h3 class="text-lg text-white font-semibold mb-3">Répéter les Niveaux</h3>
+            <div id="ma-selected-level-display" class="p-3 mb-3 bg-gray-700 rounded-lg text-white">Aucun niveau sélectionné.</div>
+            <button id="ma-select-level-button" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg mb-4">Sélectionner un Niveau</button>
+            <p class="text-xs text-gray-400 mb-3">Note : La répétition de niveaux utilisera votre équipe de Preset (si configurée et valide) ou la dernière équipe utilisée pour ce type de niveau.</p>
+            <div class="mb-4">
+              <label for="ma-levels-repetitions" class="text-white block mb-1">Nombre de répétitions :</label>
+              <!-- MODIFICATION ICI -->
+              <input type="number" id="ma-levels-repetitions" min="1" max="10000" value="10" class="w-full p-2 bg-gray-700 text-white rounded border border-gray-600">
+            </div>
+            <div id="ma-levels-status" class="text-yellow-300 mb-4 min-h-[1.5rem]"></div>
+            <div class="flex gap-4">
+              <button id="ma-start-levels" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Lancer</button>
+              <button id="ma-stop-levels" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg hidden">Arrêter</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 flex justify-end">
+          <button id="ma-close" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Fermer</button>
+        </div>
+      </div>
+    </div>
+    
     <!-- Modal for Character Stats -->
-    <div id="stats-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="stats-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Statistiques du Personnage</h2>
         <div id="modal-content" class="text-white text-sm sm:text-base"></div>
@@ -402,7 +462,7 @@
     </div>
 
     <!-- Modal for Character Selection in Story Mode -->
-    <div id="character-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="character-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="modal-content-wrapper bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <h2 id="character-selection-title" class="text-xl sm:text-2xl text-white font-bold mb-4">Sélectionner 3 Personnages pour le Combat</h2>
         
@@ -446,7 +506,7 @@
     </div>
 
     <!-- Modal for Fusion -->
-    <div id="fusion-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="fusion-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Fusionner le Personnage</h2>
         
@@ -484,7 +544,7 @@
     </div>
 
     <!-- Modal for Settings -->
-    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Paramètres</h2>
         <div class="text-white mb-4 text-sm sm:text-base">
@@ -495,6 +555,11 @@
           <label class="flex items-center mt-2">
             <input type="checkbox" id="animations-toggle" class="mr-2">
             Activer les animations
+          </label>
+          <!-- MODIFICATION ICI -->
+          <label class="flex items-center mt-2">
+            <input type="checkbox" id="disable-autoclicker-warning" class="mr-2">
+            Désactiver l'avertissement auto-clicker
           </label>
           <div class="mt-2">
             <label for="theme-select" class="block">Thème:</label>
@@ -541,7 +606,7 @@
     </div>
 
     <!-- Modal for Reset Confirmation -->
-    <div id="reset-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="reset-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Confirmer la réinitialisation</h2>
         <p class="text-white mb-4 text-sm sm:text-base">Voulez-vous vraiment réinitialiser votre partie ? Toutes vos données seront perdues.</p>
@@ -553,7 +618,7 @@
     </div>
 
     <!-- Modal for Giving Items -->
-    <div id="give-items-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="give-items-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Donner des Objets au Personnage</h2>
         <div id="item-selection-list-container" class="max-h-[60vh] overflow-hidden">
@@ -568,7 +633,7 @@
     </div>
 
     <!-- Modal for Evolution -->
-    <div id="evolution-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="evolution-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Évoluer le Personnage</h2>
         <div id="evolution-requirements" class="text-white mb-4 text-sm sm:text-base"></div>
@@ -584,7 +649,7 @@
     </div>
 
     <!-- Modal for Battle Result -->
-    <div id="battle-result-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="battle-result-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto text-center">
         <h2 id="battle-result-title" class="text-2xl sm:text-3xl text-white font-bold mb-4"></h2>
         <p id="battle-result-message" class="text-white mb-4 text-sm sm:text-base"></p>
@@ -592,7 +657,7 @@
     </div>
 
     <!-- Modal for Preset Selection -->
-    <div id="preset-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="preset-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <h2 id="preset-selection-modal-title" class="text-xl sm:text-2xl text-white font-bold mb-4">Sélectionner 3 Personnages pour le Preset</h2>
         
@@ -637,7 +702,7 @@
     </div>
 
     <!-- Modal for Autofusion -->
-    <div id="autofuse-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="autofuse-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="modal-content-wrapper bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Multifusion</h2>
         <div class="mb-4">
@@ -678,7 +743,7 @@
     </div>
 
     <!-- Modal for Pull Method Selection -->
-    <div id="pull-method-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="pull-method-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Choisir la méthode de tirage</h2>
         <p class="text-white mb-4 text-sm sm:text-base">Comment voulez-vous effectuer ce tirage ?</p>
@@ -691,7 +756,7 @@
     </div>
 
     <!-- Modal for Pull Probabilities -->
-    <div id="probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Probabilités des Tirages</h2>
         <div class="flex border-b border-gray-600 mb-4">
@@ -715,7 +780,7 @@
     </div>
 
     <!-- Modal for Stat Rank Probabilities -->
-    <div id="stat-rank-probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div id="stat-rank-probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-sm max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Probabilités des Rangs de Stat</h2>
         <div id="stat-rank-probabilities-content" class="text-white text-sm sm:text-base space-y-2">
@@ -759,7 +824,7 @@
     </div>
 
     <!-- Modal for Trait Probabilities -->
-    <div id="trait-probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[8000]">
+    <div id="trait-probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal z-[8000]">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Probabilités des Traits</h2>
         <div id="trait-probabilities-content" class="text-white text-sm sm:text-base space-y-2">
@@ -828,10 +893,22 @@
             Fermer
           </button>
         </div>
-
       </div>
     </div>
-  
+    
+    <!-- MODIFICATION ICI: Nouvelle modale d'avertissement -->
+    <div id="auto-clicker-warning-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden game-modal z-[9500]">
+      <div class="bg-gray-800 p-6 rounded-lg w-full max-w-md shadow-xl border-2 border-yellow-500">
+        <h2 class="text-xl sm:text-2xl text-yellow-400 font-bold mb-4">Avertissement</h2>
+        <p class="text-white mb-4">L'utilisation d'auto-clickers ou d'autres outils d'automatisation n'est pas recommandée.</p>
+        <p class="text-white mb-6">Cela peut provoquer des actions trop rapides qui pourraient potentiellement corrompre votre sauvegarde. Utilisez-les à vos propres risques.</p>
+        <p class="text-xs text-gray-400 mb-4">Vous pouvez désactiver cet avertissement dans les paramètres.</p>
+        <div class="flex justify-end">
+            <button id="auto-clicker-modal-close-button" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">J'ai compris</button>
+        </div>
+      </div>
+    </div>
+    
   <script type="text/javascript">
     var gk_isXlsx = false;
     var gk_xlsxFileLookup = {};
@@ -870,4 +947,3 @@
   <script>
   </script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'939104e50fc0d0b6',t:'MTc0NjEyMDc1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
-</html>

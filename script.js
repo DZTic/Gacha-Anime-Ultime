@@ -435,6 +435,18 @@
         intervalId: null,
         levelData: null
     };
+    let isSelectingLevelForMultiAction = false;
+    let multiActionState = {
+        isRunning: false,
+        type: null, // 'pulls' ou 'levels'
+        action: null, // 'standard-1', 'standard-10', ou un levelId
+        total: 0,
+        current: 0,
+        stopRequested: false,
+        selectedLevelId: null,
+        selectedLevelName: ''
+    };
+    let disableAutoClickerWarning = localStorage.getItem("disableAutoClickerWarning") === "true";
 
     // Existing DOM elements
     const gemsElement = document.getElementById("gems");
@@ -605,6 +617,31 @@
     const miniGameHealthText = document.getElementById('mini-game-boss-health-text');
     const miniGameCloseButton = document.getElementById('mini-game-close-button');
     const miniGameDamageContainer = document.getElementById('mini-game-damage-container');
+    let autoClickerWarningShown = localStorage.getItem("autoClickerWarningShown") === "true";
+    let clickTracker = {
+        pull: [],
+        level: [],
+    };
+    const CLICK_THRESHOLD = 10; // Clics pour déclencher
+    const CLICK_TIMEFRAME_MS = 2000; // Fenêtre de temps en ms (2 secondes)
+    const multiActionButton = document.getElementById("multi-action-button");
+    const multiActionModal = document.getElementById("multi-action-modal");
+    const maTabButtons = document.querySelectorAll(".ma-tab-button");
+    const maPullsTab = document.getElementById("ma-pulls-tab");
+    const maLevelsTab = document.getElementById("ma-levels-tab");
+    const maPullsRepetitionsInput = document.getElementById("ma-pulls-repetitions");
+    const maPullsStatus = document.getElementById("ma-pulls-status");
+    const maStartPullsButton = document.getElementById("ma-start-pulls");
+    const maStopPullsButton = document.getElementById("ma-stop-pulls");
+    const maSelectedLevelDisplay = document.getElementById("ma-selected-level-display");
+    const maSelectLevelButton = document.getElementById("ma-select-level-button");
+    const maLevelsRepetitionsInput = document.getElementById("ma-levels-repetitions");
+    const maLevelsStatus = document.getElementById("ma-levels-status");
+    const maStartLevelsButton = document.getElementById("ma-start-levels");
+    const maStopLevelsButton = document.getElementById("ma-stop-levels");
+    const maCloseButton = document.getElementById("ma-close");
+    const disableAutoClickerWarningCheckbox = document.getElementById("disable-autoclicker-warning");
+    const autoClickerWarningModal = document.getElementById('auto-clicker-warning-modal');
 
     
     const pullSound = new Audio("https://freesound.org/data/previews/270/270333_5121236-lq.mp3");
@@ -667,8 +704,6 @@
             standardPityCount = 0;
             specialPityCount = 0;
             lastUsedBattleTeamIds = [];
-
-            // Paramètres par défaut
             autosellSettings = { Rare: false, Épique: false, Légendaire: false, Mythic: false, Secret: false };
 
             // Inventaire par défaut (tous les objets à 0)
@@ -692,13 +727,15 @@
                 "Ring of Friendship": 0, "Red Jewel": 0, "Majan Essence": 0, "Donut": 0, "Atomic Essence": 0,
                 "Plume Céleste": 0, "Sablier Ancien": 0, "Restricting Headband": 0, "Toil Ribbon": 0
             };
+            
+            // CORRECTION: Générer les missions et offres de boutique initiales pour une nouvelle partie
+            updateMissionPool();
+            updateShopOffers();
 
         // Cas 2: Chargement d'une partie existante
         } else {
             console.log("Sauvegarde trouvée, chargement de la progression.");
             
-            // Charger les données depuis l'objet saveData, en utilisant "||" pour fournir
-            // une valeur par défaut si une propriété n'existe pas dans la sauvegarde (utile pour les mises à jour du jeu).
             characterIdCounter = saveData.characterIdCounter || 0;
             gems = saveData.gems || 1000;
             coins = saveData.coins || 0;
@@ -717,7 +754,7 @@
                 unlocked: level.type === 'challenge' ? true : (level.type === 'material' ? true : (level.type === 'story' && level.id === 1)),
                 completed: false
             }));
-            inventory = saveData.inventory || {}; // Un objet vide est une bonne valeur par défaut
+            inventory = saveData.inventory || {};
             discoveredCharacters = saveData.discoveredCharacters || [];
             characterPreset = saveData.characterPreset || [];
             presetConfirmed = saveData.presetConfirmed || false;
@@ -726,13 +763,19 @@
             lastUsedBattleTeamIds = saveData.lastUsedBattleTeamIds || [];
             autosellSettings = saveData.autosellSettings || { Rare: false, Épique: false, Légendaire: false, Mythic: false, Secret: false };
             
-            // Assurer la cohérence entre pullTickets et l'inventaire
+            // CORRECTION: S'assurer que les missions et la boutique ne sont pas vides (utile pour les anciennes sauvegardes)
+            if (missions.length === 0) {
+                updateMissionPool();
+            }
+            if (shopOffers.length === 0) {
+                updateShopOffers();
+            }
+            
             if (inventory) {
                 inventory["Pass XP"] = pullTickets;
             }
         }
 
-        // 1. Mettre à jour les données et les états internes en premier.
         updateLegendeDisplay();
         updateChallengeDisplay();
         updateMaterialFarmDisplay();
@@ -740,8 +783,6 @@
         updateMissions();
         applySettings();
         updateTimer();
-
-        // 2. Mettre à jour l'affichage de l'UI principale avec les données finalisées.
         updateUI();
         updateCharacterDisplay();
         updateItemDisplay();
@@ -751,18 +792,19 @@
         updateCurseTabDisplay();
         updateTraitTabDisplay();
         updateLimitBreakTabDisplay();
-
-        // 3. Mettre à jour l'affichage des niveaux AVANT de montrer l'onglet
-        updateLevelDisplay(); // <-- Ligne cruciale restaurée ici
-
-        // 4. Afficher le premier onglet maintenant que tout est prêt.
+        updateLevelDisplay();
         showTab("play");
         
-        // 5. Marquer le jeu comme initialisé.
         isGameInitialized = true;
 
-        // 6. Planifier une sauvegarde initiale une fois que tout est chargé.
+        loadOrGenerateStandardBanner();
+
         scheduleSave();
+
+        if (!disableAutoClickerWarning && autoClickerWarningModal) {
+            autoClickerWarningModal.classList.remove('hidden');
+            enableNoScroll();
+        }
     }
 
     async function handleLogin(e) {
@@ -1184,43 +1226,35 @@
     }
 
     function updateLevelDisplay() {
-          const worlds = baseStoryLevels.reduce((acc, level) => {
-            if (!acc[level.world]) acc[level.world] = [];
-            acc[level.world].push(level);
-            return acc;
-          }, {});
-          levelListElement.innerHTML = Object.entries(worlds).map(([worldName, levels]) => {
-            const progressLevels = levels.map(level => storyProgress.find(p => p.id === level.id));
-            const worldUnlocked = progressLevels.some(p => p.unlocked);
-            const worldCompleted = progressLevels.every(p => p.completed);
-            return `
-              <div class="mb-6">
-                <h3 class="text-xl text-white font-bold mb-2">${worldName} ${worldCompleted ? '(Terminé)' : ''}</h3>
-                <div class="grid gap-4">
-                  ${worldUnlocked ? levels.map(level => {
-                    const progress = storyProgress.find(p => p.id === level.id);
-                    const isDisabled = !progress.unlocked;
-                    const buttonText = level.isInfinite ? `${level.name} (Gemmes/min: ${level.rewards.gemsPerMinute})` : `${level.name} ${progress.completed ? '(Terminé)' : ''}`;
-                    return `<button class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" onclick="${level.isInfinite ? 'startInfiniteLevel(' : 'startLevel('}${level.id})" ${isDisabled ? 'disabled' : ''}>${buttonText}</button>`;
-                  }).join("") : '<p class="text-white">Monde verrouillé. Terminez le monde précédent pour déverrouiller.</p>'}
-                </div>
-              </div>`;
-          }).join("");
+      const worlds = baseStoryLevels.reduce((acc, level) => {
+        if (!acc[level.world]) acc[level.world] = [];
+        acc[level.world].push(level);
+        return acc;
+      }, {});
+      levelListElement.innerHTML = Object.entries(worlds).map(([worldName, levels]) => {
+        const progressLevels = levels.map(level => storyProgress.find(p => p.id === level.id));
+        const worldUnlocked = progressLevels.some(p => p.unlocked);
+        const worldCompleted = progressLevels.every(p => p.completed);
+        return `
+          <div class="mb-6">
+            <h3 class="text-xl text-white font-bold mb-2">${worldName} ${worldCompleted ? '(Terminé)' : ''}</h3>
+            <div class="grid gap-4">
+              ${worldUnlocked ? levels.map(level => {
+                const progress = storyProgress.find(p => p.id === level.id);
+                const isDisabled = !progress.unlocked;
+                const buttonText = level.isInfinite ? `${level.name} (Gemmes/min: ${level.rewards.gemsPerMinute})` : `${level.name} ${progress.completed ? '(Terminé)' : ''}`;
+                // La modification est ici : on utilise data-attributes au lieu de onclick
+                return `<button class="level-start-button bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" data-level-id="${level.id}" data-is-infinite="${level.isInfinite || false}" ${isDisabled ? 'disabled' : ''}>${buttonText}</button>`;
+              }).join("") : '<p class="text-white">Monde verrouillé. Terminez le monde précédent pour déverrouiller.</p>'}
+            </div>
+          </div>`;
+      }).join("");
           const groupedLevels = storyProgress.reduce((acc, level) => {
             const world = level.id <= 6 ? "Royaume des Ombres" : level.id <= 12 ? "Empire de Cristal" : level.id <= 18 ? "Profondeurs Abyssales" : level.id <= 24 ? "Pics Célestes" : level.id <= 30 ? "Déserts du Vide" : level.id <= 36 ? "Éclipse Éternelle" : "Abîme Infini";
             acc[world] = acc[world] || [];
             acc[world].push(level);
             return acc;
           }, {});
-          document.querySelectorAll('.start-level-button').forEach(button => {
-            button.addEventListener('click', () => {
-              currentLevelId = parseInt(button.dataset.levelId);
-              selectedBattleCharacters.clear();
-              characterSelectionModal.classList.remove('hidden');
-              enableNoScroll();
-              updateCharacterSelectionDisplay();
-            });
-          });
     }
 
     function updateLegendeDisplay() {
@@ -1243,12 +1277,11 @@
 
             if (legendaryLevelForWorld) {
                 let legendaryProgress = storyProgress.find(p => p.id === legendaryLevelForWorld.id);
-                if (!legendaryProgress) { // S'assurer que la progression existe pour les niveaux légendaires
+                if (!legendaryProgress) {
                     legendaryProgress = { id: legendaryLevelForWorld.id, unlocked: false, completed: false };
-                    storyProgress.push(legendaryProgress); // AJOUTER à storyProgress si nouveau
+                    storyProgress.push(legendaryProgress);
                 }
 
-                // Déverrouiller le niveau légendaire si le monde est terminé et qu'il n'est pas déjà déverrouillé
                 if (worldCompleted && !legendaryProgress.unlocked) {
                     legendaryProgress.unlocked = true;
                 }
@@ -1258,30 +1291,32 @@
 
                 const levelDiv = document.createElement('div');
                 levelDiv.className = 'mb-6';
+                
+                // --- MODIFICATION APPLIQUÉE ICI ---
                 levelDiv.innerHTML = `
                     <h3 class="text-xl text-white font-bold mb-2">${worldName} - Défi Légendaire</h3>
                     <div class="grid gap-4">
-                        <button class="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
-                                onclick="startLevel(${legendaryLevelForWorld.id})" ${isDisabled ? 'disabled' : ''}>
+                        <button class="level-start-button bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
+                                data-level-id="${legendaryLevelForWorld.id}" ${isDisabled ? 'disabled' : ''}>
                             ${buttonText}
                         </button>
                         ${isDisabled && !worldCompleted ? `<p class="text-sm text-gray-400">Terminez tous les niveaux du monde "${worldName}" pour débloquer ce défi.</p>` : ''}
-                        ${isDisabled && worldCompleted && !legendaryProgress.unlocked ? `<p class="text-sm text-gray-400">Défi verrouillé. Le monde "${worldName}" est terminé mais le défi n'est pas encore débloqué.</p>` : ''}
-                         ${!worldCompleted && legendaryProgress.unlocked ? `<p class="text-sm text-yellow-300">Attention: Défi débloqué mais le monde "${worldName}" n'est pas complet. (Vérifier logique)</p>` : ''}
                     </div>
                 `;
+                // --- FIN DE LA MODIFICATION ---
+                
                 legendeLevelListElement.appendChild(levelDiv);
                 foundLegendaryLevel = true;
             }
         });
 
         if (!foundLegendaryLevel) {
-             legendeLevelListElement.innerHTML = "<p class='text-white'>Aucun défi légendaire disponible pour le moment. Terminez des mondes pour les déverrouiller !</p>";
+            legendeLevelListElement.innerHTML = "<p class='text-white'>Aucun défi légendaire disponible pour le moment. Terminez des mondes pour les déverrouiller !</p>";
         }
-        scheduleSave(); // Sauvegarder les changements de storyProgress (surtout les nouveaux déverrouillages)
+        scheduleSave();
     }
 
-    function startLevel(id, useLastTeam = false) {
+    async function startLevel(id, useLastTeam = false) {
       console.log("startLevel appelé avec id:", id, "useLastTeam:", useLastTeam);
       const levelData = allGameLevels.find(lvl => lvl.id === id);
       if (!levelData) {
@@ -1292,6 +1327,21 @@
       if (levelData.type !== 'challenge' && levelData.type !== 'minigame' && !storyProgress.find(sp => sp.id === id)?.unlocked) {
           console.log("Niveau non déverrouillé, id:", id);
           return;
+      }
+      if (isSelectingLevelForMultiAction) {
+            const levelData = allGameLevels.find(l => l.id === id);
+            if (levelData) {
+                multiActionState.selectedLevelId = id;
+                multiActionState.selectedLevelName = levelData.name;
+                isSelectingLevelForMultiAction = false;
+                
+                // Rouvrir la modale et mettre à jour son affichage
+                multiActionModal.classList.remove("hidden");
+                enableNoScroll();
+                maSelectedLevelDisplay.textContent = `Niveau sélectionné : ${levelData.name}`;
+                maSelectedLevelDisplay.classList.remove("text-red-500");
+            }
+            return; // Ne pas continuer avec le lancement normal du niveau
       }
 
       currentLevelId = id;
@@ -1371,6 +1421,188 @@
         enableNoScroll();
         updateCharacterSelectionDisplay();
       }
+    }
+
+    function openMultiActionModal() {
+        if (multiActionState.isRunning) return; // Ne pas ouvrir si une action est déjà en cours
+        resetMultiActionState();
+        updateMultiActionModalUI();
+        multiActionModal.classList.remove('hidden');
+        enableNoScroll();
+    }
+
+    function closeMultiActionModal() {
+        if (multiActionState.isRunning) {
+            multiActionState.stopRequested = true; // Demander l'arrêt si on ferme pendant l'exécution
+        }
+        multiActionModal.classList.add('hidden');
+        disableNoScroll();
+        isSelectingLevelForMultiAction = false;
+    }
+
+    function resetMultiActionState() {
+        multiActionState = {
+            isRunning: false,
+            type: null,
+            action: null,
+            total: 0,
+            current: 0,
+            stopRequested: false,
+            selectedLevelId: null,
+            selectedLevelName: ''
+        };
+    }
+
+    function showMultiActionTab(tabId) {
+        maPullsTab.classList.add('hidden');
+        maLevelsTab.classList.add('hidden');
+        document.getElementById(`ma-${tabId}-tab`).classList.remove('hidden');
+
+        maTabButtons.forEach(btn => {
+            btn.classList.toggle("border-blue-500", btn.dataset.tab === tabId);
+            btn.classList.toggle("border-transparent", btn.dataset.tab !== tabId);
+        });
+    }
+
+    function updateMultiActionModalUI() {
+        // État des boutons de lancement/arrêt
+        maStartPullsButton.classList.toggle('hidden', multiActionState.isRunning);
+        maStopPullsButton.classList.toggle('hidden', !multiActionState.isRunning || multiActionState.type !== 'pulls');
+        maStartLevelsButton.classList.toggle('hidden', multiActionState.isRunning);
+        maStopLevelsButton.classList.toggle('hidden', !multiActionState.isRunning || multiActionState.type !== 'levels');
+        
+        // Griser les inputs pendant l'exécution
+        maPullsRepetitionsInput.disabled = multiActionState.isRunning;
+        maLevelsRepetitionsInput.disabled = multiActionState.isRunning;
+        maSelectLevelButton.disabled = multiActionState.isRunning;
+        document.querySelectorAll('input[name="ma-pull-type"]').forEach(radio => radio.disabled = multiActionState.isRunning);
+        
+        // Mettre à jour les statuts
+        if (multiActionState.type === 'pulls') {
+            maPullsStatus.textContent = multiActionState.isRunning ? `En cours: ${multiActionState.current} / ${multiActionState.total}` : '';
+        }
+        if (multiActionState.type === 'levels') {
+            maLevelsStatus.textContent = multiActionState.isRunning ? `En cours: ${multiActionState.current} / ${multiActionState.total}` : '';
+        }
+    }
+
+    async function startMultiPulls() {
+        const pullTypeRadio = document.querySelector('input[name="ma-pull-type"]:checked');
+        if (!pullTypeRadio) {
+            maPullsStatus.textContent = "Erreur: Veuillez sélectionner un type de tirage.";
+            return;
+        }
+        
+        const repetitions = parseInt(maPullsRepetitionsInput.value, 10);
+        // MODIFICATION ICI
+        if (isNaN(repetitions) || repetitions < 1 || repetitions > 1000) {
+            maPullsStatus.textContent = "Erreur: Nombre de répétitions invalide (doit être entre 1 et 1000).";
+            return;
+        }
+        
+        multiActionState.isRunning = true;
+        multiActionState.type = 'pulls';
+        multiActionState.action = pullTypeRadio.value;
+        multiActionState.total = repetitions;
+        multiActionState.current = 0;
+        multiActionState.stopRequested = false;
+        
+        updateMultiActionModalUI();
+        await runMultiActionLoop();
+    }
+
+    async function startMultiLevels() {
+        if (!multiActionState.selectedLevelId) {
+            maLevelsStatus.textContent = "Erreur: Aucun niveau sélectionné.";
+            return;
+        }
+        
+        if (!presetConfirmed && lastUsedBattleTeamIds.length === 0) {
+            maLevelsStatus.textContent = "Erreur: Veuillez configurer un Preset ou jouer un niveau une fois manuellement pour définir une équipe.";
+            return;
+        }
+
+        const repetitions = parseInt(maLevelsRepetitionsInput.value, 10);
+        // MODIFICATION ICI
+        if (isNaN(repetitions) || repetitions < 1 || repetitions > 1000) {
+            maLevelsStatus.textContent = "Erreur: Nombre de répétitions invalide (doit être entre 1 et 1000).";
+            return;
+        }
+
+        multiActionState.isRunning = true;
+        multiActionState.type = 'levels';
+        multiActionState.action = multiActionState.selectedLevelId;
+        multiActionState.total = repetitions;
+        multiActionState.current = 0;
+        multiActionState.stopRequested = false;
+        
+        updateMultiActionModalUI();
+        await runMultiActionLoop();
+    }
+
+    // --- DANS LE FICHIER script.js ---
+
+    async function runMultiActionLoop() {
+        const DELAY_BETWEEN_ACTIONS = 70; 
+
+        for (let i = 1; i <= multiActionState.total; i++) {
+            if (multiActionState.stopRequested) {
+                resultElement.innerHTML = `<p class="text-yellow-400">Actions multiples arrêtées par l'utilisateur.</p>`;
+                break;
+            }
+
+            multiActionState.current = i;
+            updateMultiActionModalUI();
+            
+            // MODIFICATION COMPLÈTE DE CETTE PARTIE
+            let wasSuccessful = false;
+
+            // Exécuter l'action et récupérer son état de succès
+            switch(multiActionState.action) {
+                case 'standard-1':
+                    // Pour l'auto-mode, on force l'utilisation des gemmes (pas de ticket)
+                    currentPullType = "standard";
+                    wasSuccessful = await executePull(false);
+                    break;
+                case 'standard-10':
+                    wasSuccessful = await multiPull();
+                    break;
+                case 'special-1':
+                    // Pour l'auto-mode, on force l'utilisation des gemmes
+                    currentPullType = "special";
+                    wasSuccessful = await executePull(false);
+                    break;
+                case 'special-10':
+                    wasSuccessful = await specialMultiPull();
+                    break;
+                default: // C'est un ID de niveau
+                    await startLevel(multiActionState.action, true);
+                    wasSuccessful = true; // On suppose que les niveaux réussissent toujours pour la boucle (la logique de victoire/défaite est interne)
+                    break;
+            }
+            
+            // Si l'action a échoué (pas assez de ressources), on arrête la boucle
+            if (!wasSuccessful) {
+                maPullsStatus.textContent = `Arrêté: Ressources insuffisantes.`;
+                maLevelsStatus.textContent = `Arrêté: Ressources insuffisantes.`;
+                console.log("Actions multiples arrêtées en raison de ressources insuffisantes.");
+                break; // Sortir de la boucle 'for'
+            }
+            // FIN DE LA MODIFICATION
+
+            await new Promise(r => setTimeout(r, DELAY_BETWEEN_ACTIONS));
+        }
+        
+        // La logique de fin de boucle reste la même
+        const statusElement = multiActionState.type === 'pulls' ? maPullsStatus : maLevelsStatus;
+        // On vérifie si un message d'arrêt a déjà été mis, sinon on met le message de fin normal
+        if (!statusElement.textContent.includes("Arrêté")) {
+             statusElement.textContent = `Terminé. ${multiActionState.current} sur ${multiActionState.total} actions effectuées.`;
+        }
+        
+        resetMultiActionState();
+        updateMultiActionModalUI();
+        scheduleSave(); 
     }
 
 
@@ -2189,10 +2421,9 @@
             const isDisabled = !progress.unlocked;
             const buttonText = `${level.name} ${progress.completed ? '(Terminé)' : ''}`;
             
-            // Logique pour déterminer le style du bouton
-            let buttonClass = 'bg-purple-600 hover:bg-purple-700'; // Style par défaut pour les challenges normaux
+            let buttonClass = 'bg-purple-600 hover:bg-purple-700';
             if(level.type === 'minigame') {
-                buttonClass = 'bg-red-600 hover:bg-red-700 border-2 border-yellow-400'; // Style spécial pour le mini-jeu
+                buttonClass = 'bg-red-600 hover:bg-red-700 border-2 border-yellow-400';
             }
 
             let itemDropText = '';
@@ -2212,20 +2443,24 @@
 
             const levelDiv = document.createElement('div');
             levelDiv.className = 'mb-6';
+            
+            // --- MODIFICATION APPLIQUÉE ICI ---
             levelDiv.innerHTML = `
                 <h3 class="text-xl text-white font-bold mb-2">${level.world}</h3>
                 <div class="grid gap-2">
-                    <button class="${buttonClass} text-white py-2 px-4 rounded-lg transition-colors duration-200 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
-                            onclick="startLevel(${level.id})" ${isDisabled ? 'disabled' : ''}>
+                    <button class="level-start-button ${buttonClass} text-white py-2 px-4 rounded-lg transition-colors duration-200 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
+                            data-level-id="${level.id}" ${isDisabled ? 'disabled' : ''}>
                         ${buttonText}
                     </button>
                     <div class="text-xs text-gray-300 px-2">
-                      <p>Ennemi: ${level.enemy.name} (Vie: ${level.enemy.power.toLocaleString()})</p>
-                      <p>Récompenses: ${level.rewards.gems}G, ${level.rewards.coins}P, ${level.rewards.exp}EXP</p>
-                      ${itemDropText}
+                    <p>Ennemi: ${level.enemy.name} (Vie: ${level.enemy.power.toLocaleString()})</p>
+                    <p>Récompenses: ${level.rewards.gems}G, ${level.rewards.coins}P, ${level.rewards.exp}EXP</p>
+                    ${itemDropText}
                     </div>
                 </div>
             `;
+            // --- FIN DE LA MODIFICATION ---
+            
             challengeLevelListElement.appendChild(levelDiv);
         });
 
@@ -2300,6 +2535,9 @@
       console.log("applySettings appelé, autosellSettings:", autosellSettings);
       soundToggle.checked = soundEnabled;
       animationsToggle.checked = animationsEnabled;
+      if (disableAutoClickerWarningCheckbox) {
+          disableAutoClickerWarningCheckbox.checked = disableAutoClickerWarning;
+      }
       themeSelect.value = theme;
       document.getElementById("autosell-rare").checked = autosellSettings.Rare || false;
       document.getElementById("autosell-epic").checked = autosellSettings.Épique || false;
@@ -2336,6 +2574,10 @@
       console.log("saveSettings appelé");
       soundEnabled = soundToggle.checked;
       animationsEnabled = animationsToggle.checked;
+      if (disableAutoClickerWarningCheckbox) {
+          disableAutoClickerWarning = disableAutoClickerWarningCheckbox.checked;
+          localStorage.setItem("disableAutoClickerWarning", disableAutoClickerWarning);
+      }
       theme = themeSelect.value;
       autosellSettings = {
         Rare: document.getElementById("autosell-rare").checked,
@@ -2359,9 +2601,11 @@
         // La confirmation se fera via le bouton de la modale
     }
 
+    // APRÈS
     async function confirmReset() {
         console.log("Réinitialisation de la partie pour l'utilisateur:", currentUser.uid);
         resetConfirmModal.classList.add("hidden");
+        settingsModal.classList.add("hidden"); // NOUVEAU: Ferme la modale des paramètres
 
         // Supprimer la sauvegarde de la base de données
         if (currentUser) {
@@ -2393,6 +2637,7 @@
         soundEnabled = true;
         animationsEnabled = true;
         theme = "dark";
+        disableAutoClickerWarning = false;
         autosellSettings = { Rare: false, Épique: false, Légendaire: false, Mythic: false, Secret: false };
         sortCriteria = "power";
         battleSortCriteria = "power";
@@ -2419,6 +2664,8 @@
         // --- FIN NOUVEAU ---
 
         disableNoScroll();
+        
+        showTab('play'); // NOUVEAU: Affiche l'onglet "Jouer"
 
         resultElement.innerHTML = '<p class="text-green-400">Partie et paramètres réinitialisés avec succès !</p>';
         setTimeout(() => {
@@ -2914,24 +3161,23 @@
     }
 
     async function pullCharacter() {
-        console.log("pullCharacter (standard banner) appelé");
-        currentPullType = "standard"; 
-        const standardPullCost = 100; // Coût fixe pour un tirage standard x1
+        console.log("pullCharacter (standard banner) appelé pour un tirage direct");
+        currentPullType = "standard";
+        const standardPullCost = 100;
 
         if (pullTickets > 0) {
-            openPullMethodModal(currentPullType); // openPullMethodModal vérifiera les gemmes si l'option gemmes est choisie
+            // S'il y a des tickets, on les utilise en priorité
+            executePull(true); // true signifie "utiliser un ticket"
+        } else if (gems >= standardPullCost) {
+            // Sinon, s'il y a assez de gemmes, on les utilise
+            executePull(false); // false signifie "utiliser des gemmes"
         } else {
-            // Si pas de ticket, tenter directement avec des gemmes
-            if (gems < standardPullCost) {
-                 resultElement.innerHTML = '<p class="text-red-400">Pas assez de gemmes (100 requis) !</p>';
-                 return;
-            }
-
-            executePull(false); 
+            // Sinon, on affiche une erreur car aucune ressource n'est disponible
+            resultElement.innerHTML = '<p class="text-red-400">Pas assez de tickets ou de gemmes (100 requis) !</p>';
         }
     }
 
-    async function multiPull() {
+     async function multiPull() {
       console.log("multiPull (standard banner) appelé, gemmes:", gems, "autosellSettings:", autosellSettings);
       const cost = 1000;
       const expectedPulls = 10;
@@ -2940,7 +3186,7 @@
       if (gems < cost) {
         resultElement.innerHTML = `<p class="text-red-400">Pas assez de gemmes (${cost} requis) !</p>`;
         console.log("Échec du tirage multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", cost);
-        return;
+        return false; // MODIFICATION: Retourner 'false' en cas d'échec
       }
 
       gems -= cost;
@@ -3066,22 +3312,27 @@
       localStorage.setItem("characterIdCounter", characterIdCounter);
       scheduleSave();
       console.log("multiPull (standard banner) terminé, ownedCharacters:", ownedCharacters.length);
+      return true;
     }
 
     function specialPull() {
-      console.log("specialPull appelé");
-      currentPullType = "special";
+        console.log("specialPull appelé pour un tirage direct");
+        currentPullType = "special";
+        const specialPullCost = 150;
+
         if (pullTickets > 0) {
-            // Afficher la modale si au moins un ticket est disponible
-            pullMethodModal.classList.remove("hidden");
-            document.body.classList.add("no-scroll");
-        } else {
-            // Effectuer un tirage avec des gemmes si aucun ticket n'est disponible
+            // Priorité aux tickets
+            executePull(true);
+        } else if (gems >= specialPullCost) {
+            // Sinon, on utilise les gemmes
             executePull(false);
+        } else {
+            // Sinon, erreur
+            resultElement.innerHTML = '<p class="text-red-400">Pas assez de tickets ou de gemmes (150 requis) !</p>';
         }
     }
 
-    async function executePull(useTicket) {
+     async function executePull(useTicket) {
         console.log("executePull appelé, useTicket:", useTicket, "currentPullType:", currentPullType);
         let message = "";
         let autoSold = false;
@@ -3091,7 +3342,6 @@
         let gemCost;
         let expGain;
 
-        // --- DÉBUT LOGIQUE PITY PARTIE 1 : Détermination coût & type ---
         if (currentPullType === "standard") {
             selectedCharacter = getCharacterFromStandardBanner();
             if (selectedCharacter.rarity === "Mythic") {
@@ -3109,14 +3359,13 @@
             expGain = 15;
         } else {
             console.error("Type de tirage inconnu:", currentPullType);
-            return;
+            return false; // MODIFICATION: Retourner 'false'
         }
-        // --- FIN LOGIQUE PITY PARTIE 1 ---
 
         if (useTicket) {
             if (pullTickets <= 0) {
                 resultElement.innerHTML = '<p class="text-red-400">Pas de tickets disponibles !</p>';
-                return;
+                return false; // MODIFICATION: Retourner 'false'
             }
             pullTickets--;
             inventory["Pass XP"] = Math.max(0, (inventory["Pass XP"] || 0) - 1); 
@@ -3124,16 +3373,14 @@
         } else {
             if (gems < gemCost) {
                 resultElement.innerHTML = `<p class="text-red-400">Pas assez de gemmes (${gemCost} requis) !</p>`;
-                return;
+                return false; // MODIFICATION: Retourner 'false'
             }
             gems -= gemCost;
-
             missions.forEach(mission => {
                 if (mission.type === "spend_gems" && !mission.completed) {
-                    mission.progress += cost; // Remplacez 'cost' par 'gemCost' dans la fonction executePull
+                    mission.progress += gemCost; // MODIFICATION: Utilisation de la variable gemCost
                 }
             });
-
             message = `${gemCost} gemmes dépensées.`;
         }
 
@@ -3249,9 +3496,10 @@
         localStorage.setItem("characterIdCounter", characterIdCounter);
         scheduleSave();
         console.log("executePull (x1) terminé, ownedCharacters:", ownedCharacters.length);
+        return true;
     }
 
-    async function specialMultiPull() {
+     async function specialMultiPull() {
       console.log("specialMultiPull appelé, gemmes:", gems, "autosellSettings:", autosellSettings);
       const cost = 1500;
       const expectedPulls = 10;
@@ -3260,7 +3508,7 @@
       if (gems < cost) {
         resultElement.innerHTML = '<p class="text-red-400">Pas assez de gemmes (' + cost + ' requis) ! Vous avez ' + gems + '.</p>';
         console.log("Échec du tirage spécial multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", cost);
-        return;
+        return false; // MODIFICATION: Retourner 'false' en cas d'échec
       }
 
       gems -= cost;
@@ -3375,6 +3623,7 @@
       localStorage.setItem("characterIdCounter", characterIdCounter);
       scheduleSave();
       console.log("specialMultiPull terminé, ownedCharacters:", ownedCharacters.length);
+      return true;
     }
 
     function awardLevelRewards(level) {
@@ -3765,105 +4014,106 @@
       });
     }
 
+    // APRÈS
     function updateCharacterDisplay() {
-      if (!ownedCharacters.length && !inventoryFilterName && inventoryFilterRarity === "all" && !inventoryFilterEvolvable && !inventoryFilterLimitBreak && !inventoryFilterCanReceiveExp) {
-          characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage possédé.</p>'; // Modifié pour s'adapter à la grille
-          return;
-      }
+        if (!ownedCharacters.length && !inventoryFilterName && inventoryFilterRarity === "all" && !inventoryFilterEvolvable && !inventoryFilterLimitBreak && !inventoryFilterCanReceiveExp) {
+            characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage possédé.</p>'; // Modifié pour s'adapter à la grille
+            return;
+        }
 
-      let filteredCharacters = [...ownedCharacters];
+        let filteredCharacters = [...ownedCharacters];
 
-      // Appliquer les filtres
-      if (inventoryFilterName) {
-          filteredCharacters = filteredCharacters.filter(char =>
-              (char.name || "").toLowerCase().includes(inventoryFilterName.toLowerCase())
-          );
-      }
+        // Appliquer les filtres
+        if (inventoryFilterName) {
+            filteredCharacters = filteredCharacters.filter(char =>
+                (char.name || "").toLowerCase().includes(inventoryFilterName.toLowerCase())
+            );
+        }
 
-      if (inventoryFilterRarity !== "all") {
-          filteredCharacters = filteredCharacters.filter(char => char.rarity === inventoryFilterRarity);
-      }
+        if (inventoryFilterRarity !== "all") {
+            filteredCharacters = filteredCharacters.filter(char => char.rarity === inventoryFilterRarity);
+        }
 
-      if (inventoryFilterEvolvable) {
-          filteredCharacters = filteredCharacters.filter(char => canCharacterEvolve(char));
-      }
+        if (inventoryFilterEvolvable) {
+            filteredCharacters = filteredCharacters.filter(char => canCharacterEvolve(char));
+        }
 
-      if (inventoryFilterLimitBreak) {
-          filteredCharacters = filteredCharacters.filter(char => {
-              const currentMaxCap = char.maxLevelCap || 60;
-              return char.level >= currentMaxCap && currentMaxCap < MAX_POSSIBLE_LEVEL_CAP;
-          });
-      }
+        if (inventoryFilterLimitBreak) {
+            filteredCharacters = filteredCharacters.filter(char => {
+                const currentMaxCap = char.maxLevelCap || 60;
+                return char.level >= currentMaxCap && currentMaxCap < MAX_POSSIBLE_LEVEL_CAP;
+            });
+        }
 
-      if (inventoryFilterCanReceiveExp) {
-          filteredCharacters = filteredCharacters.filter(char => {
-              const currentMaxCap = char.maxLevelCap || 60;
-              return char.level < currentMaxCap;
-          });
-      }
+        if (inventoryFilterCanReceiveExp) {
+            filteredCharacters = filteredCharacters.filter(char => {
+                const currentMaxCap = char.maxLevelCap || 60;
+                return char.level < currentMaxCap;
+            });
+        }
 
-      // Trier les personnages
-      const sortedAndFilteredCharacters = filteredCharacters.sort((a, b) => {
-            let primaryComparison = 0;
-            // Tri principal basé sur sortCriteria (contrôlé par le sélecteur de l'inventaire)
-            if (sortCriteria === "power") primaryComparison = (b.power || 0) - (a.power || 0);
-            else if (sortCriteria === "rarity") primaryComparison = (rarityOrder[b.rarity] ?? -1) - (rarityOrder[a.rarity] ?? -1);
-            else if (sortCriteria === "level") primaryComparison = (b.level || 0) - (a.level || 0);
-            else if (sortCriteria === "name") primaryComparison = (a.name || "").localeCompare(b.name || "");
-            // Si sortCriteria est "none" ou une autre valeur, primaryComparison restera 0
+        // Trier les personnages
+        const sortedAndFilteredCharacters = filteredCharacters.sort((a, b) => {
+                let primaryComparison = 0;
+                // Tri principal basé sur sortCriteria (contrôlé par le sélecteur de l'inventaire)
+                if (sortCriteria === "power") primaryComparison = (b.power || 0) - (a.power || 0);
+                else if (sortCriteria === "rarity") primaryComparison = (rarityOrder[b.rarity] ?? -1) - (rarityOrder[a.rarity] ?? -1);
+                else if (sortCriteria === "level") primaryComparison = (b.level || 0) - (a.level || 0);
+                else if (sortCriteria === "name") primaryComparison = (a.name || "").localeCompare(b.name || "");
+                // Si sortCriteria est "none" ou une autre valeur, primaryComparison restera 0
 
-            if (primaryComparison !== 0) return primaryComparison;
+                if (primaryComparison !== 0) return primaryComparison;
 
-            // Tri secondaire fixe pour la stabilité (par nom, ascendant) si le tri principal est égal
-            // Ignorer la variable globale sortCriteriaSecondary pour l'inventaire ici.
-            return (a.name || "").localeCompare(b.name || "");
-        });
+                // Tri secondaire fixe pour la stabilité (par nom, ascendant) si le tri principal est égal
+                // Ignorer la variable globale sortCriteriaSecondary pour l'inventaire ici.
+                return (a.name || "").localeCompare(b.name || "");
+            });
 
-      if (!sortedAndFilteredCharacters.length) {
-          characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>'; // Modifié pour s'adapter à la grille
-          return;
-      }
+        if (!sortedAndFilteredCharacters.length) {
+            characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>'; // Modifié pour s'adapter à la grille
+            return;
+        }
 
-      characterDisplay.innerHTML = sortedAndFilteredCharacters.map((char) => {
-          const isSelected = selectedCharacterIndices.has(char.id);
-          let rarityTextColorClass = char.color;
-          if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
-          else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
-          else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
-          // ... (autres if/else if pour couleurs de rareté)
+        characterDisplay.innerHTML = sortedAndFilteredCharacters.map((char) => {
+            const isSelected = selectedCharacterIndices.has(char.id);
+            let rarityTextColorClass = char.color;
+            if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
+            else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
+            else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
+            // ... (autres if/else if pour couleurs de rareté)
 
-          let statRankDisplayHtml = '';
-          if (char.statRank && statRanks[char.statRank]) {
-              statRankDisplayHtml = `<p class="text-center text-white text-xs">Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span></p>`;
-          }
+            let statRankDisplayHtml = '';
+            if (char.statRank && statRanks[char.statRank]) {
+                statRankDisplayHtml = `<p class="text-center text-white text-xs">Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span></p>`;
+            }
 
-          let cardClasses = `relative p-2 rounded-lg border cursor-pointer`;
-          let onclickAction = `showCharacterStats('${char.id}')`;
+            let cardClasses = `relative p-2 rounded-lg border cursor-pointer`;
+            let onclickAction = `showCharacterStats('${char.id}')`;
 
-          if (isDeleteMode) {
-              if (char.locked) {
-                  cardClasses += ` ${getRarityBorderClass(char.rarity)} opacity-50 cursor-not-allowed`;
-              } else {
-                  cardClasses += ` ${isSelected ? 'selected-character' : getRarityBorderClass(char.rarity)}`;
-                  onclickAction = `deleteCharacter('${char.id}')`;
-              }
-          } else {
-              cardClasses += ` ${getRarityBorderClass(char.rarity)}`;
-          }
+            if (isDeleteMode) {
+                if (char.locked) {
+                    cardClasses += ` ${getRarityBorderClass(char.rarity)} opacity-50 cursor-not-allowed`;
+                } else {
+                    cardClasses += ` ${isSelected ? 'selected-character' : getRarityBorderClass(char.rarity)}`;
+                    onclickAction = `deleteCharacter('${char.id}')`;
+                }
+            } else {
+                cardClasses += ` ${getRarityBorderClass(char.rarity)}`;
+            }
 
-          return `
-          <div class="${cardClasses}" onclick="${onclickAction}">
-              ${char.locked ? '<span class="absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1">🔒</span>' : ''}
-              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded">
-              <p class="text-center text-white font-semibold mt-2 text-sm">${char.name}</p>
-              <p class="text-center ${rarityTextColorClass} text-xs">${char.rarity}</p>
-              <p class="text-center text-white text-xs">Niveau: ${char.level} / ${char.maxLevelCap || 60}</p>
-              ${statRankDisplayHtml}
-              <p class="text-center text-white text-xs">Puissance: ${char.power}</p>
-          </div>
-          `;
-      }).join("");
-    }
+            return `
+            <div class="${cardClasses}" onclick="${onclickAction}">
+                ${char.locked ? '<span class="absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1">🔒</span>' : ''}
+                <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded" loading="lazy" decoding="async">
+                <p class="text-center text-white font-semibold mt-2 text-sm">${char.name}</p>
+                <p class="text-center ${rarityTextColorClass} text-xs">${char.rarity}</p>
+                <p class="text-center text-white text-xs">Niveau: ${char.level} / ${char.maxLevelCap || 60}</p>
+                ${statRankDisplayHtml}
+                <p class="text-center text-white text-xs">Puissance: ${char.power}</p>
+            </div>
+            `;
+        }).join("");
+        }
 
     function updateCharacterSelectionDisplay() {
       characterSelectionList.innerHTML = "";
@@ -4376,7 +4626,7 @@
     function updateItemSelectionDisplay() {
       itemSelectionList.innerHTML = "";
       const itemImages = {
-        "Haricots": "./images/items/Horicot.webp",
+        "Haricots": "./images/items/Haricot.webp",
         "Fluide mystérieux": "./images/items/Fluide_Mystérieux.webp",
         "Wisteria Flower": "./images/vWisteria_Flower.webp",
         "Ramen Bowl": "./images/vRamen_Bowl.webp",
@@ -4735,7 +4985,7 @@
 
         evolutionSelectionList.innerHTML = "";
         const itemImages = {
-        "Haricots": "./images/items/haricots.webp",
+        "Haricots": "./images/items/Haricots.webp",
         "Fluide mystérieux": "./images/items/Mysterious_Fluid.webp",
         "Pièces": "./images/items/Gold.webp",
         "Tickets de Tirage": "./images/items/Tickets_de_Tirage.webp",
@@ -5530,67 +5780,67 @@
     }
 
     function updateMaterialFarmDisplay() {
-      const materialLevelListElement = document.getElementById("materiaux-level-list");
-      if (!materialLevelListElement) {
-          console.error("Élément 'materiaux-level-list' non trouvé !");
-          return;
-      }
+        const materialLevelListElement = document.getElementById("materiaux-level-list");
+        if (!materialLevelListElement) {
+            console.error("Élément 'materiaux-level-list' non trouvé !");
+            return;
+        }
 
-      // Vider le contenu et appliquer le style de grille au conteneur principal
-      materialLevelListElement.innerHTML = "";
-      materialLevelListElement.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4";
+        materialLevelListElement.innerHTML = "";
+        materialLevelListElement.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4";
 
-      if (materialFarmLevels.length === 0) {
-          materialLevelListElement.innerHTML = "<p class='text-white col-span-full text-center'>Aucun niveau de farm de matériaux disponible.</p>";
-          return;
-      }
+        if (materialFarmLevels.length === 0) {
+            materialLevelListElement.innerHTML = "<p class='text-white col-span-full text-center'>Aucun niveau de farm de matériaux disponible.</p>";
+            return;
+        }
 
-      // Grouper les niveaux par 'world' pour créer une colonne par monde
-      const groupedByWorld = materialFarmLevels.reduce((acc, level) => {
-          (acc[level.world] = acc[level.world] || []).push(level);
-          return acc;
-      }, {});
+        const groupedByWorld = materialFarmLevels.reduce((acc, level) => {
+            (acc[level.world] = acc[level.world] || []).push(level);
+            return acc;
+        }, {});
 
-      // Itérer sur chaque groupe (monde) pour créer une colonne
-      Object.entries(groupedByWorld).forEach(([worldName, levels]) => {
-          const worldColumnDiv = document.createElement('div');
-          
-          const worldTitle = document.createElement('h3');
-          worldTitle.className = 'text-xl text-white font-bold mb-4';
-          worldTitle.textContent = `${worldName} - Farm`;
-          worldColumnDiv.appendChild(worldTitle);
+        Object.entries(groupedByWorld).forEach(([worldName, levels]) => {
+            const worldColumnDiv = document.createElement('div');
+            
+            const worldTitle = document.createElement('h3');
+            worldTitle.className = 'text-xl text-white font-bold mb-4';
+            worldTitle.textContent = `${worldName} - Farm`;
+            worldColumnDiv.appendChild(worldTitle);
 
-          const buttonsContainer = document.createElement('div');
-          buttonsContainer.className = 'flex flex-col gap-4'; // Empiler les boutons verticalement dans la colonne
-          
-          levels.forEach(level => {
-              const progress = storyProgress.find(p => p.id === level.id) || { unlocked: true, completed: false };
-              const isDisabled = !progress.unlocked;
-              const buttonText = level.name;
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.className = 'flex flex-col gap-4';
+            
+            levels.forEach(level => {
+                const progress = storyProgress.find(p => p.id === level.id) || { unlocked: true, completed: false };
+                const isDisabled = !progress.unlocked;
+                const buttonText = level.name;
 
-              // Extraire les noms des drops possibles pour l'affichage
-              const itemDrops = Array.isArray(level.rewards.itemChance) 
-                  ? level.rewards.itemChance.map(ic => ic.item).join(', ') 
-                  : (level.rewards.itemChance?.item || 'N/A');
+                const itemDrops = Array.isArray(level.rewards.itemChance) 
+                    ? level.rewards.itemChance.map(ic => ic.item).join(', ') 
+                    : (level.rewards.itemChance?.item || 'N/A');
 
-              const levelWrapper = document.createElement('div');
-              levelWrapper.innerHTML = `
-                  <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
-                          onclick="startLevel(${level.id})" ${isDisabled ? 'disabled' : ''}>
-                      ${buttonText}
-                  </button>
-                  <div class="text-xs text-gray-300 px-2 mt-1">
-                      <p>Ennemi: ${level.enemy.name} (Puissance: ${level.enemy.power})</p>
-                      <p>Drop possible: ${itemDrops}</p>
-                  </div>
-              `;
-              buttonsContainer.appendChild(levelWrapper);
-          });
+                const levelWrapper = document.createElement('div');
+                
+                // --- MODIFICATION APPLIQUÉE ICI ---
+                levelWrapper.innerHTML = `
+                    <button class="level-start-button w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
+                            data-level-id="${level.id}" ${isDisabled ? 'disabled' : ''}>
+                        ${buttonText}
+                    </button>
+                    <div class="text-xs text-gray-300 px-2 mt-1">
+                        <p>Ennemi: ${level.enemy.name} (Puissance: ${level.enemy.power})</p>
+                        <p>Drop possible: ${itemDrops}</p>
+                    </div>
+                `;
+                // --- FIN DE LA MODIFICATION ---
+                
+                buttonsContainer.appendChild(levelWrapper);
+            });
 
-          worldColumnDiv.appendChild(buttonsContainer);
-          materialLevelListElement.appendChild(worldColumnDiv);
-      });
-    }
+            worldColumnDiv.appendChild(buttonsContainer);
+            materialLevelListElement.appendChild(worldColumnDiv);
+        });
+        }
 
     function updateTraitTabDisplay() {
         traitEssenceCountElement.textContent = inventory["Reroll Token"] || 0;
@@ -6771,7 +7021,7 @@
     pullButton.addEventListener("click", pullCharacter);
     multiPullButton.addEventListener("click", multiPull);
     specialPullButton.addEventListener("click", specialPull);
-    document.getElementById("special-multi-pull-button").addEventListener("click", specialMultiPull); 
+    document.getElementById("special-multi-pull-button").addEventListener("click", specialMultiPull);
     deleteButton.addEventListener("click", toggleDeleteMode);
     closeModalButton.addEventListener("click", closeModal);
     cancelSelectionButton.addEventListener("click", cancelSelection);
@@ -6805,6 +7055,25 @@
     miniGameBossImage.addEventListener('click', handleBossClick);
     miniGameCloseButton.addEventListener('click', closeMiniGame);
     document.getElementById("character-selection-title").textContent = `Sélectionner ${currentMaxTeamSize} Personnage(s) pour le Combat`;
+    multiActionButton.addEventListener('click', openMultiActionModal);
+    maCloseButton.addEventListener('click', closeMultiActionModal);
+    maTabButtons.forEach(btn => {
+        btn.addEventListener('click', () => showMultiActionTab(btn.dataset.tab));
+    });
+
+    maStartPullsButton.addEventListener('click', startMultiPulls);
+    maStopPullsButton.addEventListener('click', () => { multiActionState.stopRequested = true; });
+
+    maStartLevelsButton.addEventListener('click', startMultiLevels);
+    maStopLevelsButton.addEventListener('click', () => { multiActionState.stopRequested = true; });
+
+    maSelectLevelButton.addEventListener('click', () => {
+        isSelectingLevelForMultiAction = true;
+        multiActionModal.classList.add('hidden');
+        disableNoScroll(); // <<< MODIFICATION AJOUTÉE ICI
+        showTab('play'); // Emmener l'utilisateur vers l'onglet des niveaux
+        resultElement.innerHTML = `<p class="text-yellow-300">Veuillez cliquer sur un niveau pour le sélectionner pour les actions multiples.</p>`;
+    });
 
     // Ouvrir la modale
     infoButton.addEventListener("click", () => {
@@ -6985,6 +7254,56 @@
       updatePresetSelectionDisplay();
     });
 
+    // --- DANS LE FICHIER script.js ---
+
+    function handleLevelStartClick(event) {
+        const button = event.target.closest('.level-start-button');
+        if (!button) return;
+
+        const levelId = parseInt(button.dataset.levelId);
+        
+        if (isSelectingLevelForMultiAction) {
+            const levelData = allGameLevels.find(l => l.id === levelId);
+            if (levelData) {
+                multiActionState.selectedLevelId = levelId;
+                multiActionState.selectedLevelName = levelData.name;
+                isSelectingLevelForMultiAction = false;
+                
+                // Rouvrir la modale et mettre à jour son affichage
+                multiActionModal.classList.remove("hidden");
+                enableNoScroll();
+                maSelectedLevelDisplay.textContent = `Niveau sélectionné : ${levelData.name}`;
+                maSelectedLevelDisplay.classList.remove("text-red-500");
+            }
+            // Très important : on arrête l'exécution ici pour ne pas lancer un combat normal.
+            return; 
+        }
+
+        const isInfinite = button.dataset.isInfinite === 'true';
+
+        if (isInfinite) {
+            startInfiniteLevel(levelId);
+        } else {
+            startLevel(levelId);
+        }
+    }
+
+    levelListElement.addEventListener('click', handleLevelStartClick);
+    document.getElementById("legende-level-list").addEventListener('click', handleLevelStartClick);
+    document.getElementById("challenge-level-list").addEventListener('click', handleLevelStartClick);
+    document.getElementById("materiaux-level-list").addEventListener('click', handleLevelStartClick);
+
+    // NOUVEAU: Fermeture de la modale d'avertissement
+    const autoClickerModalCloseButton = document.getElementById('auto-clicker-modal-close-button');
+    if (autoClickerModalCloseButton) {
+        autoClickerModalCloseButton.addEventListener('click', () => {
+            if (autoClickerWarningModal) {
+                autoClickerWarningModal.classList.add('hidden');
+                disableNoScroll();
+            }
+        });
+    }
+
     auth.onAuthStateChanged(user => {
         if (user) {
             // L'utilisateur est connecté
@@ -7021,44 +7340,3 @@
 
     // Initialiser l'interface d'authentification
     setupAuthUI();
-
-
-    applySettings();
-    if (shopOffers.length !== 3) {
-      updateShopOffers();
-    } else {
-      updateShopDisplay();
-    }
-    if (missions.length !== 3) {
-      updateMissionPool();
-    } else {
-      updateMissions();
-    }
-    updateTimer();
-    updateCharacterDisplay();
-    updateItemDisplay();
-    updateUI();
-    loadOrGenerateStandardBanner();
-    if (!evolutionElement.classList.contains("hidden")) {
-        const activeSubTabButton = document.querySelector('#evolution .subtab-button.border-blue-500');
-        if (activeSubTabButton) {
-            showSubTabEvolution(activeSubTabButton.dataset.subtab);
-        } else {
-            showSubTabEvolution("evolve-char"); // Défaut
-        }
-    } else {
-        showTab("play"); // Onglet par défaut si rien d'autre n'est défini
-    }
-    populateTargetStatRanks();
-    populateTargetTraits();
-    window.addEventListener('beforeunload', (event) => {
-        // La spécification requiert que returnValue soit défini pour certains navigateurs,
-        // même si nous ne voulons pas afficher de message de confirmation.
-        // On n'exécute que la sauvegarde.
-        console.log("Événement beforeunload déclenché. Tentative de sauvegarde immédiate...");
-        if (currentUser && isGameInitialized) { // Sauvegarde uniquement si une session de jeu est active
-             _performSave();
-        }
-        // Note : Il n'est pas possible de garantir que la sauvegarde asynchrone aura le temps
-        // de se terminer, mais c'est la meilleure tentative possible.
-    });

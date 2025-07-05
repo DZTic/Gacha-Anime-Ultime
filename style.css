@@ -18,6 +18,14 @@
       50% { color: #cc0000; text-shadow: 0 0 12px #cc0000; } 75% { color: #e60000; text-shadow: 0 0 12px #e60000; }
       100% { color: #ff0000; text-shadow: 0 0 12px #ff0000; }
     }
+    /* NOUVEAU: Animation pour le bouton stop */
+    @keyframes stop-button-glow {
+      0%, 100% { box-shadow: 0 0 10px #f97316; }
+      50% { box-shadow: 0 0 18px #f97316, 0 0 10px #f97316; }
+    }
+    #ma-stop-pulls, #ma-stop-levels {
+        animation: stop-button-glow 2s ease-in-out infinite;
+    }
     .text-secret { animation: glowing-red-text 2s ease-in-out infinite; }
     .border-secret { animation: glowing-red 2s ease-in-out infinite; }
     .rainbow-border { animation: rainbow-border 3s linear infinite; }
