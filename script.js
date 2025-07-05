@@ -1,4 +1,4 @@
-        // --- NOUVEAU: Initialisation de Firebase ---
+    // --- NOUVEAU: Initialisation de Firebase ---
     // TODO: COLLEZ VOTRE CONFIGURATION FIREBASE ICI
     const firebaseConfig = {
         apiKey: "AIzaSyDcNkyF9_fUdfzX5pv2V9Q-SzKQhGEbP-g",
@@ -1542,6 +1542,8 @@
 
     // --- DANS LE FICHIER script.js ---
 
+    // DANS script.js
+
     async function runMultiActionLoop() {
         const DELAY_BETWEEN_ACTIONS = 70; 
 
@@ -1554,50 +1556,42 @@
             multiActionState.current = i;
             updateMultiActionModalUI();
             
-            // MODIFICATION COMPLÈTE DE CETTE PARTIE
             let wasSuccessful = false;
 
-            // Exécuter l'action et récupérer son état de succès
             switch(multiActionState.action) {
                 case 'standard-1':
-                    // Pour l'auto-mode, on force l'utilisation des gemmes (pas de ticket)
                     currentPullType = "standard";
-                    wasSuccessful = await executePull(false);
+                    wasSuccessful = await executePull(false, true);
                     break;
                 case 'standard-10':
-                    wasSuccessful = await multiPull();
+                    wasSuccessful = await multiPull(true);
                     break;
                 case 'special-1':
-                    // Pour l'auto-mode, on force l'utilisation des gemmes
                     currentPullType = "special";
-                    wasSuccessful = await executePull(false);
+                    wasSuccessful = await executePull(false, true);
                     break;
                 case 'special-10':
-                    wasSuccessful = await specialMultiPull();
+                    wasSuccessful = await specialMultiPull(true);
                     break;
                 default: // C'est un ID de niveau
                     await startLevel(multiActionState.action, true);
-                    wasSuccessful = true; // On suppose que les niveaux réussissent toujours pour la boucle (la logique de victoire/défaite est interne)
+                    wasSuccessful = true;
                     break;
             }
             
-            // Si l'action a échoué (pas assez de ressources), on arrête la boucle
             if (!wasSuccessful) {
                 maPullsStatus.textContent = `Arrêté: Ressources insuffisantes.`;
                 maLevelsStatus.textContent = `Arrêté: Ressources insuffisantes.`;
                 console.log("Actions multiples arrêtées en raison de ressources insuffisantes.");
-                break; // Sortir de la boucle 'for'
+                break;
             }
-            // FIN DE LA MODIFICATION
 
             await new Promise(r => setTimeout(r, DELAY_BETWEEN_ACTIONS));
         }
         
-        // La logique de fin de boucle reste la même
         const statusElement = multiActionState.type === 'pulls' ? maPullsStatus : maLevelsStatus;
-        // On vérifie si un message d'arrêt a déjà été mis, sinon on met le message de fin normal
         if (!statusElement.textContent.includes("Arrêté")) {
-             statusElement.textContent = `Terminé. ${multiActionState.current} sur ${multiActionState.total} actions effectuées.`;
+            statusElement.textContent = `Terminé. ${multiActionState.current} sur ${multiActionState.total} actions effectuées.`;
         }
         
         resetMultiActionState();
@@ -3137,27 +3131,28 @@
         return standardCharacters.find(c => c.rarity === "Rare") || standardCharacters[0];
     }
 
+    async function animatePull(characters, additionalMessage = '', isAutoMode = false) {
+        const delay = isAutoMode ? 50 : 1000; // 50ms en mode auto, 1s sinon
 
-    async function animatePull(characters, additionalMessage = '') {
-      resultElement.innerHTML = `<p class="text-white">Tirage en cours...</p>`;
-      if (animationsEnabled) {
-        resultElement.classList.add("animate-pulse");
-      }
-      await new Promise(resolve => setTimeout(resolve, 1000));
+        resultElement.innerHTML = `<p class="text-white">Tirage en cours...</p>`;
+        if (animationsEnabled && !isAutoMode) { // Ne pas pulser en mode auto
+            resultElement.classList.add("animate-pulse");
+        }
+        await new Promise(resolve => setTimeout(resolve, delay));
 
-      // Ne pas afficher les personnages, juste nettoyer l'animation
-      if (animationsEnabled) {
-        resultElement.classList.remove("animate-pulse");
-      }
+        if (animationsEnabled && !isAutoMode) {
+            resultElement.classList.remove("animate-pulse");
+        }
 
-      // Afficher le message de coût (par exemple, "100 gemmes dépensées")
-      resultElement.innerHTML = `<p class="text-green-400">${additionalMessage}</p>`;
-      
-      // Attendre un court instant pour montrer le message de coût
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Revenir au message initial
-      resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+        resultElement.innerHTML = `<p class="text-green-400">${additionalMessage}</p>`;
+        
+        // En mode auto, on ne veut pas attendre pour voir le message "gemmes dépensées"
+        if (!isAutoMode) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        // Revenir au message initial (géré ailleurs pour ne pas écraser les messages importants)
+        // C'est mieux de laisser la fonction appelante gérer le nettoyage de `resultElement`
     }
 
     async function pullCharacter() {
@@ -3177,142 +3172,138 @@
         }
     }
 
-     async function multiPull() {
-      console.log("multiPull (standard banner) appelé, gemmes:", gems, "autosellSettings:", autosellSettings);
-      const cost = 1000;
-      const expectedPulls = 10;
-      const expGainForMulti = 100;
+    async function multiPull(isAutoMode = false) {
+        console.log("multiPull (standard banner) appelé, gemmes:", gems, "autosellSettings:", autosellSettings, "isAutoMode:", isAutoMode);
+        const cost = 1000;
+        const expectedPulls = 10;
+        const expGainForMulti = 100;
 
-      if (gems < cost) {
-        resultElement.innerHTML = `<p class="text-red-400">Pas assez de gemmes (${cost} requis) !</p>`;
-        console.log("Échec du tirage multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", cost);
-        return false; // MODIFICATION: Retourner 'false' en cas d'échec
-      }
-
-      gems -= cost;
-
-      missions.forEach(mission => {
-          if (mission.type === "spend_gems" && !mission.completed) {
-              mission.progress += cost; // Remplacez 'cost' par 'gemCost' dans la fonction executePull
-          }
-      });
-
-      pullCount += expectedPulls;
-      const pulledCharsForDisplay = []; // Pour l'animation
-      let autoSoldCharactersInfo = [];
-      let hasPulledEpicOrBetter = false; // Pour la garantie d'un Épique minimum
-
-      let pityMessagePart = ""; // Pour stocker le message de Pity
-
-      for (let i = 0; i < expectedPulls; i++) {
-        let char = getCharacterFromStandardBanner(); 
-
-        // Logique de garantie d'un Épique ou mieux pour le dernier tirage du multi
-        if (i === (expectedPulls - 1) && !hasPulledEpicOrBetter) {
-          let attempts = 0;
-          while (rarityOrder[char.rarity] < rarityOrder["Épique"] && attempts < 20) {
-            char = getCharacterFromStandardBanner();
-            attempts++;
-          }
-        }
-        if (rarityOrder[char.rarity] >= rarityOrder["Épique"]) {
-          hasPulledEpicOrBetter = true;
+        if (gems < cost) {
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de gemmes (${cost} requis) !</p>`;
+            console.log("Échec du tirage multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", cost);
+            return false;
         }
 
-        if (char.rarity === "Mythic") {
+        gems -= cost;
+
+        missions.forEach(mission => {
+            if (mission.type === "spend_gems" && !mission.completed) {
+                mission.progress += cost;
+            }
+        });
+
+        pullCount += expectedPulls;
+        const pulledCharsForDisplay = [];
+        let autoSoldCharactersInfo = [];
+        let hasPulledEpicOrBetter = false;
+
+        let pityMessagePart = "";
+
+        for (let i = 0; i < expectedPulls; i++) {
+            let char = getCharacterFromStandardBanner(); 
+
+            if (i === (expectedPulls - 1) && !hasPulledEpicOrBetter) {
+                let attempts = 0;
+                while (rarityOrder[char.rarity] < rarityOrder["Épique"] && attempts < 20) {
+                    char = getCharacterFromStandardBanner();
+                    attempts++;
+                }
+            }
+            if (rarityOrder[char.rarity] >= rarityOrder["Épique"]) {
+                hasPulledEpicOrBetter = true;
+            }
+
+            if (char.rarity === "Mythic") {
+                missions.forEach(mission => {
+                    if (mission.type === "mythic_chars" && !mission.completed) {
+                        mission.progress++;
+                    }
+                });
+            }
+
+            standardPityCount++;
+            let pulledCharIsMythicOrBetterThisIteration = (rarityOrder[char.rarity] >= rarityOrder.Mythic);
+
+            if (standardPityCount >= STANDARD_MYTHIC_PITY_THRESHOLD && !pulledCharIsMythicOrBetterThisIteration) {
+                let mythicsInStandard = standardCharacters.filter(c => c.rarity === "Mythic");
+                if (mythicsInStandard.length > 0) {
+                    char = mythicsInStandard[Math.floor(Math.random() * mythicsInStandard.length)];
+                    pityMessagePart += ` Pity (tirage ${i+1})! ${char.name} (Mythic) garanti.`;
+                    pulledCharIsMythicOrBetterThisIteration = true;
+                    console.log(`Pity (multi standard) tirage ${i+1}: ${char.name} (Mythic) garanti.`);
+                } else {
+                    console.error("PITY ERROR (multi standard): Aucun Mythic à forcer.");
+                }
+            }
+
+            if (pulledCharIsMythicOrBetterThisIteration) {
+                standardPityCount = 0;
+            }
+            
+            const newStatRank = getRandomStatRank(true); 
+            const characterWithId = {
+                ...char, 
+                id: `char_${characterIdCounter++}`,
+                level: 1,
+                exp: 0,
+                locked: false,
+                hasEvolved: false,
+                curseEffect: 0,
+                basePower: char.power, 
+                statRank: newStatRank,
+                statModifier: statRanks[newStatRank].modifier,
+                trait: { id: null, grade: 0 } 
+            };
+            recalculateCharacterPower(characterWithId); 
+
+            if (!discoveredCharacters.includes(char.name)) {
+                discoveredCharacters.push(char.name);
+            }
+
+            if (autosellSettings[char.rarity] === true) {
+                const rewards = autoSellCharacter(characterWithId);
+                autoSoldCharactersInfo.push({ name: char.name, rarity: char.rarity, gems: rewards.gems, coins: rewards.coins });
+            } else {
+                pulledCharsForDisplay.push(characterWithId);
+                ownedCharacters.unshift(characterWithId);
+                if (!everOwnedCharacters.includes(char.name)) {
+                    everOwnedCharacters.push(char.name);
+                }
+            }
+
             missions.forEach(mission => {
-                if (mission.type === "mythic_chars" && !mission.completed) {
-                    mission.progress++;
+                if (!mission.completed) {
+                    if (mission.type === "pulls") mission.progress++;
+                    if (mission.type === "epic_chars" && char.rarity === "Épique") mission.progress++;
+                    if (mission.type === "legendary_chars" && char.rarity === "Légendaire") mission.progress++;
                 }
             });
         }
 
-        // --- DÉBUT LOGIQUE PITY pour multiPull Standard ---
-        standardPityCount++;
-        let pulledCharIsMythicOrBetterThisIteration = (rarityOrder[char.rarity] >= rarityOrder.Mythic);
-
-        if (standardPityCount >= STANDARD_MYTHIC_PITY_THRESHOLD && !pulledCharIsMythicOrBetterThisIteration) {
-            let mythicsInStandard = standardCharacters.filter(c => c.rarity === "Mythic");
-            if (mythicsInStandard.length > 0) {
-                char = mythicsInStandard[Math.floor(Math.random() * mythicsInStandard.length)];
-                pityMessagePart += ` Pity (tirage ${i+1})! ${char.name} (Mythic) garanti.`; // Ajouter au message global du multi
-                pulledCharIsMythicOrBetterThisIteration = true;
-                console.log(`Pity (multi standard) tirage ${i+1}: ${char.name} (Mythic) garanti.`);
-            } else {
-                console.error("PITY ERROR (multi standard): Aucun Mythic à forcer.");
-            }
+        checkMissions();
+        let message = `${cost} gemmes dépensées.`;
+        if (pityMessagePart) {
+            message += pityMessagePart;
+        }
+        if (autoSoldCharactersInfo.length > 0) {
+            const totalAutoSellGems = autoSoldCharactersInfo.reduce((sum, charInfo) => sum + charInfo.gems, 0);
+            const totalAutoSellCoins = autoSoldCharactersInfo.reduce((sum, charInfo) => sum + charInfo.coins, 0);
+            message += ` ${autoSoldCharactersInfo.length} personnage(s) auto-vendu(s) pour +${totalAutoSellGems} gemmes, +${totalAutoSellCoins} pièces.`;
         }
 
-        if (pulledCharIsMythicOrBetterThisIteration) {
-            standardPityCount = 0; // Réinitialiser si un Mythic ou mieux est obtenu (naturellement ou par pity)
-        }
-        // --- FIN LOGIQUE PITY pour multiPull Standard ---
-        // `char` est maintenant soit l'original, soit celui du pity.
-
-        const newStatRank = getRandomStatRank(true); 
-        const characterWithId = {
-            ...char, 
-            id: `char_${characterIdCounter++}`,
-            level: 1,
-            exp: 0,
-            locked: false,
-            hasEvolved: false,
-            curseEffect: 0,
-            basePower: char.power, 
-            statRank: newStatRank,
-            statModifier: statRanks[newStatRank].modifier,
-            trait: { id: null, grade: 0 } 
-        };
-        recalculateCharacterPower(characterWithId); 
-
-        if (!discoveredCharacters.includes(char.name)) {
-          discoveredCharacters.push(char.name);
+        await animatePull(pulledCharsForDisplay, message, isAutoMode); // MODIFIÉ: On passe isAutoMode
+        if (pulledCharsForDisplay.some(c => (c.rarity === "Mythic" || c.rarity === "Secret" || c.rarity === "Vanguard")) && animationsEnabled) {
+            confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
         }
 
-        if (autosellSettings[char.rarity] === true) {
-          const rewards = autoSellCharacter(characterWithId);
-          autoSoldCharactersInfo.push({ name: char.name, rarity: char.rarity, gems: rewards.gems, coins: rewards.coins });
-        } else {
-          pulledCharsForDisplay.push(characterWithId); // Pour l'animation
-          ownedCharacters.unshift(characterWithId);
-          if (!everOwnedCharacters.includes(char.name)) {
-            everOwnedCharacters.push(char.name);
-          }
-        }
-
-        missions.forEach(mission => {
-          if (!mission.completed) {
-            if (mission.type === "pulls") mission.progress++;
-            if (mission.type === "epic_chars" && char.rarity === "Épique") mission.progress++;
-            if (mission.type === "legendary_chars" && char.rarity === "Légendaire") mission.progress++;
-          }
-        });
-      } // Fin de la boucle for
-
-      checkMissions();
-      let message = `${cost} gemmes dépensées.`;
-      if (pityMessagePart) { // Ajouter le message de Pity s'il y en a eu un
-          message += pityMessagePart;
-      }
-      if (autoSoldCharactersInfo.length > 0) {
-        const totalAutoSellGems = autoSoldCharactersInfo.reduce((sum, charInfo) => sum + charInfo.gems, 0);
-        const totalAutoSellCoins = autoSoldCharactersInfo.reduce((sum, charInfo) => sum + charInfo.coins, 0);
-        message += ` ${autoSoldCharactersInfo.length} personnage(s) auto-vendu(s) pour +${totalAutoSellGems} gemmes, +${totalAutoSellCoins} pièces.`;
-      }
-
-      await animatePull(pulledCharsForDisplay, message); // Utilise pulledCharsForDisplay pour l'animation
-      if (pulledCharsForDisplay.some(c => (c.rarity === "Mythic" || c.rarity === "Secret" || c.rarity === "Vanguard")) && animationsEnabled) {
-        confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
-      }
-
-      addExp(expGainForMulti);
-      updateCharacterDisplay();
-      updateIndexDisplay();
-      updateUI(); // Mettra à jour l'affichage du Pity
-      localStorage.setItem("characterIdCounter", characterIdCounter);
-      scheduleSave();
-      console.log("multiPull (standard banner) terminé, ownedCharacters:", ownedCharacters.length);
-      return true;
+        addExp(expGainForMulti);
+        updateCharacterDisplay();
+        updateIndexDisplay();
+        updateUI();
+        localStorage.setItem("characterIdCounter", characterIdCounter);
+        scheduleSave();
+        console.log("multiPull (standard banner) terminé, ownedCharacters:", ownedCharacters.length);
+        return true;
     }
 
     function specialPull() {
@@ -3332,8 +3323,8 @@
         }
     }
 
-     async function executePull(useTicket) {
-        console.log("executePull appelé, useTicket:", useTicket, "currentPullType:", currentPullType);
+    async function executePull(useTicket, isAutoMode = false) {
+        console.log("executePull appelé, useTicket:", useTicket, "currentPullType:", currentPullType, "isAutoMode:", isAutoMode);
         let message = "";
         let autoSold = false;
         let autoSellRewards = { gems: 0, coins: 0 };
@@ -3359,13 +3350,13 @@
             expGain = 15;
         } else {
             console.error("Type de tirage inconnu:", currentPullType);
-            return false; // MODIFICATION: Retourner 'false'
+            return false;
         }
 
         if (useTicket) {
             if (pullTickets <= 0) {
                 resultElement.innerHTML = '<p class="text-red-400">Pas de tickets disponibles !</p>';
-                return false; // MODIFICATION: Retourner 'false'
+                return false;
             }
             pullTickets--;
             inventory["Pass XP"] = Math.max(0, (inventory["Pass XP"] || 0) - 1); 
@@ -3373,12 +3364,12 @@
         } else {
             if (gems < gemCost) {
                 resultElement.innerHTML = `<p class="text-red-400">Pas assez de gemmes (${gemCost} requis) !</p>`;
-                return false; // MODIFICATION: Retourner 'false'
+                return false;
             }
             gems -= gemCost;
             missions.forEach(mission => {
                 if (mission.type === "spend_gems" && !mission.completed) {
-                    mission.progress += gemCost; // MODIFICATION: Utilisation de la variable gemCost
+                    mission.progress += gemCost;
                 }
             });
             message = `${gemCost} gemmes dépensées.`;
@@ -3386,12 +3377,11 @@
 
         pullCount++;
 
-        // --- DÉBUT LOGIQUE PITY PARTIE 2 : Vérification et Forçage Pity ---
-        let characterPulledIsPityTargetOrBetter = false; // Pour le reset du pity
+        let characterPulledIsPityTargetOrBetter = false;
 
         if (currentPullType === "standard") {
             standardPityCount++;
-            if (rarityOrder[selectedCharacter.rarity] >= rarityOrder.Mythic) { // Mythic ou mieux
+            if (rarityOrder[selectedCharacter.rarity] >= rarityOrder.Mythic) {
                 characterPulledIsPityTargetOrBetter = true;
             }
 
@@ -3411,7 +3401,6 @@
             }
         } else if (currentPullType === "special") {
             specialPityCount++;
-            // Vérifie si le personnage tiré naturellement est un "Secret" ou "Vanguard"
             const isSpecialBannerTargetNaturally = specialCharacters.some(sc => sc.name === selectedCharacter.name && (sc.rarity === "Secret" || sc.rarity === "Vanguard"));
             if (isSpecialBannerTargetNaturally) {
                 characterPulledIsPityTargetOrBetter = true;
@@ -3422,14 +3411,12 @@
                 if (secretCharsInSpecial.length > 0) {
                     selectedCharacter = secretCharsInSpecial[Math.floor(Math.random() * secretCharsInSpecial.length)];
                     message += ` Pity atteint! ${selectedCharacter.name} (Secret) garanti.`;
-                    characterPulledIsPityTargetOrBetter = true; // Un Secret est une cible de pity
+                    characterPulledIsPityTargetOrBetter = true;
                     console.log("Pity Spécial (x1) déclenché. Personnage Secret:", selectedCharacter.name);
                 } else {
-                    // Fallback si aucun Secret n'est défini dans specialCharacters
                     console.warn("PITY WARNING (spécial x1): Aucun personnage 'Secret' trouvé dans la bannière spéciale pour la pity. Tirage normal appliqué.");
-                    selectedCharacter = getCharacterFromSpecialBanner(specialCharacters); // Comportement original
+                    selectedCharacter = getCharacterFromSpecialBanner(specialCharacters);
                     message += ` Pity atteint! ${selectedCharacter.name} (${selectedCharacter.rarity}) garanti (fallback).`;
-                    // Vérifier si le fallback est quand même une cible (Secret ou Vanguard)
                     if (selectedCharacter.rarity === "Secret" || selectedCharacter.rarity === "Vanguard") {
                         characterPulledIsPityTargetOrBetter = true;
                     }
@@ -3439,7 +3426,6 @@
                 specialPityCount = 0;
             }
         }
-        // --- FIN LOGIQUE PITY PARTIE 2 ---
         
         const newStatRank = getRandomStatRank(true); 
         const characterWithId = {
@@ -3482,7 +3468,7 @@
             }
         });
 
-        await animatePull(autoSold ? [] : [characterWithId], message);
+        await animatePull(autoSold ? [] : [characterWithId], message, isAutoMode); // MODIFIÉ: On passe isAutoMode
         if (!autoSold && animationsEnabled && (characterWithId.rarity === "Mythic" || characterWithId.rarity === "Secret" || characterWithId.rarity === "Vanguard")) {
             confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
         }
@@ -3499,131 +3485,126 @@
         return true;
     }
 
-     async function specialMultiPull() {
-      console.log("specialMultiPull appelé, gemmes:", gems, "autosellSettings:", autosellSettings);
-      const cost = 1500;
-      const expectedPulls = 10;
-      const expGain = 150;
+    async function specialMultiPull(isAutoMode = false) {
+        console.log("specialMultiPull appelé, gemmes:", gems, "autosellSettings:", autosellSettings, "isAutoMode:", isAutoMode);
+        const cost = 1500;
+        const expectedPulls = 10;
+        const expGain = 150;
 
-      if (gems < cost) {
-        resultElement.innerHTML = '<p class="text-red-400">Pas assez de gemmes (' + cost + ' requis) ! Vous avez ' + gems + '.</p>';
-        console.log("Échec du tirage spécial multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", cost);
-        return false; // MODIFICATION: Retourner 'false' en cas d'échec
-      }
-
-      gems -= cost;
-
-      missions.forEach(mission => {
-          if (mission.type === "spend_gems" && !mission.completed) {
-              mission.progress += cost; // Remplacez 'cost' par 'gemCost' dans la fonction executePull
-          }
-      });
-
-      pullCount += expectedPulls;
-      const results = []; 
-      let autoSoldCharacters = []; 
-      let totalAutoSellGems = 0;
-      let totalAutoSellCoins = 0;
-      let pityMessagePart = ""; 
-
-      for (let i = 0; i < expectedPulls; i++) {
-        let char = getCharacterFromSpecialBanner(specialCharacters); 
-
-        // --- DÉBUT LOGIQUE PITY pour specialMultiPull ---
-        specialPityCount++;
-        // Vérifie si le personnage tiré naturellement est un "Secret" ou "Vanguard"
-        let isSpecialBannerTargetPulledThisIteration = specialCharacters.some(sc => sc.name === char.name && (sc.rarity === "Secret" || sc.rarity === "Vanguard"));
-
-        if (specialPityCount >= SPECIAL_BANNER_PITY_THRESHOLD && !isSpecialBannerTargetPulledThisIteration) {
-            let secretCharsInSpecial = specialCharacters.filter(c => c.rarity === "Secret");
-            if (secretCharsInSpecial.length > 0) {
-                char = secretCharsInSpecial[Math.floor(Math.random() * secretCharsInSpecial.length)];
-                pityMessagePart += ` Pity (tirage ${i+1})! ${char.name} (Secret) garanti.`;
-                isSpecialBannerTargetPulledThisIteration = true; // Un Secret est une cible
-                console.log(`Pity (multi spécial) tirage ${i+1}: ${char.name} (Secret) garanti.`);
-            } else {
-                // Fallback si aucun Secret n'est défini dans specialCharacters
-                console.warn(`PITY WARNING (multi spécial tirage ${i+1}): Aucun personnage 'Secret' trouvé dans la bannière spéciale pour la pity. Tirage normal appliqué.`);
-                char = getCharacterFromSpecialBanner(specialCharacters); // Comportement original
-                pityMessagePart += ` Pity (tirage ${i+1})! ${char.name} (${char.rarity}) garanti (fallback).`;
-                // Vérifier si le fallback est quand même une cible (Secret ou Vanguard)
-                if (char.rarity === "Secret" || char.rarity === "Vanguard") {
-                     isSpecialBannerTargetPulledThisIteration = true;
-                }
-            }
+        if (gems < cost) {
+            resultElement.innerHTML = '<p class="text-red-400">Pas assez de gemmes (' + cost + ' requis) ! Vous avez ' + gems + '.</p>';
+            console.log("Échec du tirage spécial multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", cost);
+            return false;
         }
 
-        if (isSpecialBannerTargetPulledThisIteration) {
-            specialPityCount = 0; 
-        }
-        // --- FIN LOGIQUE PITY pour specialMultiPull ---
-        
-        const newStatRank = getRandomStatRank(true);
-        const characterWithId = {
-            ...char, 
-            id: `char_${characterIdCounter++}`,
-            level: 1,
-            exp: 0,
-            locked: false,
-            hasEvolved: false,
-            curseEffect: 0,
-            basePower: char.power,
-            statRank: newStatRank,
-            statModifier: statRanks[newStatRank].modifier,
-            trait: { id: null, grade: 0 }
-        };
-        recalculateCharacterPower(characterWithId);
-
-        if (!discoveredCharacters.includes(char.name)) {
-          discoveredCharacters.push(char.name);
-        }
-
-        if (autosellSettings[char.rarity] === true) {
-          const rewards = autoSellCharacter(characterWithId);
-          autoSoldCharacters.push({ ...char, gems: rewards.gems, coins: rewards.coins }); 
-          totalAutoSellGems += rewards.gems;
-          totalAutoSellCoins += rewards.coins;
-        } else {
-          results.push(characterWithId); 
-          ownedCharacters.unshift(characterWithId);
-          if (!everOwnedCharacters.includes(char.name)) {
-            everOwnedCharacters.push(char.name);
-          }
-        }
+        gems -= cost;
 
         missions.forEach(mission => {
-          if (!mission.completed) {
-            if (mission.type === "special_pulls") mission.progress++;
-            if (mission.type === "epic_chars" && char.rarity === "Épique") mission.progress++;
-            if (mission.type === "legendary_chars" && char.rarity === "Légendaire") mission.progress++;
-            if (mission.type === "special_chars") mission.progress++;
-          }
+            if (mission.type === "spend_gems" && !mission.completed) {
+                mission.progress += cost;
+            }
         });
-      } // Fin de la boucle for
 
-      checkMissions();
+        pullCount += expectedPulls;
+        const results = []; 
+        let autoSoldCharacters = []; 
+        let totalAutoSellGems = 0;
+        let totalAutoSellCoins = 0;
+        let pityMessagePart = ""; 
 
-      let message = `${cost} gemmes dépensées.`;
-      if (pityMessagePart) { 
-          message += pityMessagePart;
-      }
-      if (autoSoldCharacters.length > 0) {
-        message += ` ${autoSoldCharacters.length} personnage(s) auto-vendu(s) pour +${totalAutoSellGems} gemmes, +${totalAutoSellCoins} pièces.`;
-      }
-      await animatePull(results, message);
+        for (let i = 0; i < expectedPulls; i++) {
+            let char = getCharacterFromSpecialBanner(specialCharacters); 
 
-      if (results.some(c => (c.rarity === "Mythic" || c.rarity === "Secret" || c.rarity === "Vanguard")) && animationsEnabled) {
-        confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
-      }
+            specialPityCount++;
+            let isSpecialBannerTargetPulledThisIteration = specialCharacters.some(sc => sc.name === char.name && (sc.rarity === "Secret" || sc.rarity === "Vanguard"));
 
-      addExp(expGain);
-      updateCharacterDisplay();
-      updateIndexDisplay();
-      updateUI(); 
-      localStorage.setItem("characterIdCounter", characterIdCounter);
-      scheduleSave();
-      console.log("specialMultiPull terminé, ownedCharacters:", ownedCharacters.length);
-      return true;
+            if (specialPityCount >= SPECIAL_BANNER_PITY_THRESHOLD && !isSpecialBannerTargetPulledThisIteration) {
+                let secretCharsInSpecial = specialCharacters.filter(c => c.rarity === "Secret");
+                if (secretCharsInSpecial.length > 0) {
+                    char = secretCharsInSpecial[Math.floor(Math.random() * secretCharsInSpecial.length)];
+                    pityMessagePart += ` Pity (tirage ${i+1})! ${char.name} (Secret) garanti.`;
+                    isSpecialBannerTargetPulledThisIteration = true;
+                    console.log(`Pity (multi spécial) tirage ${i+1}: ${char.name} (Secret) garanti.`);
+                } else {
+                    console.warn(`PITY WARNING (multi spécial tirage ${i+1}): Aucun personnage 'Secret' trouvé dans la bannière spéciale pour la pity. Tirage normal appliqué.`);
+                    char = getCharacterFromSpecialBanner(specialCharacters);
+                    pityMessagePart += ` Pity (tirage ${i+1})! ${char.name} (${char.rarity}) garanti (fallback).`;
+                    if (char.rarity === "Secret" || char.rarity === "Vanguard") {
+                        isSpecialBannerTargetPulledThisIteration = true;
+                    }
+                }
+            }
+
+            if (isSpecialBannerTargetPulledThisIteration) {
+                specialPityCount = 0; 
+            }
+            
+            const newStatRank = getRandomStatRank(true);
+            const characterWithId = {
+                ...char, 
+                id: `char_${characterIdCounter++}`,
+                level: 1,
+                exp: 0,
+                locked: false,
+                hasEvolved: false,
+                curseEffect: 0,
+                basePower: char.power,
+                statRank: newStatRank,
+                statModifier: statRanks[newStatRank].modifier,
+                trait: { id: null, grade: 0 }
+            };
+            recalculateCharacterPower(characterWithId);
+
+            if (!discoveredCharacters.includes(char.name)) {
+                discoveredCharacters.push(char.name);
+            }
+
+            if (autosellSettings[char.rarity] === true) {
+                const rewards = autoSellCharacter(characterWithId);
+                autoSoldCharacters.push({ ...char, gems: rewards.gems, coins: rewards.coins }); 
+                totalAutoSellGems += rewards.gems;
+                totalAutoSellCoins += rewards.coins;
+            } else {
+                results.push(characterWithId); 
+                ownedCharacters.unshift(characterWithId);
+                if (!everOwnedCharacters.includes(char.name)) {
+                    everOwnedCharacters.push(char.name);
+                }
+            }
+
+            missions.forEach(mission => {
+                if (!mission.completed) {
+                    if (mission.type === "special_pulls") mission.progress++;
+                    if (mission.type === "epic_chars" && char.rarity === "Épique") mission.progress++;
+                    if (mission.type === "legendary_chars" && char.rarity === "Légendaire") mission.progress++;
+                    if (mission.type === "special_chars") mission.progress++;
+                }
+            });
+        }
+
+        checkMissions();
+
+        let message = `${cost} gemmes dépensées.`;
+        if (pityMessagePart) { 
+            message += pityMessagePart;
+        }
+        if (autoSoldCharacters.length > 0) {
+            message += ` ${autoSoldCharacters.length} personnage(s) auto-vendu(s) pour +${totalAutoSellGems} gemmes, +${totalAutoSellCoins} pièces.`;
+        }
+        await animatePull(results, message, isAutoMode); // MODIFIÉ: On passe isAutoMode
+
+        if (results.some(c => (c.rarity === "Mythic" || c.rarity === "Secret" || c.rarity === "Vanguard")) && animationsEnabled) {
+            confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+        }
+
+        addExp(expGain);
+        updateCharacterDisplay();
+        updateIndexDisplay();
+        updateUI(); 
+        localStorage.setItem("characterIdCounter", characterIdCounter);
+        scheduleSave();
+        console.log("specialMultiPull terminé, ownedCharacters:", ownedCharacters.length);
+        return true;
     }
 
     function awardLevelRewards(level) {
