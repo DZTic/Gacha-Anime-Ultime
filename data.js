@@ -976,14 +976,14 @@ const standardCharacters = [
       },
     ];
 
-            const materialFarmLevels = [
+    const materialFarmLevels = [
       {
         id: 301,
         world: "Antre du Gardien des Essences",
         name: "Farm: Snake Scale et Gorgon's Blindfold",
         enemy: { name: "Gardien des Essences", power: 5000 },
         rewards: {
-          gems: 90, coins: 20, exp: 30,
+          gems: 80, coins: 120, exp: 30,
           itemChance: [{ item: "Snake Scale", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Gorgon's Blindfold", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -996,7 +996,7 @@ const standardCharacters = [
         name: "Farm: Senzu Bean et Caster's Headpiece",
         enemy: { name: "Spectre d'Ombre", power: 6000 },
         rewards: {
-          gems: 90, coins: 20, exp: 30,
+          gems: 80, coins: 120, exp: 30,
           itemChance: [{ item: "Senzu Bean", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Caster's Headpiece", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1009,7 +1009,7 @@ const standardCharacters = [
         name: "Farm: Holy Corpse Eyes et Holy Corpse Arms",
         enemy: { name: "Abomination Maudite", power: 7000 },
         rewards: {
-          gems: 90, coins: 20, exp: 30,
+          gems: 80, coins: 120, exp: 30,
           itemChance: [{ item: "Holy Corpse Eyes", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Holy Corpse Arms", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1022,7 +1022,7 @@ const standardCharacters = [
         name: "Farm: Completed Holy Corpse et Avalon",
         enemy: { name: "Forgeron Ancien", power: 8000 },
         rewards: {
-          gems: 15, coins: 30, exp: 40,
+          gems: 80, coins: 120, exp: 40,
           itemChance: [{ item: "Completed Holy Corpse", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Avalon", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1035,7 +1035,7 @@ const standardCharacters = [
         name: "Farm: Goddess' Sword et Blade of Death",
         enemy: { name: "Veilleur Éthéré", power: 6000 },
         rewards: {
-          gems: 12, coins: 25, exp: 35,
+          gems: 80, coins: 120, exp: 35,
           itemChance: [{ item: "Goddess' Sword", probability: 0.02, minQuantity: 1, maxQuantity: 1 },  { item: "Blade of Death", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1048,7 +1048,7 @@ const standardCharacters = [
         name: "Farm: Berserker's Blade et Shunpo Spirit",
         enemy: { name: "Gardien Squelettique", power: 6200 },
         rewards: {
-          gems: 12, coins: 25, exp: 35,
+          gems: 80, coins: 120, exp: 35,
           itemChance: [{ item: "Berserker's Blade", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Shunpo Spirit", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1061,7 +1061,7 @@ const standardCharacters = [
         name: "Farm: Six Eyes et Tome of Wisdom",
         enemy: { name: "Cerbère Spectral", power: 7600 },
         rewards: {
-          gems: 15, coins: 35, exp: 45,
+          gems: 80, coins: 120, exp: 45,
           itemChance: [{ item: "Six Eyes", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Tome of Wisdom", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1074,7 +1074,7 @@ const standardCharacters = [
         name: "Farm: Corrupted Visor et Tainted Ribbon",
         enemy: { name: "Oracle Ancien", power: 8500 },
         rewards: {
-          gems: 20, coins: 40, exp: 50,
+          gems: 80, coins: 120, exp: 50,
           itemChance: [{ item: "Corrupted Visor", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Tainted Ribbon", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1087,7 +1087,7 @@ const standardCharacters = [
         name: "Farm: Demon Chalice et Essence of the Spirit King",
         enemy: { name: "Esprit du Forgeron", power: 8800 },
         rewards: {
-          gems: 22, coins: 42, exp: 52,
+          gems: 80, coins: 120, exp: 52,
           itemChance: [{ item: "Demon Chalice", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Essence of the Spirit King", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1100,7 +1100,7 @@ const standardCharacters = [
         name: "Farm: Ring of Friendship et Red Jewel",
         enemy: { name: "Champion Déchu", power: 9000 },
         rewards: {
-          gems: 25, coins: 45, exp: 55,
+          gems: 80, coins: 120, exp: 55,
           itemChance: [ { item: "Ring of Friendship", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Red Jewel", probability: 0.02, minQuantity: 1, maxQuantity: 1 } ]
         },
         type: 'material',
@@ -1113,7 +1113,7 @@ const standardCharacters = [
         name: "Farm: Majan Essence et Donut",
         enemy: { name: "Gardien des Reliques Sombres", power: 9200 },
         rewards: {
-          gems: 28, coins: 48, exp: 58,
+          gems: 80, coins: 120, exp: 58,
           itemChance: [ { item: "Majan Essence", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Donut", probability: 0.02, minQuantity: 1, maxQuantity: 1 } ]
         },
         type: 'material',
@@ -1126,7 +1126,7 @@ const standardCharacters = [
         name: "Farm: Atomic Essence",
         enemy: { name: "Spectre Royal", power: 9500 },
         rewards: {
-          gems: 30, coins: 50, exp: 60,
+          gems: 80, coins: 120, exp: 60,
           itemChance: [{ item: "Atomic Essence", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1139,7 +1139,7 @@ const standardCharacters = [
         name: "Farm: Energy Arrow et Hair Ornament",
         enemy: { name: "Esprit du Sanctuaire", power: 6500 },
         rewards: {
-          gems: 13, coins: 28, exp: 38,
+          gems: 80, coins: 120, exp: 38,
           itemChance: [{ item: "Energy Arrow", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Hair Ornament", probability: 0.02, minQuantity: 1, maxQuantity: 1 }] 
         },
         type: 'material',
@@ -1152,7 +1152,7 @@ const standardCharacters = [
         name: "Farm: Bucket Hat et Horn of Salvation",
         enemy: { name: "Forgeron Céleste Déchu", power: 6800 },
         rewards: {
-          gems: 14, coins: 30, exp: 40,
+          gems: 80, coins: 120, exp: 40,
           itemChance: [{ item: "Bucket Hat", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Horn of Salvation", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1165,7 +1165,7 @@ const standardCharacters = [
         name: "Farm: Energy Bone et Z Blade",
         enemy: { name: "Archiviste Spectral", power: 7000 },
         rewards: {
-          gems: 15, coins: 32, exp: 42,
+          gems: 80, coins: 120, exp: 42,
           itemChance: [{ item: "Energy Bone", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Z Blade", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1178,7 +1178,7 @@ const standardCharacters = [
         name: "Farm: Bucket Hat et Prison Chair",
         enemy: { name: "Maître Poussiéreux", power: 7200 },
         rewards: {
-          gems: 15, coins: 33, exp: 43,
+          gems: 80, coins: 120, exp: 43,
           itemChance: [{ item: "Bucket Hat", probability: 0.016, minQuantity: 1, maxQuantity: 1 }, { item: "Prison Chair", probability: 0.016, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1191,7 +1191,7 @@ const standardCharacters = [
         name: "Farm: Toil Ribbon",
         enemy: { name: "Gardien Scintillant", power: 7500 },
         rewards: {
-            gems: 16, coins: 35, exp: 45,
+            gems: 80, coins: 120, exp: 45,
             itemChance: [{ item: "Toil Ribbon", probability: 0.8, minQuantity: 1, maxQuantity: 3 }]
         },
         type: 'material',
@@ -1204,7 +1204,7 @@ const standardCharacters = [
         name: "Farm: Rotara Earring 1 et Rotara Earring 2",
         enemy: { name: "Guerrier Ancestral", power: 7800 },
         rewards: {
-          gems: 16, coins: 36, exp: 46,
+          gems: 80, coins: 120, exp: 46,
           itemChance: [{ item: "Rotara Earring 1", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Rotara Earring 2", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1217,7 +1217,7 @@ const standardCharacters = [
         name: "Farm: Champ's Belt et Dog Bone",
         enemy: { name: "Divinité Gardienne", power: 8200 },
         rewards: {
-          gems: 18, coins: 38, exp: 48,
+          gems: 80, coins: 120, exp: 48,
           itemChance: [{ item: "Champ's Belt", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Dog Bone", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1230,7 +1230,7 @@ const standardCharacters = [
         name: "Farm: Donut et Essence de Majin",
         enemy: { name: "Chef Pâtissier Fou", power: 9300 },
         rewards: {
-          gems: 28, coins: 48, exp: 58,
+          gems: 80, coins: 120, exp: 58,
           itemChance: [
             { item: "Donut", probability: 0.025, minQuantity: 1, maxQuantity: 2 },
             { item: "Essence de Majin", probability: 0.01, minQuantity: 1, maxQuantity: 1 }
@@ -1246,7 +1246,7 @@ const standardCharacters = [
         name: "Farm: Restricting Headband",
         enemy: { name: "Gardien du Château", power: 9400 },
         rewards: {
-          gems: 28, coins: 48, exp: 58,
+          gems: 80, coins: 120, exp: 58,
           itemChance: [
             { item: "Restricting Headband", probability: 0.8, minQuantity: 1, maxQuantity: 1 }
           ]
