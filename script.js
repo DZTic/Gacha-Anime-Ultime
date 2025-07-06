@@ -503,6 +503,9 @@
     const deleteButton = document.getElementById("delete-button");
     const statsModal = document.getElementById("stats-modal");
     const modalContent = document.getElementById("modal-content");
+    let activeTabId = "play"; // Onglet actif par défaut
+    let activePlaySubTabId = "story"; // Sous-onglet actif par défaut pour "play"
+    let activeInventorySubTabId = "units"; // Sous-onglet actif par défaut pour "inventory"
     const fuseButton = document.getElementById("fuse-button");
     const closeModalButton = document.getElementById("close-modal");
     const characterSelectionModal = document.getElementById("character-selection-modal");
@@ -5510,26 +5513,39 @@
     }
 
         function showTab(tabId) {
-        // Cacher tous les contenus d'onglets principaux
-        shopElement.classList.add("hidden");
-        missionsElement.classList.add("hidden");
-        inventoryElement.classList.add("hidden");
-        playElement.classList.add("hidden");
-        indexElement.classList.add("hidden");
-        evolutionElement.classList.add("hidden");
-        statChangeElement.classList.add("hidden");
-        curseElement.classList.add("hidden");
-        traitElement.classList.add("hidden");
-        limitBreakElement.classList.add("hidden");
+        if (activeTabId === tabId && !document.getElementById(tabId)?.classList.contains("hidden")) {
+             // Si l'onglet demandé est déjà actif et visible, ne rien faire, sauf si c'est un rechargement forcé (non géré ici)
+             // ou si l'onglet est "play" ou "inventory" qui ont des sous-onglets à potentiellement réinitialiser.
+            if (tabId === "play" && document.getElementById("story")?.classList.contains("hidden")) {
+                showSubTab("story"); // Réinitialiser au sous-onglet par défaut si aucun n'est visible
+            } else if (tabId === "inventory" && document.getElementById("units")?.classList.contains("hidden")) {
+                showSubTab("units"); // Réinitialiser au sous-onglet par défaut
+            }
+            return; 
+        }
+
+        // Cacher l'ancien onglet actif s'il y en a un et qu'il n'est pas le même que le nouveau
+        if (activeTabId && activeTabId !== tabId) {
+            const oldTab = document.getElementById(activeTabId);
+            if (oldTab) {
+                oldTab.classList.add("hidden");
+            }
+        }
 
         // Retirer la classe spéciale d'arrière-plan du body par défaut
+        // (sera réappliquée si l'onglet "curse" est sélectionné et que le thème est sombre)
         document.body.classList.remove("curse-tab-active-bg");
 
         // Afficher le contenu de l'onglet sélectionné
         const tabToShow = document.getElementById(tabId);
         if (tabToShow) {
             tabToShow.classList.remove("hidden");
+        } else {
+            console.error(`showTab: Onglet avec ID "${tabId}" non trouvé.`);
+            return; // Ne pas continuer si l'onglet n'existe pas
         }
+
+        activeTabId = tabId; // Mettre à jour l'onglet actif
 
         // Mettre à jour l'apparence des boutons d'onglet
         const allVisibleTabButtons = document.querySelectorAll(".tab-button:not(.hidden)");
@@ -5540,9 +5556,9 @@
 
         // Logique spécifique à chaque onglet lors de son affichage
         if (tabId === "inventory") {
-            showSubTab("units");
+            showSubTab("units"); // Toujours afficher le sous-onglet par défaut "units"
         } else if (tabId === "play") {
-            showSubTab("story");
+            showSubTab("story"); // Toujours afficher le sous-onglet par défaut "story"
         } else if (tabId === "index") {
             updateIndexDisplay();
         } else if (tabId === "evolution") {
@@ -5557,68 +5573,96 @@
         } else if (tabId === "trait") {
             updateTraitTabDisplay();
         } else if (tabId === "limit-break") {
-            updateLimitBreakTabDisplay(); // Appel correct ici
+            updateLimitBreakTabDisplay();
         } else {
+            // Pour les autres onglets (missions, shop), s'assurer que le mode suppression est désactivé
             if (isDeleteMode) {
                 isDeleteMode = false;
                 selectedCharacterIndices.clear();
-                updateCharacterDisplay();
+                updateCharacterDisplay(); // Pour enlever le style de sélection des cartes
             }
         }
-        updateUI();
+        updateUI(); // Mettre à jour les éléments généraux de l'UI
     }
 
 
     function showSubTab(subtabId) {
-        // Cacher les sous-onglets de Play
-        document.getElementById("story")?.classList.add("hidden");
-        document.getElementById("legende")?.classList.add("hidden");
-        document.getElementById("challenge")?.classList.add("hidden");
-        document.getElementById("materiaux")?.classList.add("hidden");
-        // Cacher les sous-onglets d'Inventory
-        document.getElementById("units")?.classList.add("hidden");
-        document.getElementById("items")?.classList.add("hidden");
+        let parentTabId = null;
+        let activeSubTabVarName = null; // Nom de la variable globale pour le sous-onglet actif de ce parent
+        let currentSubtabButtonsSelector = null;
 
-        // Afficher le bon
+        // Déterminer l'onglet parent et la variable de sous-onglet actif correspondante
+        if (document.getElementById("play")?.contains(document.getElementById(subtabId))) {
+            parentTabId = "play";
+            activeSubTabVarName = "activePlaySubTabId";
+            currentSubtabButtonsSelector = '#play .subtab-button';
+        } else if (document.getElementById("inventory")?.contains(document.getElementById(subtabId))) {
+            parentTabId = "inventory";
+            activeSubTabVarName = "activeInventorySubTabId";
+            currentSubtabButtonsSelector = '#inventory .subtab-button';
+        } else {
+            console.warn(`showSubTab: Impossible de déterminer l'onglet parent pour le sous-onglet ${subtabId}`);
+            // Afficher le sous-onglet directement s'il n'appartient pas à un parent connu (comportement de repli)
+            const subTabElementDirect = document.getElementById(subtabId);
+            if (subTabElementDirect) subTabElementDirect.classList.remove("hidden");
+            return;
+        }
+
+        let currentActiveSubTabId = window[activeSubTabVarName];
+
+        // Si le sous-onglet demandé est déjà actif et visible, ne rien faire
+        if (currentActiveSubTabId === subtabId && !document.getElementById(subtabId)?.classList.contains("hidden")) {
+            return;
+        }
+
+        // Cacher l'ancien sous-onglet actif (s'il existe et est différent)
+        if (currentActiveSubTabId && currentActiveSubTabId !== subtabId) {
+            const oldSubTab = document.getElementById(currentActiveSubTabId);
+            if (oldSubTab) {
+                oldSubTab.classList.add("hidden");
+            }
+        }
+
+        // Afficher le nouveau sous-onglet
         const subTabElement = document.getElementById(subtabId);
         if (subTabElement) {
             subTabElement.classList.remove("hidden");
+            window[activeSubTabVarName] = subtabId; // Mettre à jour la variable globale du sous-onglet actif
+        } else {
+            console.error(`showSubTab: Sous-onglet avec ID "${subtabId}" non trouvé.`);
+            return;
         }
 
-
-        let currentSubtabButtons;
-        if (playElement.contains(subTabElement)) { // Si le sous-onglet est dans "Play"
-            currentSubtabButtons = document.querySelectorAll('#play .subtab-button');
-        } else if (inventoryElement.contains(subTabElement)) { // Si le sous-onglet est dans "Inventory"
-            currentSubtabButtons = document.querySelectorAll('#inventory .subtab-button');
-        }
-        // Note: Les sous-onglets d'Évolution sont gérés par showSubTabEvolution
-
-        if (currentSubtabButtons) {
-            currentSubtabButtons.forEach(btn => {
+        // Mettre à jour l'apparence des boutons de sous-onglet
+        if (currentSubtabButtonsSelector) {
+            const subtabButtons = document.querySelectorAll(currentSubtabButtonsSelector);
+            subtabButtons.forEach(btn => {
                 btn.classList.toggle("border-blue-500", btn.dataset.subtab === subtabId);
                 btn.classList.toggle("border-transparent", btn.dataset.subtab !== subtabId);
             });
         }
 
-      if (subtabId !== "units") {
-        isDeleteMode = false;
-        selectedCharacterIndices.clear();
-        updateCharacterDisplay();
-      }
-
-      if (subtabId === "items") {
-        updateItemDisplay();
-      } else if (subtabId === "story") {
-        updateLevelDisplay();
-      } else if (subtabId === "legende") {
-        updateLegendeDisplay();
-      } else if (subtabId === "challenge") { // AJOUT
-        updateChallengeDisplay();
-      } else if (subtabId === "materiaux") { // AJOUT DE CETTE CONDITION
-        updateMaterialFarmDisplay();
-      }
-      updateUI();
+        // Logique spécifique après l'affichage du sous-onglet
+        if (parentTabId === "inventory" && subtabId !== "units") {
+            // Si on n'est pas dans le sous-onglet "units" de l'inventaire, désactiver le mode suppression
+            if (isDeleteMode) {
+                isDeleteMode = false;
+                selectedCharacterIndices.clear();
+                updateCharacterDisplay(); // Pour rafraîchir l'affichage des cartes
+            }
+        } else if (parentTabId === "play" && subtabId === "story") {
+             updateLevelDisplay();
+        } else if (parentTabId === "play" && subtabId === "legende") {
+             updateLegendeDisplay();
+        } else if (parentTabId === "play" && subtabId === "challenge") {
+             updateChallengeDisplay();
+        } else if (parentTabId === "play" && subtabId === "materiaux") {
+             updateMaterialFarmDisplay();
+        } else if (parentTabId === "inventory" && subtabId === "items") {
+             updateItemDisplay();
+        }
+        // updateCharacterDisplay() est appelé dans les fonctions ci-dessus si nécessaire, ou pour désactiver le mode suppression
+        updateUI(); // Mise à jour générale de l'UI
     }
 
     function updateStatChangeTabDisplay() {

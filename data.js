@@ -958,7 +958,7 @@ const standardCharacters = [
     const challengeLevels = [
       { id: 201, world: "Challenge Unique", name: "Défi: Vague d'ennemis", enemy: { name: "Horde Mixte", power: 3000}, rewards: { gems: 100, coins: 50, exp: 200, itemChance: { item: "Cursed Token", probability: 0.01, minQuantity: 1, maxQuantity: 1 } }, type: 'challenge', unlocked: true, completed: false },
       { id: 202, world: "Challenge Unique", name: "Défi: Boss Résistant", enemy: { name: "Golem Ancien", power: 6000}, rewards: { gems: 200, coins: 100, exp: 400, itemChance: { item: "Stat Chip", probability: 0.01, minQuantity: 1, maxQuantity: 1 }}, type: 'challenge', unlocked: true, completed: false },
-      { id: 203, world: "Challenge Unique", name: "Défi: Gardien Véloce", enemy: { name: "Gardien Véloce", power: 4500}, rewards: { gems: 150, coins: 75, exp: 300, itemChance: {item: "Reroll Token", probability: 0.01, minQuantity: 1, maxQuantity: 1} }, type: 'challenge', unlocked: true, completed: false },
+      { id: 203, world: "Challenge Unique", name: "Défi: Gardien Véloce", enemy: { name: "Gardien Véloce", power: 7500}, rewards: { gems: 150, coins: 75, exp: 300, itemChance: {item: "Reroll Token", probability: 0.01, minQuantity: 1, maxQuantity: 1} }, type: 'challenge', unlocked: true, completed: false },
       { id: 204, world: "Challenge Avancé", name: "Défi: Briser les Limites", enemy: { name: "Gardien Ancestral", power: 8000 }, rewards: { gems: 250, coins: 125, exp: 500, itemChance: { item: "Divin Wish", probability: 0.01, minQuantity: 1, maxQuantity: 1 } }, type: 'challenge', unlocked: true, completed: false },
       { 
         id: 205,
