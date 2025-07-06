@@ -617,6 +617,7 @@
     const miniGameHealthText = document.getElementById('mini-game-boss-health-text');
     const miniGameCloseButton = document.getElementById('mini-game-close-button');
     const miniGameDamageContainer = document.getElementById('mini-game-damage-container');
+    let reusableDamageNumberElement = null; // For mini-game optimization
     let autoClickerWarningShown = localStorage.getItem("autoClickerWarningShown") === "true";
     let clickTracker = {
         pull: [],
@@ -1827,110 +1828,107 @@
     }
 
     function updatePresetSelectionDisplay() {
-      presetSelectionList.innerHTML = "";
-      const currentFunctionalMaxPresetTeamSize = calculateMaxPresetTeamSize(); // Calcul dynamique
+        presetSelectionList.innerHTML = ""; // Clear existing content
+        const currentFunctionalMaxPresetTeamSize = calculateMaxPresetTeamSize();
 
-      // Mettre à jour le titre de la modale de preset
-      const presetModalTitle = document.getElementById("preset-selection-modal-title"); // S'assurer que l'ID est correct
-      if (presetModalTitle) {
-          presetModalTitle.textContent = `Sélectionner ${currentFunctionalMaxPresetTeamSize} Personnage(s) pour le Preset`;
-      }
-
-      const searchNameInputPreset = document.getElementById("preset-search-name");
-      const filterRaritySelectPreset = document.getElementById("preset-filter-rarity");
-      if (searchNameInputPreset) searchNameInputPreset.value = presetSearchName;
-      if (filterRaritySelectPreset) filterRaritySelectPreset.value = presetFilterRarity;
-
-
-      let charactersToDisplayForPreset = [...ownedCharacters];
-
-      // Appliquer le filtre par nom (utilise la variable globale presetSearchName)
-      if (presetSearchName) {
-          charactersToDisplayForPreset = charactersToDisplayForPreset.filter(char => (char.name || "").toLowerCase().includes(presetSearchName));
-      }
-
-      // Appliquer le filtre par rareté (utilise la variable globale presetFilterRarity)
-      if (presetFilterRarity !== "all") {
-          charactersToDisplayForPreset = charactersToDisplayForPreset.filter(char => char.rarity === presetFilterRarity);
-      }
-
-      const sortedCharacters = charactersToDisplayForPreset.sort((a, b) => {
-        if (presetSortCriteria === "power") { // Utilise bien presetSortCriteria
-          return (b.power || 0) - (a.power || 0);
-        } else if (presetSortCriteria === "rarity") { // Utilise bien presetSortCriteria
-          const rarityAValue = rarityOrder[a.rarity] ?? -1;
-          const rarityBValue = rarityOrder[b.rarity] ?? -1;
-          return rarityBValue - rarityAValue;
-        } else if (presetSortCriteria === "level") { // Utilise bien presetSortCriteria
-          return (b.level || 0) - (a.level || 0);
-        } else if (presetSortCriteria === "name") { // Ajout du tri par nom
-          return (a.name || "").localeCompare(b.name || "");
-        }
-        return 0;
-      });
-
-      const selectedPresetCharacterNames = new Set();
-      for (const selectedIdx of selectedPresetCharacters) {
-          if(ownedCharacters[selectedIdx]) { // Vérifier que l'index est valide
-              selectedPresetCharacterNames.add(ownedCharacters[selectedIdx].name);
-          }
-      }
-
-      sortedCharacters.forEach((char) => {
-        const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
-        if (originalIndex === -1) return;
-
-        const charElement = document.createElement("div");
-        
-        let isCurrentlySelectedInPreset = selectedPresetCharacters.has(originalIndex);
-        let isSelectableForPreset = true;
-        let additionalClassesPreset = "";
-
-        // Si le personnage n'est pas sélectionné et qu'il y a de la place
-        if (!isCurrentlySelectedInPreset && selectedPresetCharacters.size < currentFunctionalMaxPresetTeamSize) {
-            if (selectedPresetCharacterNames.has(char.name)) {
-                isSelectableForPreset = false;
-                additionalClassesPreset = "non-selectable-for-battle";
-            }
-        } else if (!isCurrentlySelectedInPreset && selectedPresetCharacters.size >= currentFunctionalMaxPresetTeamSize) {
-            isSelectableForPreset = false;
-            additionalClassesPreset = "opacity-50";
+        const presetModalTitle = document.getElementById("preset-selection-modal-title");
+        if (presetModalTitle) {
+            presetModalTitle.textContent = `Sélectionner ${currentFunctionalMaxPresetTeamSize} Personnage(s) pour le Preset`;
         }
 
+        const searchNameInputPreset = document.getElementById("preset-search-name");
+        const filterRaritySelectPreset = document.getElementById("preset-filter-rarity");
+        if (searchNameInputPreset) searchNameInputPreset.value = presetSearchName;
+        if (filterRaritySelectPreset) filterRaritySelectPreset.value = presetFilterRarity;
 
-        let rarityTextClass = char.color;
-        if (char.rarity === "Mythic") rarityTextClass = "rainbow-text";
-        else if (char.rarity === "Secret") rarityTextClass = "text-secret";
-        else if (char.rarity === "Vanguard") rarityTextClass = "text-vanguard";
+        let charactersToDisplayForPreset = [...ownedCharacters];
 
+        if (presetSearchName) {
+            charactersToDisplayForPreset = charactersToDisplayForPreset.filter(char => (char.name || "").toLowerCase().includes(presetSearchName));
+        }
+        if (presetFilterRarity !== "all") {
+            charactersToDisplayForPreset = charactersToDisplayForPreset.filter(char => char.rarity === presetFilterRarity);
+        }
 
-        charElement.className = `bg-gray-800 bg-opacity-50 p-4 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 ${getRarityBorderClass(char.rarity)} ${
-            isCurrentlySelectedInPreset ? 'selected-for-battle' : ''
-        } ${additionalClassesPreset}`;
+        const sortedCharacters = charactersToDisplayForPreset.sort((a, b) => {
+            if (presetSortCriteria === "power") return (b.power || 0) - (a.power || 0);
+            if (presetSortCriteria === "rarity") return (rarityOrder[b.rarity] ?? -1) - (rarityOrder[a.rarity] ?? -1);
+            if (presetSortCriteria === "level") return (b.level || 0) - (a.level || 0);
+            if (presetSortCriteria === "name") return (a.name || "").localeCompare(b.name || "");
+            return 0;
+        });
+
+        const selectedPresetCharacterNames = new Set();
+        selectedPresetCharacters.forEach(idx => {
+            if (ownedCharacters[idx]) selectedPresetCharacterNames.add(ownedCharacters[idx].name);
+        });
         
-        charElement.innerHTML = `
-          <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2">
-          <p class="${rarityTextClass} font-semibold">${char.name} (<span class="${rarityTextClass}">${char.rarity}</span>, Niv. ${char.level})</p>
-          <p class="text-white">Puissance: ${char.power}</p>
-        `;
-        
-        if (isSelectableForPreset || isCurrentlySelectedInPreset) {
-            charElement.addEventListener("click", () => {
-                selectPresetCharacter(originalIndex);
+        if (sortedCharacters.length === 0) {
+            presetSelectionList.innerHTML = `<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>`;
+        } else {
+            const fragment = document.createDocumentFragment();
+            sortedCharacters.forEach((char) => {
+                const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
+                if (originalIndex === -1) return;
+
+                const charElement = document.createElement("div");
+                let isCurrentlySelectedInPreset = selectedPresetCharacters.has(originalIndex);
+                let isSelectableForPreset = true;
+                let additionalClassesPreset = [];
+
+                if (!isCurrentlySelectedInPreset && selectedPresetCharacters.size < currentFunctionalMaxPresetTeamSize) {
+                    if (selectedPresetCharacterNames.has(char.name)) {
+                        isSelectableForPreset = false;
+                        additionalClassesPreset.push("non-selectable-for-battle");
+                    }
+                } else if (!isCurrentlySelectedInPreset && selectedPresetCharacters.size >= currentFunctionalMaxPresetTeamSize) {
+                    isSelectableForPreset = false;
+                    additionalClassesPreset.push("opacity-50");
+                }
+
+                let rarityTextClass = char.color;
+                if (char.rarity === "Mythic") rarityTextClass = "rainbow-text";
+                else if (char.rarity === "Secret") rarityTextClass = "text-secret";
+                else if (char.rarity === "Vanguard") rarityTextClass = "text-vanguard";
+
+                charElement.className = `bg-gray-800 bg-opacity-50 p-4 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 ${getRarityBorderClass(char.rarity)} ${isCurrentlySelectedInPreset ? 'selected-for-battle' : ''} ${additionalClassesPreset.join(' ')}`;
+
+                const img = document.createElement('img');
+                img.src = char.image;
+                img.alt = char.name;
+                img.className = 'w-full h-32 object-contain rounded mb-2';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                charElement.appendChild(img);
+
+                const nameP = document.createElement('p');
+                nameP.className = `${rarityTextClass} font-semibold`;
+                nameP.innerHTML = `${char.name} (<span class="${rarityTextClass}">${char.rarity}</span>, Niv. ${char.level})`;
+                charElement.appendChild(nameP);
+
+                const powerP = document.createElement('p');
+                powerP.className = 'text-white';
+                powerP.textContent = `Puissance: ${char.power}`;
+                charElement.appendChild(powerP);
+
+                if (isSelectableForPreset || isCurrentlySelectedInPreset) {
+                    charElement.addEventListener("click", () => {
+                        selectPresetCharacter(originalIndex);
+                    });
+                }
+                fragment.appendChild(charElement);
             });
+            presetSelectionList.appendChild(fragment);
         }
-        presetSelectionList.appendChild(charElement);
-      });
-
-      // Mettre à jour l'élément d'affichage du compteur
-      if (presetSelectedCountDisplayElement) { // Utilise la variable renommée
-        presetSelectedCountDisplayElement.textContent = `${selectedPresetCharacters.size}/${currentFunctionalMaxPresetTeamSize}`;
-      }
-      
-      confirmPresetButton.disabled = selectedPresetCharacters.size !== currentFunctionalMaxPresetTeamSize;
-      confirmPresetButton.classList.toggle("opacity-50", selectedPresetCharacters.size !== currentFunctionalMaxPresetTeamSize);
-      confirmPresetButton.classList.toggle("cursor-not-allowed", selectedPresetCharacters.size !== currentFunctionalMaxPresetTeamSize);
-      document.getElementById("preset-sort-criteria").value = presetSortCriteria;
+        
+        if (presetSelectedCountDisplayElement) {
+            presetSelectedCountDisplayElement.textContent = `${selectedPresetCharacters.size}/${currentFunctionalMaxPresetTeamSize}`;
+        }
+        
+        confirmPresetButton.disabled = selectedPresetCharacters.size !== currentFunctionalMaxPresetTeamSize;
+        confirmPresetButton.classList.toggle("opacity-50", confirmPresetButton.disabled);
+        confirmPresetButton.classList.toggle("cursor-not-allowed", confirmPresetButton.disabled);
+        document.getElementById("preset-sort-criteria").value = presetSortCriteria;
     }
 
     function selectPresetCharacter(index) {
@@ -3998,7 +3996,7 @@
     // APRÈS
     function updateCharacterDisplay() {
         if (!ownedCharacters.length && !inventoryFilterName && inventoryFilterRarity === "all" && !inventoryFilterEvolvable && !inventoryFilterLimitBreak && !inventoryFilterCanReceiveExp) {
-            characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage possédé.</p>'; // Modifié pour s'adapter à la grille
+            characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage possédé.</p>';
             return;
         }
 
@@ -4010,22 +4008,18 @@
                 (char.name || "").toLowerCase().includes(inventoryFilterName.toLowerCase())
             );
         }
-
         if (inventoryFilterRarity !== "all") {
             filteredCharacters = filteredCharacters.filter(char => char.rarity === inventoryFilterRarity);
         }
-
         if (inventoryFilterEvolvable) {
             filteredCharacters = filteredCharacters.filter(char => canCharacterEvolve(char));
         }
-
         if (inventoryFilterLimitBreak) {
             filteredCharacters = filteredCharacters.filter(char => {
                 const currentMaxCap = char.maxLevelCap || 60;
                 return char.level >= currentMaxCap && currentMaxCap < MAX_POSSIBLE_LEVEL_CAP;
             });
         }
-
         if (inventoryFilterCanReceiveExp) {
             filteredCharacters = filteredCharacters.filter(char => {
                 const currentMaxCap = char.maxLevelCap || 60;
@@ -4035,171 +4029,203 @@
 
         // Trier les personnages
         const sortedAndFilteredCharacters = filteredCharacters.sort((a, b) => {
-                let primaryComparison = 0;
-                // Tri principal basé sur sortCriteria (contrôlé par le sélecteur de l'inventaire)
-                if (sortCriteria === "power") primaryComparison = (b.power || 0) - (a.power || 0);
-                else if (sortCriteria === "rarity") primaryComparison = (rarityOrder[b.rarity] ?? -1) - (rarityOrder[a.rarity] ?? -1);
-                else if (sortCriteria === "level") primaryComparison = (b.level || 0) - (a.level || 0);
-                else if (sortCriteria === "name") primaryComparison = (a.name || "").localeCompare(b.name || "");
-                // Si sortCriteria est "none" ou une autre valeur, primaryComparison restera 0
+            let primaryComparison = 0;
+            if (sortCriteria === "power") primaryComparison = (b.power || 0) - (a.power || 0);
+            else if (sortCriteria === "rarity") primaryComparison = (rarityOrder[b.rarity] ?? -1) - (rarityOrder[a.rarity] ?? -1);
+            else if (sortCriteria === "level") primaryComparison = (b.level || 0) - (a.level || 0);
+            else if (sortCriteria === "name") primaryComparison = (a.name || "").localeCompare(b.name || "");
+            if (primaryComparison !== 0) return primaryComparison;
+            return (a.name || "").localeCompare(b.name || "");
+        });
 
-                if (primaryComparison !== 0) return primaryComparison;
-
-                // Tri secondaire fixe pour la stabilité (par nom, ascendant) si le tri principal est égal
-                // Ignorer la variable globale sortCriteriaSecondary pour l'inventaire ici.
-                return (a.name || "").localeCompare(b.name || "");
-            });
+        characterDisplay.innerHTML = ''; // Clear existing content first
 
         if (!sortedAndFilteredCharacters.length) {
-            characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>'; // Modifié pour s'adapter à la grille
+            characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>';
             return;
         }
 
-        characterDisplay.innerHTML = sortedAndFilteredCharacters.map((char) => {
+        const fragment = document.createDocumentFragment();
+        sortedAndFilteredCharacters.forEach((char) => {
+            const cardDiv = document.createElement('div');
             const isSelected = selectedCharacterIndices.has(char.id);
             let rarityTextColorClass = char.color;
             if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
             else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
             else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
-            // ... (autres if/else if pour couleurs de rareté)
 
-            let statRankDisplayHtml = '';
-            if (char.statRank && statRanks[char.statRank]) {
-                statRankDisplayHtml = `<p class="text-center text-white text-xs">Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span></p>`;
-            }
-
-            let cardClasses = `relative p-2 rounded-lg border cursor-pointer`;
-            let onclickAction = `showCharacterStats('${char.id}')`;
-
+            let cardClasses = ['relative', 'p-2', 'rounded-lg', 'border', 'cursor-pointer'];
+            
             if (isDeleteMode) {
                 if (char.locked) {
-                    cardClasses += ` ${getRarityBorderClass(char.rarity)} opacity-50 cursor-not-allowed`;
+                    cardClasses.push(getRarityBorderClass(char.rarity), 'opacity-50', 'cursor-not-allowed');
                 } else {
-                    cardClasses += ` ${isSelected ? 'selected-character' : getRarityBorderClass(char.rarity)}`;
-                    onclickAction = `deleteCharacter('${char.id}')`;
+                    cardClasses.push(isSelected ? 'selected-character' : getRarityBorderClass(char.rarity));
                 }
             } else {
-                cardClasses += ` ${getRarityBorderClass(char.rarity)}`;
+                cardClasses.push(getRarityBorderClass(char.rarity));
+            }
+            cardDiv.className = cardClasses.join(' ');
+
+            cardDiv.addEventListener('click', () => {
+                if (isDeleteMode) {
+                    if (!char.locked) {
+                        deleteCharacter(char.id); // Assumes deleteCharacter handles selection state
+                    }
+                } else {
+                    showCharacterStats(char.id);
+                }
+            });
+
+            if (char.locked) {
+                const lockSpan = document.createElement('span');
+                lockSpan.className = 'absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1';
+                lockSpan.textContent = '🔒';
+                cardDiv.appendChild(lockSpan);
             }
 
-            return `
-            <div class="${cardClasses}" onclick="${onclickAction}">
-                ${char.locked ? '<span class="absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1">🔒</span>' : ''}
-                <img src="${char.image}" alt="${char.name}" class="w-full h-1000 object-contain rounded" loading="lazy" decoding="async">
-                <p class="text-center text-white font-semibold mt-1 text-sm">${char.name}</p>
-                <p class="text-center ${rarityTextColorClass} text-xs">${char.rarity}</p>
-                <p class="text-center text-white text-xs">Niveau: ${char.level} / ${char.maxLevelCap || 60}</p>
-                ${statRankDisplayHtml}
-                <p class="text-center text-white text-xs">Puissance: ${char.power}</p>
-            </div>
-            `;
-        }).join("");
+            const img = document.createElement('img');
+            img.src = char.image;
+            img.alt = char.name;
+            img.className = 'w-full h-auto object-contain rounded'; // h-auto to respect aspect ratio with max-height
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            cardDiv.appendChild(img);
+
+            const nameP = document.createElement('p');
+            nameP.className = 'text-center text-white font-semibold mt-1 text-sm';
+            nameP.textContent = char.name;
+            cardDiv.appendChild(nameP);
+
+            const rarityP = document.createElement('p');
+            rarityP.className = `text-center ${rarityTextColorClass} text-xs`;
+            rarityP.textContent = char.rarity;
+            cardDiv.appendChild(rarityP);
+
+            const levelP = document.createElement('p');
+            levelP.className = 'text-center text-white text-xs';
+            levelP.textContent = `Niveau: ${char.level} / ${char.maxLevelCap || 60}`;
+            cardDiv.appendChild(levelP);
+
+            if (char.statRank && statRanks[char.statRank]) {
+                const statRankP = document.createElement('p');
+                statRankP.className = 'text-center text-white text-xs';
+                statRankP.innerHTML = `Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span>`;
+                cardDiv.appendChild(statRankP);
+            }
+
+            const powerP = document.createElement('p');
+            powerP.className = 'text-center text-white text-xs';
+            powerP.textContent = `Puissance: ${char.power}`;
+            cardDiv.appendChild(powerP);
+            
+            fragment.appendChild(cardDiv);
+        });
+        characterDisplay.appendChild(fragment);
     }
 
     function updateCharacterSelectionDisplay() {
-      characterSelectionList.innerHTML = "";
-      const currentMaxTeamSize = calculateMaxTeamSize();
+        characterSelectionList.innerHTML = ""; // Clear existing content
+        const currentMaxTeamSize = calculateMaxTeamSize();
 
-      const modalTitle = document.getElementById("character-selection-title");
-      if (modalTitle) {
-          modalTitle.textContent = `Sélectionner ${currentMaxTeamSize} Personnage(s) pour le Combat`;
-      }
-
-      // Restaurer les valeurs des filtres depuis les variables globales
-      const searchNameInput = document.getElementById("battle-search-name");
-      const filterRaritySelect = document.getElementById("battle-filter-rarity");
-      if (searchNameInput) searchNameInput.value = battleSearchName;
-      if (filterRaritySelect) filterRaritySelect.value = battleFilterRarity;
-
-      let charactersToDisplay = [...ownedCharacters];
-
-      // Appliquer le filtre par nom (utilise la variable globale battleSearchName)
-      if (battleSearchName) {
-          charactersToDisplay = charactersToDisplay.filter(char => char.name.toLowerCase().includes(battleSearchName));
-      }
-
-      // Appliquer le filtre par rareté (utilise la variable globale battleFilterRarity)
-      if (battleFilterRarity !== "all") {
-          charactersToDisplay = charactersToDisplay.filter(char => char.rarity === battleFilterRarity);
-      }
-
-      const sortedCharacters = charactersToDisplay.sort((a, b) => {
-        if (battleSortCriteria === "power") { // <--- CORRIGÉ
-          return (b.power || 0) - (a.power || 0);
-        } else if (battleSortCriteria === "rarity") { // <--- CORRIGÉ
-          const rarityAValue = rarityOrder[a.rarity] ?? -1;
-          const rarityBValue = rarityOrder[b.rarity] ?? -1;
-          return rarityBValue - rarityAValue;
-        } else if (battleSortCriteria === "level") { // <--- CORRIGÉ
-          return (b.level || 0) - (a.level || 0);
-        } else if (battleSortCriteria === "name") { // <--- AJOUTÉ POUR COHÉRENCE
-          return (a.name || "").localeCompare(b.name || "");
+        const modalTitle = document.getElementById("character-selection-title");
+        if (modalTitle) {
+            modalTitle.textContent = `Sélectionner ${currentMaxTeamSize} Personnage(s) pour le Combat`;
         }
-        return 0;
-      });
 
-      const selectedCharacterNames = new Set();
-      for (const selectedIdx of selectedBattleCharacters) {
-          if(ownedCharacters[selectedIdx]) {
-              selectedCharacterNames.add(ownedCharacters[selectedIdx].name);
-          }
-      }
-      
-      if (sortedCharacters.length === 0) {
-          characterSelectionList.innerHTML = `<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>`;
-      } else {
-          sortedCharacters.forEach((char) => {
-              const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
-              if (originalIndex === -1) return;
+        const searchNameInput = document.getElementById("battle-search-name");
+        const filterRaritySelect = document.getElementById("battle-filter-rarity");
+        if (searchNameInput) searchNameInput.value = battleSearchName;
+        if (filterRaritySelect) filterRaritySelect.value = battleFilterRarity;
 
-              const charElement = document.createElement("div");
+        let charactersToDisplay = [...ownedCharacters];
 
-              let isCurrentlySelected = selectedBattleCharacters.has(originalIndex);
-              let isSelectable = true;
-              let additionalClasses = "";
+        if (battleSearchName) {
+            charactersToDisplay = charactersToDisplay.filter(char => (char.name || "").toLowerCase().includes(battleSearchName));
+        }
+        if (battleFilterRarity !== "all") {
+            charactersToDisplay = charactersToDisplay.filter(char => char.rarity === battleFilterRarity);
+        }
 
-              if (!isCurrentlySelected && selectedBattleCharacters.size < currentMaxTeamSize) {
-                  if (selectedCharacterNames.has(char.name)) {
-                      isSelectable = false;
-                      additionalClasses = "non-selectable-for-battle";
-                  }
-              } else if (!isCurrentlySelected && selectedBattleCharacters.size >= currentMaxTeamSize) {
-                  isSelectable = false;
-                  additionalClasses = "opacity-50";
-              }
+        const sortedCharacters = charactersToDisplay.sort((a, b) => {
+            if (battleSortCriteria === "power") return (b.power || 0) - (a.power || 0);
+            if (battleSortCriteria === "rarity") return (rarityOrder[b.rarity] ?? -1) - (rarityOrder[a.rarity] ?? -1);
+            if (battleSortCriteria === "level") return (b.level || 0) - (a.level || 0);
+            if (battleSortCriteria === "name") return (a.name || "").localeCompare(b.name || "");
+            return 0;
+        });
 
-              let rarityTextClass = char.color;
-              if (char.rarity === "Mythic") rarityTextClass = "rainbow-text";
-              else if (char.rarity === "Secret") rarityTextClass = "text-secret";
-              else if (char.rarity === "Vanguard") rarityTextClass = "text-vanguard";
+        const selectedCharacterNames = new Set();
+        selectedBattleCharacters.forEach(idx => {
+            if (ownedCharacters[idx]) selectedCharacterNames.add(ownedCharacters[idx].name);
+        });
 
-              charElement.className = `bg-gray-800 bg-opacity-50 p-4 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 ${getRarityBorderClass(char.rarity)} ${
-                  isCurrentlySelected ? 'selected-for-battle' : ''
-              } ${additionalClasses}`;
-              
-              charElement.innerHTML = `
-                <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2">
-                <p class="${rarityTextClass} font-semibold">${char.name} (<span class="${rarityTextClass}">${char.rarity}</span>, Niv. ${char.level})</p>
-                <p class="text-white">Puissance: ${char.power}</p> 
-              `;
-              
-              if (isSelectable || isCurrentlySelected) {
-                  charElement.addEventListener("click", () => {
-                      selectBattleCharacter(originalIndex);
-                  });
-              }
-              
-              characterSelectionList.appendChild(charElement);
-          });
-      }
+        if (sortedCharacters.length === 0) {
+            characterSelectionList.innerHTML = `<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>`;
+        } else {
+            const fragment = document.createDocumentFragment();
+            sortedCharacters.forEach((char) => {
+                const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
+                if (originalIndex === -1) return;
 
-      selectedCountElement.textContent = `${selectedBattleCharacters.size}/${currentMaxTeamSize}`;
-      confirmSelectionButton.disabled = selectedBattleCharacters.size !== currentMaxTeamSize;
-      confirmSelectionButton.classList.toggle("opacity-50", selectedBattleCharacters.size !== currentMaxTeamSize);
-      confirmSelectionButton.classList.toggle("cursor-not-allowed", selectedBattleCharacters.size !== currentMaxTeamSize);
-      
-      const battleSortCriteriaSelect = document.getElementById("battle-sort-criteria");
-      if (battleSortCriteriaSelect) battleSortCriteriaSelect.value = battleSortCriteria;
+                const charElement = document.createElement("div");
+                let isCurrentlySelected = selectedBattleCharacters.has(originalIndex);
+                let isSelectable = true;
+                let additionalClasses = [];
+
+                if (!isCurrentlySelected && selectedBattleCharacters.size < currentMaxTeamSize) {
+                    if (selectedCharacterNames.has(char.name)) {
+                        isSelectable = false;
+                        additionalClasses.push("non-selectable-for-battle");
+                    }
+                } else if (!isCurrentlySelected && selectedBattleCharacters.size >= currentMaxTeamSize) {
+                    isSelectable = false;
+                    additionalClasses.push("opacity-50");
+                }
+
+                let rarityTextClass = char.color;
+                if (char.rarity === "Mythic") rarityTextClass = "rainbow-text";
+                else if (char.rarity === "Secret") rarityTextClass = "text-secret";
+                else if (char.rarity === "Vanguard") rarityTextClass = "text-vanguard";
+
+                charElement.className = `bg-gray-800 bg-opacity-50 p-4 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 ${getRarityBorderClass(char.rarity)} ${isCurrentlySelected ? 'selected-for-battle' : ''} ${additionalClasses.join(' ')}`;
+
+                const img = document.createElement('img');
+                img.src = char.image;
+                img.alt = char.name;
+                img.className = 'w-full h-32 object-contain rounded mb-2'; // h-32 for consistency
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                charElement.appendChild(img);
+
+                const nameP = document.createElement('p');
+                nameP.className = `${rarityTextClass} font-semibold`;
+                // Use innerHTML for the span part to keep rainbow/secret text
+                nameP.innerHTML = `${char.name} (<span class="${rarityTextClass}">${char.rarity}</span>, Niv. ${char.level})`;
+                charElement.appendChild(nameP);
+
+                const powerP = document.createElement('p');
+                powerP.className = 'text-white';
+                powerP.textContent = `Puissance: ${char.power}`;
+                charElement.appendChild(powerP);
+
+                if (isSelectable || isCurrentlySelected) {
+                    charElement.addEventListener("click", () => {
+                        selectBattleCharacter(originalIndex);
+                    });
+                }
+                fragment.appendChild(charElement);
+            });
+            characterSelectionList.appendChild(fragment);
+        }
+        
+        selectedCountElement.textContent = `${selectedBattleCharacters.size}/${currentMaxTeamSize}`;
+        confirmSelectionButton.disabled = selectedBattleCharacters.size !== currentMaxTeamSize;
+        confirmSelectionButton.classList.toggle("opacity-50", confirmSelectionButton.disabled);
+        confirmSelectionButton.classList.toggle("cursor-not-allowed", confirmSelectionButton.disabled);
+        
+        const battleSortCriteriaSelect = document.getElementById("battle-sort-criteria");
+        if (battleSortCriteriaSelect) battleSortCriteriaSelect.value = battleSortCriteria;
     }
 
     function selectBattleCharacter(index) {
@@ -6753,20 +6779,29 @@
         miniGameBossImage.classList.add('hit');
         setTimeout(() => miniGameBossImage.classList.remove('hit'), 75);
 
-        // Afficher un numéro de dégât flottant
-        const damageNumber = document.createElement('div');
-        damageNumber.className = 'damage-number';
-        damageNumber.textContent = `-${miniGameState.damagePerClick.toLocaleString()}`;
-        // Positionner le numéro aléatoirement autour du point de clic
-        const rect = miniGameClickArea.getBoundingClientRect();
+        // Afficher un numéro de dégât flottant (optimisé)
+        if (!reusableDamageNumberElement) {
+            reusableDamageNumberElement = document.createElement('div');
+            reusableDamageNumberElement.className = 'damage-number';
+            miniGameDamageContainer.appendChild(reusableDamageNumberElement);
+        }
+        
+        reusableDamageNumberElement.textContent = `-${miniGameState.damagePerClick.toLocaleString()}`;
+        const rect = miniGameClickArea.getBoundingClientRect(); // Recalculate rect in case of scroll/resize
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        damageNumber.style.left = `${x - 20}px`;
-        damageNumber.style.top = `${y - 20}px`;
-        miniGameDamageContainer.appendChild(damageNumber);
-        // Nettoyer l'élément du DOM après l'animation
-        setTimeout(() => damageNumber.remove(), 700);
+        
+        // Reset animation by removing and re-adding the element or class
+        reusableDamageNumberElement.style.animation = 'none';
+        reusableDamageNumberElement.offsetHeight; // Trigger reflow
+        reusableDamageNumberElement.style.animation = ''; 
+        reusableDamageNumberElement.style.left = `${x - 20 + (Math.random() * 40 - 20)}px`; // Add some jitter
+        reusableDamageNumberElement.style.top = `${y - 30 + (Math.random() * 20 - 10)}px`;
+        reusableDamageNumberElement.style.opacity = '1'; // Ensure it's visible
 
+        // Hide after animation (CSS animation should handle fade out)
+        // The CSS animation 'damage-popup' has 'forwards', so it will stay at opacity 0.
+        // We just need to make sure we can restart it.
 
         // Mettre à jour la barre de vie
         if (miniGameState.bossCurrentHealth <= 0) {
