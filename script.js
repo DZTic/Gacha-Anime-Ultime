@@ -4681,9 +4681,9 @@
       itemSelectionList.innerHTML = "";
       const itemImages = {
         "Haricots": "./images/items/Haricot.webp",
-        "Fluide mystérieux": "./images/items/Fluide_Mystérieux.webp",
+        "Fluide mystérieux": "./images/items/Mysterious_Fluid.webp",
         "Wisteria Flower": "./images/vWisteria_Flower.webp",
-        "Ramen Bowl": "./images/vRamen_Bowl.webp",
+        "Ramen Bowl": "./images/items/Ramen_Bowl.webp",
         "Ghoul Coffee": "./images/items/Ghoul_Coffee.webp",
         "Soul Candy": "./images/items/Soul_Candy.webp",
         "Cooked Fish": "./images/vCooked_Fish.webp",
