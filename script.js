@@ -7357,7 +7357,7 @@
     document.getElementById("materiaux-level-list").addEventListener('click', handleLevelStartClick);
 
     // NOUVEAU: Fermeture de la modale d'avertissement
-    const autoClickerModalCloseButton = document.getElementById('auto-clicker-modal-close-button');
+     const autoClickerModalCloseButton = document.getElementById('auto-clicker-modal-close-button');
     if (autoClickerModalCloseButton) {
         autoClickerModalCloseButton.addEventListener('click', () => {
             if (autoClickerWarningModal) {
@@ -7366,6 +7366,9 @@
             }
         });
     }
+
+    populateTargetStatRanks();
+    populateTargetTraits();
 
     auth.onAuthStateChanged(user => {
         if (user) {
