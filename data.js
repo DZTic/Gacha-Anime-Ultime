@@ -302,7 +302,7 @@ const standardCharacters = [
           name: "Valentine",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "./images/perso/Valentine.webp",
+          image: "./images/perso/valentine.webp",
           power: 1300,
           level: 1,
           evolutionRequirements: [ { item: "Completed Holy Corpse", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 750000 } ],
