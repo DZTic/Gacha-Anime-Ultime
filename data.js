@@ -302,7 +302,7 @@ const standardCharacters = [
           name: "Valentine",
           rarity: "Mythic",
           color: "rainbow-text",
-          image: "./images/perso/alentine.webp",
+          image: "./images/perso/Valentine.webp",
           power: 1300,
           level: 1,
           evolutionRequirements: [ { item: "Completed Holy Corpse", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 750000 } ],
@@ -761,6 +761,10 @@ const standardCharacters = [
         { name: "Kid Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/kid boo (evil).webp", power: 1580, level: 1, chance: 0.0000125 },
         { name: "Super Vegetto", rarity: "Secret", color: "text-secret", image: "./images/perso/super vegetto.webp", power: 1585, level: 1, chance: 0.0000125 },
         { name: "Cid", rarity: "Secret", color: "text-secret", image: "./images/perso/cid.png", power: 1650, level: 1, chance: 0.0000125 },
+        { name: "Kaze-sensei", rarity: "Légendaire", color: "text-purple-400", image: "https://via.placeholder.com/150?text=Kaze", power: 800, level: 1 },
+        { name: "Mizu-chan", rarity: "Épique", color: "text-blue-400", image: "https://via.placeholder.com/150?text=Mizu", power: 500, level: 1 },
+        { name: "Tsuchi-kun", rarity: "Rare", color: "text-gray-400", image: "https://via.placeholder.com/150?text=Tsuchi", power: 360, level: 1 },
+        { name: "Sakura", rarity: "Légendaire", color: "text-pink-400", image: "https://via.placeholder.com/150?text=Sakura", power: 850, level: 1 }
     ];
 
     const allCharacters = [...standardCharacters, ...specialCharacters];
