@@ -967,9 +967,9 @@ const standardCharacters = [
         enemy: { 
           name: "Titan Tapper", 
           power: 100000, 
-          image: "./images/titan-tapper.png" // <-- NOUVELLE LIGNE
+          image: "./images/perso/titan-tapper.png"
         }, 
-        rewards: { gems: 300, coins: 150, exp: 500, itemChance: { item: "Reroll Token", probability: 0.25, minQuantity: 1, maxQuantity: 1 } }, 
+        rewards: { gems: 300, coins: 150, exp: 500, itemChance: { item: "Reroll Token", probability: 0.25, minQuantity: 1, maxQuantity: 1 } },
         type: 'minigame',
         unlocked: true, 
         completed: false 
@@ -1301,7 +1301,7 @@ const standardCharacters = [
 
     const BANNER_CONFIG = {
         Secret:     { overallChance: 0.000025 }, // 0.0025% (inchangé)
-        Mythic:     { overallChance: 0.0000333333333333,  numFeatured: 3, featuredPoolRatio: 0.85, featuredRelativeWeights: [0.33 / 1.16, 0.33 / 1.16, 0.50 / 1.16] },
+        Mythic:     { overallChance: 0.00005,  numFeatured: 3, featuredPoolRatio: 0.85, featuredRelativeWeights: [0.33 / 1.16, 0.33 / 1.16, 0.50 / 1.16] },
         Légendaire: { overallChance: 0.01 },    // 1% (inchangé)
         Épique:     { overallChance: 0.05 },    // 5% (inchangé)
         // La probabilité pour Rare est calculée pour que la somme totale soit 1.
