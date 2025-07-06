@@ -1673,7 +1673,7 @@
           mainCharIsMaxLevel = char.level >= (char.maxLevelCap || 60);
           autofuseMainCharacterElement.innerHTML = `
             <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${getRarityBorderClass(char.rarity)}">
-              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2">
+              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2" loading="lazy" decoding="async">
               <p class="${char.color} font-semibold">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level}${mainCharIsMaxLevel ? ` (Max: ${char.maxLevelCap || 60})` : ` / ${char.maxLevelCap || 60}`})</p>
               <p class="text-white">Puissance: ${char.power}</p>
               ${mainCharIsMaxLevel ? '<p class="text-red-400 font-bold mt-2">Niveau maximum atteint ! Ne peut pas recevoir d\'EXP.</p>' : ''}
@@ -1691,7 +1691,7 @@
         .sort((a, b) => b.power - a.power)
         .map(char => `
           <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${getRarityBorderClass(char.rarity)} cursor-pointer hover:bg-gray-700 ${currentAutofuseCharacterId === char.id ? 'border-green-500' : ''}" data-id="${char.id}">
-            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-cover rounded mb-2">
+            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-cover rounded mb-2" loading="lazy" decoding="async">
             <p class="${char.color} font-semibold text-sm">${char.name} ${char.locked ? '🔒' : ''}</p>
             <p class="text-white text-xs"><span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level} / ${char.maxLevelCap || 60}</p>
           </div>
@@ -2112,7 +2112,7 @@
             const isDiscovered = discoveredCharacters.includes(char.name);
             return `
             <div class="relative p-2 rounded-lg border ${isDiscovered ? getRarityBorderClass(char.rarity) : 'unowned-character'}">
-                <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded">
+                <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded" loading="lazy" decoding="async">
                 <p class="text-center text-white font-semibold mt-2">${isDiscovered ? char.name : '???'}</p>
                 <p class="text-center ${isDiscovered ? (char.rarity === 'Mythic' ? 'rainbow-text' : char.color) : 'text-gray-400'}">${isDiscovered ? char.rarity : 'Inconnu'}</p>
             </div>
@@ -2964,7 +2964,7 @@
       if (expMultiplier > 1 && now < expBoostEndTime) {
         itemsHtmlOutput += `
           <div class="bg-gray-700 bg-opacity-40 p-2 rounded-lg border border-gray-600 flex flex-col items-center justify-around text-center h-full min-h-[140px] sm:min-h-[160px]">
-            <img src="${itemImages['Boost EXP x2']}" alt="Boost EXP x2" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded mb-1">
+            <img src="${itemImages['Boost EXP x2']}" alt="Boost EXP x2" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
             <div>
               <p class="text-white font-semibold text-xs sm:text-sm">Boost EXP x2</p>
               <p class="text-white text-xs">${expBoostStatus}</p>
@@ -2992,7 +2992,7 @@
 
         itemsHtmlOutput += `
           <div class="bg-gray-700 bg-opacity-40 p-2 rounded-lg border border-gray-600 flex flex-col items-center justify-around text-center h-full min-h-[140px] sm:min-h-[160px]">
-            <img src="${itemImages[item] || 'https://via.placeholder.com/150?text=Item'}" alt="${item}" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded mb-1">
+            <img src="${itemImages[item] || 'https://via.placeholder.com/150?text=Item'}" alt="${item}" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
             <div>
               <p class="text-white font-semibold text-xs sm:text-sm">${item}</p>
               <p class="text-white text-xs">Quantité: ${displayQuantity}</p>
@@ -4293,6 +4293,8 @@
                 img.className = 'w-full h-32 object-contain rounded mb-2'; // h-32 for consistency
                 img.loading = 'lazy';
                 img.decoding = 'async';
+                // Already had loading='lazy' and decoding='async' here from a previous similar function.
+                // This is just to ensure it's consistent if it was missed.
                 charElement.appendChild(img);
 
                 const nameP = document.createElement('p');
@@ -4433,7 +4435,7 @@
           selectedFusionCharacters.has(char.id) ? 'selected-for-fusion' : ''
         }`;
         charElement.innerHTML = `
-          <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2">
+          <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2" loading="lazy" decoding="async">
           <p class="${char.color} font-semibold">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level})</p>
           <p class="text-white">Puissance: ${char.power}</p>
         `;
@@ -4953,7 +4955,7 @@
           const currentCharacterMaxLevel = char.maxLevelCap || 60;
           limitBreakSelectedCharDisplayElement.innerHTML = `
               <div class="bg-gray-800 bg-opacity-50 p-3 rounded-lg border-2 ${getRarityBorderClass(char.rarity)} w-full max-w-xs mx-auto">
-                  <img src="${char.image}" alt="${char.name}" class="w-full h-28 object-contain rounded mb-1">
+                  <img src="${char.image}" alt="${char.name}" class="w-full h-28 object-contain rounded mb-1" loading="lazy" decoding="async">
                   <p class="${char.color} font-semibold text-center text-sm">${char.name} (${char.rarity})</p>
                   <p class="text-white text-center text-xs">Niveau: ${char.level} / ${currentCharacterMaxLevel}</p>
                   <p class="text-white text-center text-xs">Puissance: ${char.power}</p>
@@ -4982,7 +4984,7 @@
                   ${currentMax >= MAX_POSSIBLE_LEVEL_CAP ? 'opacity-40' : ''}`;
 
               charElement.innerHTML = `
-                  <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1">
+                  <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
                   <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
                   <p class="text-white text-xs text-center">Niv: ${c.level} / ${currentMax}</p>
                   ${currentMax >= MAX_POSSIBLE_LEVEL_CAP ? '<p class="text-yellow-500 text-xs text-center">Cap Ultime Atteint</p>' : (isAtCurrentCap ? (canBreakLimit ? '<p class="text-green-400 text-xs text-center">Prêt pour Limit Break</p>' : '<p class="text-red-400 text-xs text-center">Orbes manquants</p>') : `<p class="text-gray-400 text-xs text-center">Atteindre Niv. ${currentMax}</p>`)}
@@ -5168,7 +5170,7 @@
             selectedQuantity > 0 ? 'selected-for-evolution' : ''
         }`;
         itemElement.innerHTML = `
-            <img src="${itemImages[item]}" alt="${item}" class="w-full h-24 object-contain rounded mb-1">
+            <img src="${itemImages[item]}" alt="${item}" class="w-full h-24 object-contain rounded mb-1" loading="lazy" decoding="async">
             <p class="text-white font-semibold">${item}</p>
             <p class="text-white">Requis: ${quantity}</p>
             <p class="text-white">Disponible: ${availableQuantity}</p>
@@ -5453,7 +5455,7 @@
           return `
           <div class="relative p-2 rounded-lg border ${getRarityBorderClass(char.rarity)} cursor-pointer" 
               onclick="startEvolution('${char.id}')">
-              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded">
+              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded" loading="lazy" decoding="async">
               <p class="text-center text-white font-semibold mt-2">${char.name}</p>
               <p class="text-center ${rarityTextColorClass}">${char.rarity}</p>
               <p class="text-center text-white">Niveau: ${char.level}</p>
@@ -5688,7 +5690,7 @@
             if (char) {
                 selectedCharDisplay.innerHTML = `
                     <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${statRanks[char.statRank]?.borderColor || 'border-gray-400'} w-full max-w-xs mx-auto">
-                        <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2">
+                        <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2" loading="lazy" decoding="async">
                         <p class="${char.color} font-semibold text-center">${char.name} (${char.rarity}) ${char.locked ? '🔒' : ''}</p>
                         <p class="text-white text-center">Niv: ${char.level}, P: ${char.power}</p>
                         <p class="text-center font-bold ${statRanks[char.statRank]?.color || 'text-white'}">Stat Actuel: ${char.statRank}</p>
@@ -5746,7 +5748,7 @@
                     ${currentStatChangeCharacterId === c.id ? 'border-green-500' : (statRanks[c.statRank]?.borderColor || 'border-gray-600')}
                     hover:border-gray-500`;
                 charElement.innerHTML = `
-                    <img src="${c.image}" alt="${c.name}" class="w-full h-24 object-contain rounded mb-1">
+                    <img src="${c.image}" alt="${c.name}" class="w-full h-24 object-contain rounded mb-1" loading="lazy" decoding="async">
                     <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
                     <p class="text-white text-xs text-center ${statRanks[c.statRank]?.color || 'text-white'}">Stat: ${c.statRank}</p>
                     <p class="text-white text-xs text-center">P: ${c.power}</p>
@@ -6034,7 +6036,7 @@
             }
             traitSelectedCharacterDisplayElement.innerHTML = `
                 <div class="bg-gray-800 bg-opacity-50 p-3 rounded-lg border-2 ${getRarityBorderClass(char.rarity)} w-full max-w-xs mx-auto">
-                    <img src="${char.image}" alt="${char.name}" class="w-full h-28 object-contain rounded mb-1">
+                    <img src="${char.image}" alt="${char.name}" class="w-full h-28 object-contain rounded mb-1" loading="lazy" decoding="async">
                     <p class="${char.color} font-semibold text-center text-sm">${char.name} (${char.rarity})</p>
                     <p class="text-white text-center text-xs">Niv: ${char.level}, P: ${char.power}</p>
                     <p class="text-white text-center text-xs">Trait: ${currentTraitNameHtml}</p>
@@ -6132,7 +6134,7 @@
                 }
 
                 charElement.innerHTML = `
-                    <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1">
+                    <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
                     <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
                     <p class="text-white text-xs text-center">P: ${c.power}</p>
                     ${traitDisplayMini}
@@ -6614,7 +6616,7 @@
 
           curseSelectedCharacterDisplayElement.innerHTML = `
             <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${getRarityBorderClass(char.rarity)} w-full max-w-xs mx-auto">
-              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2">
+              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2" loading="lazy" decoding="async">
               <p class="${char.color} font-semibold text-center">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level})</p>
               <p class="text-white text-center">Puissance: ${char.power}</p>
               ${selectedCurseInfoHtml}
@@ -6659,7 +6661,7 @@
             }
 
           charElement.innerHTML = `
-            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-1">
+            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-1" loading="lazy" decoding="async">
             <p class="${char.rarity === 'Secret' ? 'text-secret' : char.color} font-semibold text-xs text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
             <p class="text-white text-xs text-center">
               <span class="${char.rarity === 'Mythic' ? 'rainbow-text' : (char.rarity === 'Secret' ? 'text-secret' : '')}">${char.rarity}</span>, 
