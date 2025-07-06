@@ -2320,44 +2320,91 @@
 
                 let baseGemsRewardForLevel = levelData.rewards.gems;
                 let baseCoinsRewardForLevel = levelData.rewards.coins;
-                const expReward = levelData.rewards.exp;
+                let baseExpRewardForLevel = levelData.rewards.exp; // Renommé pour clarté
 
-                let gemsRewardToPlayer = baseGemsRewardForLevel;
-                if (levelData.type !== 'challenge' && progress.completed) gemsRewardToPlayer = Math.floor(baseGemsRewardForLevel * 0.5);
+                let actualGemsToAward = baseGemsRewardForLevel;
+                let actualExpToAward = baseExpRewardForLevel;
+                let actualCoinsToAward = baseCoinsRewardForLevel; // Pour l'instant, les pièces ne sont pas réduites
 
+                let isRewardReduced = false;
+                const affectedTypesForReduction = ['legendary', 'challenge', 'material'];
+
+                if (affectedTypesForReduction.includes(levelData.type) && progress.completed) {
+                    actualGemsToAward = Math.floor(baseGemsRewardForLevel * 0.5);
+                    actualExpToAward = Math.floor(baseExpRewardForLevel * 0.5);
+                    // actualCoinsToAward = Math.floor(baseCoinsRewardForLevel * 0.5); // Décommentez si les pièces doivent aussi être réduites
+                    isRewardReduced = true;
+                }
+
+                // La logique pour les traits (Fortune, Golder) doit s'appliquer aux récompenses DE BASE, avant la réduction pour complétion répétée.
                 let fortuneBonusGems = 0, golderBonusGems = 0, golderBonusCoins = 0;
                 selectedCharsObjects.forEach(char => {
                     if (char.trait && char.trait.id && char.trait.grade > 0) {
                         const traitDef = TRAIT_DEFINITIONS[char.trait.id];
                         const gradeDef = traitDef.grades.find(g => g.grade === char.trait.grade);
                         if (gradeDef) {
-                            if (levelData.type === 'story' && char.trait.id === 'fortune' && typeof gradeDef.gemBonusPercentage === 'number') fortuneBonusGems += Math.floor(baseGemsRewardForLevel * gradeDef.gemBonusPercentage);
+                            // Le bonus de Fortune s'applique UNIQUEMENT aux niveaux d'histoire, donc pas affecté par la nouvelle logique de réduction.
+                            if (levelData.type === 'story' && char.trait.id === 'fortune' && typeof gradeDef.gemBonusPercentage === 'number') {
+                                fortuneBonusGems += Math.floor(baseGemsRewardForLevel * gradeDef.gemBonusPercentage);
+                            }
+                            // Le bonus Golder s'applique à tous les modes, sur les récompenses de base.
                             if (char.trait.id === 'golder') {
-                                if (typeof gradeDef.gemBonusPercentageAllModes === 'number') golderBonusGems += Math.floor(baseGemsRewardForLevel * gradeDef.gemBonusPercentageAllModes);
-                                if (typeof gradeDef.coinBonusPercentageAllModes === 'number') golderBonusCoins += Math.floor(baseCoinsRewardForLevel * gradeDef.coinBonusPercentageAllModes);
+                                if (typeof gradeDef.gemBonusPercentageAllModes === 'number') {
+                                    golderBonusGems += Math.floor(baseGemsRewardForLevel * gradeDef.gemBonusPercentageAllModes);
+                                }
+                                if (typeof gradeDef.coinBonusPercentageAllModes === 'number') {
+                                    golderBonusCoins += Math.floor(baseCoinsRewardForLevel * gradeDef.coinBonusPercentageAllModes);
+                                }
                             }
                         }
                     }
                 });
 
-                let fortuneMessagePart = fortuneBonusGems > 0 ? ` +${fortuneBonusGems} Gemmes` : "";
-                let golderGemsMessagePart = golderBonusGems > 0 ? ` +${golderBonusGems} Gemmes` : "";
-                let golderCoinsMessagePart = golderBonusCoins > 0 ? ` +${golderBonusCoins} Pièces` : "";
-                addGems(gemsRewardToPlayer + fortuneBonusGems + golderBonusGems);
-                coins = Math.min(coins + baseCoinsRewardForLevel + golderBonusCoins, 10000000);
-                addExp(expReward);
-                selectedCharsObjects.forEach(char => addCharacterExp(char, expReward));
+                // Les bonus des traits sont ajoutés aux récompenses *potentiellement réduites*
+                let finalGemsAwarded = actualGemsToAward + fortuneBonusGems + golderBonusGems;
+                let finalCoinsAwarded = actualCoinsToAward + golderBonusCoins;
 
-                battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire !</p><p class="text-white">Victoire contre ${levelData.enemy.name} !</p><p class="text-white">Récompenses: +${gemsRewardToPlayer} gemmes${(levelData.type !== 'challenge' && progress.completed && gemsRewardToPlayer !== baseGemsRewardForLevel) ? ' (réduit)' : ''}${fortuneMessagePart}${golderGemsMessagePart}, +${baseCoinsRewardForLevel} pièces${golderCoinsMessagePart}, +${expReward} EXP ${itemRewardText ? ', ' + itemRewardText : ''}</p>`;
+                addGems(finalGemsAwarded);
+                coins = Math.min(coins + finalCoinsAwarded, 10000000);
+                addExp(actualExpToAward); // L'EXP du joueur est basée sur l'EXP (potentiellement réduite) du niveau
+                selectedCharsObjects.forEach(char => addCharacterExp(char, actualExpToAward)); // De même pour l'EXP des personnages
 
+                let rewardMessageParts = [];
+                rewardMessageParts.push(`+${finalGemsAwarded} gemmes`);
+                if (isRewardReduced && affectedTypesForReduction.includes(levelData.type)) {
+                    rewardMessageParts.push('(réduit)');
+                }
+                if (fortuneBonusGems > 0) rewardMessageParts.push(`(+${fortuneBonusGems} Fortune)`);
+                if (golderBonusGems > 0) rewardMessageParts.push(`(+${golderBonusGems} Golder)`);
+
+                rewardMessageParts.push(`, +${finalCoinsAwarded} pièces`);
+                if (golderBonusCoins > 0) rewardMessageParts.push(`(+${golderBonusCoins} Golder)`);
+
+                rewardMessageParts.push(`, +${actualExpToAward} EXP`);
+                 if (isRewardReduced && affectedTypesForReduction.includes(levelData.type)) {
+                    rewardMessageParts.push('(réduit)');
+                }
+
+                if (itemRewardText) rewardMessageParts.push(`, ${itemRewardText}`);
+
+                battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire !</p><p class="text-white">Victoire contre ${levelData.enemy.name} !</p><p class="text-white">Récompenses: ${rewardMessageParts.join(' ')}</p>`;
+
+                // La logique de progression des missions et de déblocage des niveaux reste après.
+                // L'état `progress.completed` sera mis à jour APRÈS cette attribution.
                 missions.forEach(mission => {
                     if (!mission.completed) {
                         if (levelData.type === 'story' && mission.type === 'complete_story_levels') mission.progress++;
                         else if (levelData.type === 'legendary' && mission.type === 'complete_legendary_levels') mission.progress++;
                         else if (levelData.type === 'challenge' && mission.type === 'complete_challenge_levels') mission.progress++;
+                        // Ajouter ici une condition pour les missions de type 'material' si elles existent
                     }
                 });
-                if (!progress.completed) progress.completed = true;
+
+                // IMPORTANT: Mettre à jour progress.completed APRÈS avoir déterminé les récompenses
+                // pour que la PREMIÈRE complétion donne les récompenses complètes.
+                if (!progress.completed) {
+                    progress.completed = true;
+                }
 
                 if (levelData.type === 'story' && !levelData.isInfinite) {
                     const nextSequentialLevelId = levelData.id + 1;
