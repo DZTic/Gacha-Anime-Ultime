@@ -32,21 +32,22 @@
         gems = parseInt(gemsRaw);
         if (isNaN(gems)) {
             console.warn("Valeur de 'gems' invalide dans localStorage:", gemsRaw, ". Réinitialisation à 1000.");
-            gems = 1000;
+            gems = 1000; // Valeur par défaut si localStorage est corrompu
         }
     } else {
-        gems = 1000;
+        gems = 1000; // Valeur par défaut pour un nouveau joueur
     }
     let coins = parseInt(localStorage.getItem("coins")) || 0;
     let pullCount = parseInt(localStorage.getItem("pullCount")) || 0;
     
+    // Chargement et validation des personnages possédés depuis localStorage
     let ownedCharacters = [];
     const rawOwnedCharactersString = localStorage.getItem("ownedCharacters");
     console.log("Vérification avant boucle: statRanks est défini?", typeof statRanks !== 'undefined'); // LOG DE CONTRÔLE
 
     if (rawOwnedCharactersString) {
         try {
-            const loadedChars = JSON.parse(rawOwnedCharactersString);
+            const loadedChars = JSON.parse(rawOwnedCharactersString); // Tenter de parser la chaîne JSON
             if (Array.isArray(loadedChars)) {
                 loadedChars.forEach((char, index) => {
                     try {
@@ -66,69 +67,91 @@
                         let basePower = char.basePower;
                         let statRank = char.statRank;
                         let statModifier = char.statModifier;
-                        let traitOnLoad = char.trait || { id: null, grade: 0 };
-                        if (char.trait && typeof char.trait.level !== 'undefined' && typeof char.trait.grade === 'undefined') {
-                            traitOnLoad.grade = char.trait.level > 0 ? char.trait.level : 0;
-                            delete traitOnLoad.level;
-                        }
 
-                        if (typeof basePower === 'undefined' || basePower === null || isNaN(Number(basePower)) || Number(basePower) <= 0) {
-                            // ... (logique existante pour dériver basePower)
-                        }
-
-                        if (!statRank || !statRanks[statRank]) {
-                            statRank = getRandomStatRank();
+                        // Gestion du statRank et statModifier
+                        if (!statRank || !statRanks[statRank]) { // Si statRank est invalide ou non défini
+                            statRank = getRandomStatRank(); // Assigner un rang aléatoire
                             statModifier = statRanks[statRank].modifier;
+                            console.warn(`[INIT Char ${index}] '${char.name}' avait un statRank invalide. Nouveau statRank: ${statRank}`);
                         } else if (typeof statModifier === 'undefined' || statModifier === null || isNaN(Number(statModifier))) {
+                            // Si statModifier est invalide mais statRank est bon, recalculer statModifier
                             statModifier = statRanks[statRank].modifier;
+                            console.warn(`[INIT Char ${index}] '${char.name}' avait un statModifier invalide. Recalculé à: ${statModifier} pour le rang ${statRank}`);
                         }
+                        statModifier = Number(statModifier); // S'assurer que c'est un nombre
+
+                        // Gestion de basePower
+                        if (typeof basePower === 'undefined' || basePower === null || isNaN(Number(basePower)) || Number(basePower) <= 0) {
+                            if (initialPowerFromDefinition && statModifier && statModifier !== 0) {
+                                basePower = initialPowerFromDefinition / statModifier;
+                                console.warn(`[INIT Char ${index}] '${char.name}' avait un basePower invalide. Dérivé à: ${basePower} (depuis def:${initialPowerFromDefinition} / mod:${statModifier})`);
+                            } else if (initialPowerFromDefinition) {
+                                basePower = initialPowerFromDefinition; // Fallback si statModifier est aussi problématique
+                                console.warn(`[INIT Char ${index}] '${char.name}' avait un basePower invalide. Défini à: ${basePower} (directement depuis def:${initialPowerFromDefinition}, statModifier problématique)`);
+                            } else {
+                                basePower = 50; // Ultime fallback
+                                console.error(`[INIT Char ${index}] '${char.name}' FATAL: basePower et initialPowerFromDefinition invalides. Défini à ${basePower}`);
+                            }
+                        }
+                        basePower = Number(basePower); // S'assurer que c'est un nombre
+
+                        // Migration et validation des traits
+                        let traitObject = { id: null, grade: 0 };
+                        if (char.trait) {
+                            let tempTraitId = char.trait.id;
+                            let tempTraitGrade = char.trait.grade;
+
+                            // Migration de 'level' vers 'grade'
+                            if (typeof char.trait.level !== 'undefined' && typeof tempTraitGrade === 'undefined') {
+                                tempTraitGrade = Number(char.trait.level) > 0 ? Number(char.trait.level) : 0;
+                            }
+                            tempTraitGrade = Number(tempTraitGrade) || 0;
+
+                            if (tempTraitId && TRAIT_DEFINITIONS[tempTraitId]) {
+                                const traitDef = TRAIT_DEFINITIONS[tempTraitId];
+                                if (traitDef.grades && traitDef.grades.length > 0) {
+                                    const maxGradeForTrait = traitDef.grades.length;
+                                    if (tempTraitGrade > maxGradeForTrait) {
+                                        console.warn(`[INIT Char ${char.name}] Trait ${tempTraitId} avait un grade ${tempTraitGrade} > max ${maxGradeForTrait}. Ajustement.`);
+                                        tempTraitGrade = maxGradeForTrait;
+                                    }
+                                    if (tempTraitGrade > 0) {
+                                        traitObject = { id: tempTraitId, grade: tempTraitGrade };
+                                    } else {
+                                         console.warn(`[INIT Char ${char.name}] Trait ${tempTraitId} avec grade ${tempTraitGrade} (<=0) après migration/validation. Trait remis à null.`);
+                                    }
+                                } else {
+                                     console.warn(`[INIT Char ${char.name}] Trait ${tempTraitId} existe mais n'a pas de définition de grades. Trait remis à null.`);
+                                }
+                            } else if (tempTraitId) {
+                                console.warn(`[INIT Char ${char.name}] Trait ID '${tempTraitId}' non trouvé dans TRAIT_DEFINITIONS. Trait remis à null.`);
+                            }
+                        }
+
 
                         const newCharData = {
-                             ...(baseDefinition ? baseDefinition : {}),
-                            ...char,
+                            ...(baseDefinition ? baseDefinition : {}), // Copie superficielle de la définition de base
+                            ...char, // Copie superficielle des propriétés sauvegardées (écrase celles de baseDefinition si conflit)
                             id: char.id || `char_${characterIdCounter++}`,
                             level: Number(char.level) || 1,
                             exp: Number(char.exp) || 0,
                             locked: char.locked || false,
                             hasEvolved: char.hasEvolved || false,
                             curseEffect: Number(char.curseEffect) || 0,
-                            basePower: Number(basePower),
-                            // MODIFICATION ICI:
-                            maxLevelCap: Number(char.maxLevelCap) || 60, // Assurer que maxLevelCap existe, sinon 60
+                            basePower: basePower,
+                            maxLevelCap: Number(char.maxLevelCap) || 60,
                             statRank: statRank,
-                            statModifier: Number(statModifier),
-                            trait: (traitOnLoad && typeof traitOnLoad.id === 'string' && typeof traitOnLoad.grade === 'number' && TRAIT_DEFINITIONS[traitOnLoad.id])
-                                   ? { id: traitOnLoad.id, grade: traitOnLoad.grade }
-                                   : { id: null, grade: 0 }
+                            statModifier: statModifier,
+                            trait: traitObject
                         };
-                        delete newCharData.power;
+                        delete newCharData.power; // S'assurer que l'ancienne puissance est retirée avant recalcul
 
-                        // console.log(`[DEBUG Pre-Recalc] Char: ${newCharData.name}, BaseP: ${newCharData.basePower}, StatMod: ${newCharData.statModifier}, Trait: ${JSON.stringify(newCharData.trait)}`);
-                        if (newCharData.trait.id && newCharData.trait.grade > 0) {
-                            const traitDef = TRAIT_DEFINITIONS[newCharData.trait.id];
-                            if (traitDef && traitDef.grades) {
-                                const maxGradeForTrait = traitDef.grades.length;
-                                if (newCharData.trait.grade > maxGradeForTrait) {
-                                    console.warn(`[INIT Char ${newCharData.name}] Trait ${newCharData.trait.id} avait un grade ${newCharData.trait.grade} > max ${maxGradeForTrait}. Ajustement au grade max.`);
-                                    newCharData.trait.grade = maxGradeForTrait;
-                                }
-                                if (newCharData.trait.grade <= 0) { // Si le grade était 0 après la conversion
-                                     console.warn(`[INIT Char ${newCharData.name}] Trait ${newCharData.trait.id} avait un grade 0. Remise à 0 (aucun trait).`);
-                                     newCharData.trait = { id: null, grade: 0 }; // Réinitialiser si grade 0
-                                }
-                            } else { // Trait ID existe mais pas de définition de grades (ne devrait pas arriver avec la nouvelle structure)
-                                newCharData.trait = { id: null, grade: 0 };
-                            }
-                        } else if (newCharData.trait.id && newCharData.trait.grade === 0) { // Si l'ID est là mais grade 0
-                            newCharData.trait = { id: null, grade: 0 };
-                        }
-                        
-                        recalculateCharacterPower(newCharData);
+                        recalculateCharacterPower(newCharData); // Recalculer la puissance avec les données validées/migrées
 
                         if (isNaN(newCharData.power) || newCharData.power <= 0) {
-                             console.warn(`[INIT Char ${index}] Puissance INVALIDE pour ${newCharData.name} après recalcul. Power: ${newCharData.power}. SKIPPED.`);
-                             console.log("[INIT Char Detail for Skipped]: ", JSON.parse(JSON.stringify(newCharData)));
-                             return;
+                             console.warn(`[INIT Char ${index}] Puissance INVALIDE pour ${newCharData.name} après recalcul et validation. Power: ${newCharData.power}. SKIPPED.`);
+                             console.log("[INIT Char Detail for Skipped]: ", JSON.parse(JSON.stringify(newCharData))); // Log détaillé
+                             return; // Ne pas ajouter le personnage si la puissance est toujours invalide
                         }
                         ownedCharacters.push(newCharData);
                     } catch (errorForChar) {
@@ -937,51 +960,73 @@
     }
 
     function recalculateCharacterPower(char) {
+        // Assurer que les valeurs numériques de base sont valides
+        char.basePower = Number(char.basePower) || 0;
+        char.curseEffect = Number(char.curseEffect) || 0;
+
+        // Valider et initialiser statRank et statModifier
         if (!char.statRank || !statRanks[char.statRank]) {
-            char.statRank = "A"; // Rang par défaut si non défini
+            console.warn(`RecalculatePower: ${char.name} - statRank invalide (${char.statRank}). Assignation de A par défaut.`);
+            char.statRank = "A";
             char.statModifier = statRanks["A"].modifier;
-        } else if (typeof char.statModifier === 'undefined' || char.statModifier === null || isNaN(Number(char.statModifier))) {
+        } else if (typeof char.statModifier !== 'number' || isNaN(char.statModifier)) {
+            console.warn(`RecalculatePower: ${char.name} - statModifier invalide (${char.statModifier}) pour rang ${char.statRank}. Recalcul.`);
             char.statModifier = statRanks[char.statRank].modifier;
         }
+        // S'assurer que statModifier est un nombre
+        char.statModifier = Number(char.statModifier);
+        if (isNaN(char.statModifier)) { // Ultime fallback pour statModifier
+            console.error(`RecalculatePower: ${char.name} - statModifier est NaN même après tentative de correction. Utilisation de 1.0.`);
+            char.statModifier = 1.0;
+        }
+
 
         let powerBeforeTrait = char.basePower * char.statModifier;
-        let traitPowerBonus = 0; // Généralement pas utilisé si powerMultiplier est présent pour le même trait
+        let traitPowerBonus = 0;
         let traitPowerMultiplier = 1.0;
 
-        if (char.trait && char.trait.id && char.trait.grade > 0) {
+        if (char.trait && char.trait.id && typeof char.trait.grade === 'number' && char.trait.grade > 0) {
             const traitDef = TRAIT_DEFINITIONS[char.trait.id];
-            if (traitDef && traitDef.grades) {
+            // Vérifier si traitDef et traitDef.grades existent
+            if (traitDef && traitDef.grades && Array.isArray(traitDef.grades)) {
                 const gradeDef = traitDef.grades.find(g => g.grade === char.trait.grade);
                 if (gradeDef) {
-                    // Gère les bonus de puissance directs (comme +X Puissance) - Moins courant avec les multiplicateurs
                     if (typeof gradeDef.powerBonus === 'number') {
                         traitPowerBonus = gradeDef.powerBonus;
                     }
-                    // Gère les multiplicateurs de puissance (comme +Y% Puissance)
-                    // S'applique aux traits comme Strength, Monarch
                     if (typeof gradeDef.powerMultiplier === 'number') {
                         traitPowerMultiplier = 1.0 + gradeDef.powerMultiplier;
                     }
-                    // Note: Les traits de puissance spécifiques au mode (Berserk, Legends, Challenge Master)
-                    // sont gérés dans la fonction `confirmSelection` car ils ne modifient pas la puissance de base
-                    // du personnage, mais sa puissance effective pendant un combat spécifique.
+                } else {
+                    // console.warn(`RecalculatePower: ${char.name} - Définition de grade ${char.trait.grade} non trouvée pour trait ${char.trait.id}.`);
                 }
+            } else {
+                // console.warn(`RecalculatePower: ${char.name} - Définition de trait ${char.trait.id} ou ses grades sont invalides.`);
             }
         }
         
         let powerAfterTraitMultiplier = powerBeforeTrait * traitPowerMultiplier;
-        let powerAfterTraitBonus = powerAfterTraitMultiplier + traitPowerBonus; // Appliquer le bonus additif après le multiplicateur
+        let powerAfterTraitBonus = powerAfterTraitMultiplier + traitPowerBonus;
         
-        char.power = Math.max(1, Math.floor(powerAfterTraitBonus) + (char.curseEffect || 0));
+        char.power = Math.floor(powerAfterTraitBonus) + char.curseEffect; // curseEffect est déjà un nombre
+        char.power = Math.max(1, char.power); // Assurer une puissance minimale de 1
 
+        // Ultime vérification pour NaN ou puissance <= 0
         if (isNaN(char.power) || char.power <= 0) {
-            const baseDefinition = allCharacters.find(c => c.name === char.name);
-            const initialPowerFromDefinition = baseDefinition ? baseDefinition.power : 50;
-            if (isNaN(char.basePower) || char.basePower <=0) char.basePower = initialPowerFromDefinition / (char.statModifier || 1);
-            powerBeforeTrait = char.basePower * (char.statModifier || 1);
-            powerAfterTraitMultiplier = powerBeforeTrait * traitPowerMultiplier;
-            powerAfterTraitBonus = powerAfterTraitMultiplier + traitPowerBonus;
-            char.power = Math.max(1, Math.floor(powerAfterTraitBonus) + (char.curseEffect || 0));
+            console.error(`RecalculatePower: ${char.name} - Puissance finale est NaN ou <= 0. Power: ${char.power}. Réinitialisation à 1.`);
+            console.log("Détails du personnage avant réinitialisation de la puissance:", JSON.parse(JSON.stringify(char)));
+
+            // Tentative de récupération plus simple si basePower est le problème
+            if (isNaN(char.basePower) || char.basePower <= 0) {
+                 const baseDefinitionForFallback = allCharacters.find(c => c.name === (char.originalName || char.name));
+                 char.basePower = baseDefinitionForFallback ? Number(baseDefinitionForFallback.power) : 50;
+                 console.warn(`RecalculatePower: ${char.name} - basePower était ${char.basePower}, réinitialisé à ${baseDefinitionForFallback ? baseDefinitionForFallback.power : 50}`);
+                 // Relancer un calcul simple sans traits/curses pour cette fois
+                 powerBeforeTrait = char.basePower * char.statModifier;
+                 char.power = Math.max(1, Math.floor(powerBeforeTrait));
+            } else {
+                 char.power = 1; // Si basePower semble OK, alors le problème est ailleurs, fallback à 1.
+            }
         }
     }
 
@@ -3040,8 +3085,8 @@
         exp -= 50 * level * level;
         level++;
         leveledUp = true;
-        gems = Math.min(gems + 100, 10000000);
-        coins = Math.min(coins + 20, 1000000);
+        gems = Math.min(gems + 100, 1000000000); // Plafond harmonisé pour les gemmes
+        coins = Math.min(coins + 20, 10000000);   // Plafond harmonisé pour les pièces
         resultElement.innerHTML = `<p class="text-green-400">Niveau ${level} atteint ! +100 gemmes, +20 pièces</p>`;
       }
       if (leveledUp) {
@@ -4039,89 +4084,91 @@
         });
 
         characterDisplay.innerHTML = ''; // Clear existing content first
+        const fragment = document.createDocumentFragment(); // Créer un DocumentFragment
 
         if (!sortedAndFilteredCharacters.length) {
-            characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>';
-            return;
-        }
+            const p = document.createElement('p');
+            p.className = 'text-white col-span-full text-center';
+            p.textContent = 'Aucun personnage ne correspond à vos filtres.';
+            fragment.appendChild(p);
+        } else {
+            sortedAndFilteredCharacters.forEach((char) => {
+                const cardDiv = document.createElement('div');
+                const isSelected = selectedCharacterIndices.has(char.id);
+                let rarityTextColorClass = char.color;
+                if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
+                else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
+                else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
 
-        const fragment = document.createDocumentFragment();
-        sortedAndFilteredCharacters.forEach((char) => {
-            const cardDiv = document.createElement('div');
-            const isSelected = selectedCharacterIndices.has(char.id);
-            let rarityTextColorClass = char.color;
-            if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
-            else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
-            else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
+                let cardClasses = ['relative', 'p-2', 'rounded-lg', 'border', 'cursor-pointer'];
 
-            let cardClasses = ['relative', 'p-2', 'rounded-lg', 'border', 'cursor-pointer'];
-            
-            if (isDeleteMode) {
-                if (char.locked) {
-                    cardClasses.push(getRarityBorderClass(char.rarity), 'opacity-50', 'cursor-not-allowed');
-                } else {
-                    cardClasses.push(isSelected ? 'selected-character' : getRarityBorderClass(char.rarity));
-                }
-            } else {
-                cardClasses.push(getRarityBorderClass(char.rarity));
-            }
-            cardDiv.className = cardClasses.join(' ');
-
-            cardDiv.addEventListener('click', () => {
                 if (isDeleteMode) {
-                    if (!char.locked) {
-                        deleteCharacter(char.id); // Assumes deleteCharacter handles selection state
+                    if (char.locked) {
+                        cardClasses.push(getRarityBorderClass(char.rarity), 'opacity-50', 'cursor-not-allowed');
+                    } else {
+                        cardClasses.push(isSelected ? 'selected-character' : getRarityBorderClass(char.rarity));
                     }
                 } else {
-                    showCharacterStats(char.id);
+                    cardClasses.push(getRarityBorderClass(char.rarity));
                 }
+                cardDiv.className = cardClasses.join(' ');
+
+                cardDiv.addEventListener('click', () => {
+                    if (isDeleteMode) {
+                        if (!char.locked) {
+                            deleteCharacter(char.id);
+                        }
+                    } else {
+                        showCharacterStats(char.id);
+                    }
+                });
+
+                if (char.locked) {
+                    const lockSpan = document.createElement('span');
+                    lockSpan.className = 'absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1';
+                    lockSpan.textContent = '🔒';
+                    cardDiv.appendChild(lockSpan);
+                }
+
+                const img = document.createElement('img');
+                img.src = char.image;
+                img.alt = char.name;
+                img.className = 'w-full h-auto object-contain rounded';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                cardDiv.appendChild(img);
+
+                const nameP = document.createElement('p');
+                nameP.className = 'text-center text-white font-semibold mt-1 text-sm';
+                nameP.textContent = char.name;
+                cardDiv.appendChild(nameP);
+
+                const rarityP = document.createElement('p');
+                rarityP.className = `text-center ${rarityTextColorClass} text-xs`;
+                rarityP.textContent = char.rarity;
+                cardDiv.appendChild(rarityP);
+
+                const levelP = document.createElement('p');
+                levelP.className = 'text-center text-white text-xs';
+                levelP.textContent = `Niveau: ${char.level} / ${char.maxLevelCap || 60}`;
+                cardDiv.appendChild(levelP);
+
+                if (char.statRank && statRanks[char.statRank]) {
+                    const statRankP = document.createElement('p');
+                    statRankP.className = 'text-center text-white text-xs';
+                    statRankP.innerHTML = `Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span>`;
+                    cardDiv.appendChild(statRankP);
+                }
+
+                const powerP = document.createElement('p');
+                powerP.className = 'text-center text-white text-xs';
+                powerP.textContent = `Puissance: ${char.power}`;
+                cardDiv.appendChild(powerP);
+
+                fragment.appendChild(cardDiv); // Ajouter la carte au fragment
             });
-
-            if (char.locked) {
-                const lockSpan = document.createElement('span');
-                lockSpan.className = 'absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1';
-                lockSpan.textContent = '🔒';
-                cardDiv.appendChild(lockSpan);
-            }
-
-            const img = document.createElement('img');
-            img.src = char.image;
-            img.alt = char.name;
-            img.className = 'w-full h-auto object-contain rounded'; // h-auto to respect aspect ratio with max-height
-            img.loading = 'lazy';
-            img.decoding = 'async';
-            cardDiv.appendChild(img);
-
-            const nameP = document.createElement('p');
-            nameP.className = 'text-center text-white font-semibold mt-1 text-sm';
-            nameP.textContent = char.name;
-            cardDiv.appendChild(nameP);
-
-            const rarityP = document.createElement('p');
-            rarityP.className = `text-center ${rarityTextColorClass} text-xs`;
-            rarityP.textContent = char.rarity;
-            cardDiv.appendChild(rarityP);
-
-            const levelP = document.createElement('p');
-            levelP.className = 'text-center text-white text-xs';
-            levelP.textContent = `Niveau: ${char.level} / ${char.maxLevelCap || 60}`;
-            cardDiv.appendChild(levelP);
-
-            if (char.statRank && statRanks[char.statRank]) {
-                const statRankP = document.createElement('p');
-                statRankP.className = 'text-center text-white text-xs';
-                statRankP.innerHTML = `Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span>`;
-                cardDiv.appendChild(statRankP);
-            }
-
-            const powerP = document.createElement('p');
-            powerP.className = 'text-center text-white text-xs';
-            powerP.textContent = `Puissance: ${char.power}`;
-            cardDiv.appendChild(powerP);
-            
-            fragment.appendChild(cardDiv);
-        });
-        characterDisplay.appendChild(fragment);
+        }
+        characterDisplay.appendChild(fragment); // Ajouter le fragment au DOM en une seule fois
     }
 
     function updateCharacterSelectionDisplay() {
@@ -4372,7 +4419,7 @@
       console.log("cancelFusion appelé");
       selectedFusionCharacters.clear();
       fusionModal.classList.add("hidden");
-      document.body.classList.remove("no-scroll");
+      disableNoScroll(); // Utilisation de disableNoScroll
       updateCharacterDisplay();
     }
 
@@ -4449,7 +4496,7 @@
       `;
       selectedFusionCharacters.clear();
       fusionModal.classList.add("hidden");
-      document.body.classList.remove("no-scroll");
+      disableNoScroll(); // Utilisation de disableNoScroll
       updateCharacterDisplay();
       updateUI();
       scheduleSave();
