@@ -969,7 +969,7 @@ const standardCharacters = [
           power: 100000, 
           image: "./images/perso/titan-tapper.png"
         }, 
-        rewards: { gems: 300, coins: 150, exp: 500, itemChance: { item: "Reroll Token", probability: 0.25, minQuantity: 1, maxQuantity: 1 } },
+        rewards: { gems: 150, coins: 150, exp: 500, itemChance: { item: "Reroll Token", probability: 0.25, minQuantity: 1, maxQuantity: 1 } },
         type: 'minigame',
         unlocked: true, 
         completed: false 
@@ -983,7 +983,7 @@ const standardCharacters = [
         name: "Farm: Snake Scale et Gorgon's Blindfold",
         enemy: { name: "Gardien des Essences", power: 5000 },
         rewards: {
-          gems: 10, coins: 20, exp: 30,
+          gems: 90, coins: 20, exp: 30,
           itemChance: [{ item: "Snake Scale", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Gorgon's Blindfold", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -996,7 +996,7 @@ const standardCharacters = [
         name: "Farm: Senzu Bean et Caster's Headpiece",
         enemy: { name: "Spectre d'Ombre", power: 6000 },
         rewards: {
-          gems: 10, coins: 20, exp: 30,
+          gems: 90, coins: 20, exp: 30,
           itemChance: [{ item: "Senzu Bean", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Caster's Headpiece", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
@@ -1009,7 +1009,7 @@ const standardCharacters = [
         name: "Farm: Holy Corpse Eyes et Holy Corpse Arms",
         enemy: { name: "Abomination Maudite", power: 7000 },
         rewards: {
-          gems: 10, coins: 20, exp: 30,
+          gems: 90, coins: 20, exp: 30,
           itemChance: [{ item: "Holy Corpse Eyes", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Holy Corpse Arms", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
