@@ -1545,7 +1545,7 @@
     // DANS script.js
 
     async function runMultiActionLoop() {
-        const DELAY_BETWEEN_ACTIONS = 70; 
+        const DELAY_BETWEEN_ACTIONS = 50; 
 
         for (let i = 1; i <= multiActionState.total; i++) {
             if (multiActionState.stopRequested) {
@@ -4085,8 +4085,8 @@
             return `
             <div class="${cardClasses}" onclick="${onclickAction}">
                 ${char.locked ? '<span class="absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1">🔒</span>' : ''}
-                <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded" loading="lazy" decoding="async">
-                <p class="text-center text-white font-semibold mt-2 text-sm">${char.name}</p>
+                <img src="${char.image}" alt="${char.name}" class="w-full h-1000 object-contain rounded" loading="lazy" decoding="async">
+                <p class="text-center text-white font-semibold mt-1 text-sm">${char.name}</p>
                 <p class="text-center ${rarityTextColorClass} text-xs">${char.rarity}</p>
                 <p class="text-center text-white text-xs">Niveau: ${char.level} / ${char.maxLevelCap || 60}</p>
                 ${statRankDisplayHtml}
@@ -4094,7 +4094,7 @@
             </div>
             `;
         }).join("");
-        }
+    }
 
     function updateCharacterSelectionDisplay() {
       characterSelectionList.innerHTML = "";
