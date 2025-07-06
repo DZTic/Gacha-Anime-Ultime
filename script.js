@@ -426,6 +426,18 @@
     let inventoryFilterCanReceiveExp = localStorage.getItem("inventoryFilterCanReceiveExp") === "true";
     let saveTimeoutId = null; // Pour stocker l'ID du minuteur de sauvegarde
     const SAVE_DELAY_MS = 2000; // 2 secondes de délai avant la sauvegarde
+
+    // Generic debounce function
+    function debounce(func, delay) {
+        let timeoutId;
+        return function(...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                func.apply(this, args);
+            }, delay);
+        };
+    }
+
     let miniGameState = {
         isActive: false,
         bossMaxHealth: 0,
@@ -1642,7 +1654,7 @@
         .sort((a, b) => b.power - a.power)
         .map(char => `
           <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${getRarityBorderClass(char.rarity)} cursor-pointer hover:bg-gray-700 ${currentAutofuseCharacterId === char.id ? 'border-green-500' : ''}" data-id="${char.id}">
-            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-cover rounded mb-2">
+            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-cover rounded mb-2" loading="lazy" decoding="async">
             <p class="${char.color} font-semibold text-sm">${char.name} ${char.locked ? '🔒' : ''}</p>
             <p class="text-white text-xs"><span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level} / ${char.maxLevelCap || 60}</p>
           </div>
@@ -1909,7 +1921,7 @@
         } ${additionalClassesPreset}`;
         
         charElement.innerHTML = `
-          <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2">
+          <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2" loading="lazy" decoding="async">
           <p class="${rarityTextClass} font-semibold">${char.name} (<span class="${rarityTextClass}">${char.rarity}</span>, Niv. ${char.level})</p>
           <p class="text-white">Puissance: ${char.power}</p>
         `;
@@ -4178,7 +4190,7 @@
               } ${additionalClasses}`;
               
               charElement.innerHTML = `
-                <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2">
+                <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2" loading="lazy" decoding="async">
                 <p class="${rarityTextClass} font-semibold">${char.name} (<span class="${rarityTextClass}">${char.rarity}</span>, Niv. ${char.level})</p>
                 <p class="text-white">Puissance: ${char.power}</p> 
               `;
@@ -4310,7 +4322,7 @@
           selectedFusionCharacters.has(char.id) ? 'selected-for-fusion' : ''
         }`;
         charElement.innerHTML = `
-          <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2">
+          <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2" loading="lazy" decoding="async">
           <p class="${char.color} font-semibold">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level})</p>
           <p class="text-white">Puissance: ${char.power}</p>
         `;
@@ -4648,7 +4660,7 @@
             selectedQuantity > 0 ? 'selected-for-giving' : ''
           }`;
           itemElement.innerHTML = `
-            <img src="${itemImages[item] || 'https://via.placeholder.com/150?text=Item'}" alt="${item}" class="w-full h-24 object-contain rounded mb-1">
+            <img src="${itemImages[item] || 'https://via.placeholder.com/150?text=Item'}" alt="${item}" class="w-full h-24 object-contain rounded mb-1" loading="lazy" decoding="async">
             <p class="text-white font-semibold">${item}</p>
             <p class="text-white">Disponible: ${quantity}</p>
             <p class="text-white">Sélectionné: <span id="selected-qty-${itemIdSanitized}">${selectedQuantity}</span></p>
@@ -4859,7 +4871,7 @@
                   ${currentMax >= MAX_POSSIBLE_LEVEL_CAP ? 'opacity-40' : ''}`;
 
               charElement.innerHTML = `
-                  <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1">
+                  <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
                   <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
                   <p class="text-white text-xs text-center">Niv: ${c.level} / ${currentMax}</p>
                   ${currentMax >= MAX_POSSIBLE_LEVEL_CAP ? '<p class="text-yellow-500 text-xs text-center">Cap Ultime Atteint</p>' : (isAtCurrentCap ? (canBreakLimit ? '<p class="text-green-400 text-xs text-center">Prêt pour Limit Break</p>' : '<p class="text-red-400 text-xs text-center">Orbes manquants</p>') : `<p class="text-gray-400 text-xs text-center">Atteindre Niv. ${currentMax}</p>`)}
@@ -5045,7 +5057,7 @@
             selectedQuantity > 0 ? 'selected-for-evolution' : ''
         }`;
         itemElement.innerHTML = `
-            <img src="${itemImages[item]}" alt="${item}" class="w-full h-24 object-contain rounded mb-1">
+            <img src="${itemImages[item]}" alt="${item}" class="w-full h-24 object-contain rounded mb-1" loading="lazy" decoding="async">
             <p class="text-white font-semibold">${item}</p>
             <p class="text-white">Requis: ${quantity}</p>
             <p class="text-white">Disponible: ${availableQuantity}</p>
@@ -5445,7 +5457,11 @@
                 updateCharacterDisplay();
             }
         }
-        updateUI();
+        // updateUI() will be called by showSubTab or at the end of this function for other tabs.
+        // Call updateUI() only if not delegating to showSubTab or for specific tabs that need it before sub-tab logic.
+        if (tabId !== "inventory" && tabId !== "play") {
+            updateUI();
+        }
     }
 
 
@@ -5484,20 +5500,22 @@
       if (subtabId !== "units") {
         isDeleteMode = false;
         selectedCharacterIndices.clear();
-        updateCharacterDisplay();
+        updateCharacterDisplay(); // This is important when switching away from the "units" subtab
       }
 
+      // Specific updates for subtabs
       if (subtabId === "items") {
         updateItemDisplay();
       } else if (subtabId === "story") {
         updateLevelDisplay();
       } else if (subtabId === "legende") {
         updateLegendeDisplay();
-      } else if (subtabId === "challenge") { // AJOUT
+      } else if (subtabId === "challenge") {
         updateChallengeDisplay();
-      } else if (subtabId === "materiaux") { // AJOUT DE CETTE CONDITION
+      } else if (subtabId === "materiaux") {
         updateMaterialFarmDisplay();
       }
+      // Always call updateUI at the end of showSubTab
       updateUI();
     }
 
@@ -5582,7 +5600,7 @@
                     ${currentStatChangeCharacterId === c.id ? 'border-green-500' : (statRanks[c.statRank]?.borderColor || 'border-gray-600')}
                     hover:border-gray-500`;
                 charElement.innerHTML = `
-                    <img src="${c.image}" alt="${c.name}" class="w-full h-24 object-contain rounded mb-1">
+                    <img src="${c.image}" alt="${c.name}" class="w-full h-24 object-contain rounded mb-1" loading="lazy" decoding="async">
                     <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
                     <p class="text-white text-xs text-center ${statRanks[c.statRank]?.color || 'text-white'}">Stat: ${c.statRank}</p>
                     <p class="text-white text-xs text-center">P: ${c.power}</p>
@@ -5968,7 +5986,7 @@
                 }
 
                 charElement.innerHTML = `
-                    <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1">
+                    <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
                     <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
                     <p class="text-white text-xs text-center">P: ${c.power}</p>
                     ${traitDisplayMini}
@@ -6495,7 +6513,7 @@
             }
 
           charElement.innerHTML = `
-            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-1">
+            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-1" loading="lazy" decoding="async">
             <p class="${char.rarity === 'Secret' ? 'text-secret' : char.color} font-semibold text-xs text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
             <p class="text-white text-xs text-center">
               <span class="${char.rarity === 'Mythic' ? 'rainbow-text' : (char.rarity === 'Secret' ? 'text-secret' : '')}">${char.rarity}</span>, 
@@ -6965,33 +6983,33 @@
     curseKeepBetterToggle.addEventListener("change", () => {
         updateCurseTabDisplay(); // Mettre à jour l'affichage pour activer/désactiver l'input
     });
-    document.getElementById("battle-search-name").addEventListener("input", (e) => {
+    document.getElementById("battle-search-name").addEventListener("input", debounce((e) => {
       battleSearchName = e.target.value.toLowerCase();
       localStorage.setItem("battleSearchName", battleSearchName);
       updateCharacterSelectionDisplay();
-    });
+    }, 300));
     document.getElementById("battle-filter-rarity").addEventListener("change", (e) => {
       battleFilterRarity = e.target.value;
       localStorage.setItem("battleFilterRarity", battleFilterRarity);
       updateCharacterSelectionDisplay();
     });
     // Filtres pour la modale de sélection de preset
-    document.getElementById("preset-search-name").addEventListener("input", (e) => {
+    document.getElementById("preset-search-name").addEventListener("input", debounce((e) => {
       presetSearchName = e.target.value.toLowerCase();
       localStorage.setItem("presetSearchName", presetSearchName);
       updatePresetSelectionDisplay();
-    });
+    }, 300));
     document.getElementById("preset-filter-rarity").addEventListener("change", (e) => {
       presetFilterRarity = e.target.value;
       localStorage.setItem("presetFilterRarity", presetFilterRarity);
       updatePresetSelectionDisplay();
     });
     // Filtres pour la modale de fusion
-    document.getElementById("fusion-search-name").addEventListener("input", (e) => {
+    document.getElementById("fusion-search-name").addEventListener("input", debounce((e) => {
       fusionSearchName = e.target.value.toLowerCase();
       localStorage.setItem("fusionSearchName", fusionSearchName);
       updateFusionSelectionDisplay();
-    });
+    }, 300));
     document.getElementById("fusion-filter-rarity").addEventListener("change", (e) => {
       fusionFilterRarity = e.target.value;
       localStorage.setItem("fusionFilterRarity", fusionFilterRarity);
@@ -7021,15 +7039,15 @@
     confirmEvolutionButton.addEventListener("click", confirmEvolution);
     document.getElementById("open-preset-modal-button").addEventListener("click", openPresetSelectionModal);
     document.getElementById("apply-stat-change-button").addEventListener("click", applyStatChange);
-    document.getElementById("stat-change-search").addEventListener("input", updateStatChangeTabDisplay);
-    document.getElementById("curse-char-search").addEventListener("input", updateCurseTabDisplay);
+    document.getElementById("stat-change-search").addEventListener("input", debounce(updateStatChangeTabDisplay, 300));
+    document.getElementById("curse-char-search").addEventListener("input", debounce(updateCurseTabDisplay, 300));
     statRankInfoButton.addEventListener("click", openStatRankProbabilitiesModal);
     closeStatRankProbabilitiesModalButton.addEventListener("click", closeStatRankProbabilitiesModal);
     autofuseSettingsButton.addEventListener("click", startAutofuse);
     cancelAutofuseButton.addEventListener("click", cancelAutofuse);
     confirmAutofuseButton.addEventListener("click", confirmAutofuse);
-    traitCharSearchInput.addEventListener("input", updateTraitTabDisplay);
-    document.getElementById("limit-break-char-search").addEventListener("input", updateLimitBreakTabDisplay);
+    traitCharSearchInput.addEventListener("input", debounce(updateTraitTabDisplay, 300));
+    document.getElementById("limit-break-char-search").addEventListener("input", debounce(updateLimitBreakTabDisplay, 300));
     applyLimitBreakButton.addEventListener("click", applyLimitBreak);
     applyCurseButton.addEventListener("click", applyCurse);
     miniGameStartButton.addEventListener('click', startMiniGame);
@@ -7168,11 +7186,12 @@
     const inventoryFilterNameInput = document.getElementById("inventory-filter-name");
     if (inventoryFilterNameInput) {
         inventoryFilterNameInput.value = inventoryFilterName; // Initialiser avec la valeur sauvegardée
-        inventoryFilterNameInput.addEventListener("input", (e) => {
+        // Débouncer l'événement input pour le filtre par nom de l'inventaire
+        inventoryFilterNameInput.addEventListener("input", debounce((e) => {
             inventoryFilterName = e.target.value;
             localStorage.setItem("inventoryFilterName", inventoryFilterName);
             updateCharacterDisplay();
-        });
+        }, 300)); // Délai de 300ms
     }
 
     const inventoryFilterRaritySelect = document.getElementById("inventory-filter-rarity");
