@@ -350,7 +350,7 @@ const standardCharacters = [
         name: "Cu Chulainn",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/cu chulainn.webp",
+        image: "./images/perso/cu chulainn.png",
         power: 1290,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Blade of Death", 5, 50000),
