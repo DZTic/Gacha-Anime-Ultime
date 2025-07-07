@@ -760,126 +760,202 @@
     
     const pullSound = new Audio("https://freesound.org/data/previews/270/270333_5121236-lq.mp3");
 
-    function createCharacterCardHTML(char, originalIndex, context) {
-        let cardClasses = ['relative', 'p-2', 'rounded-lg', 'border', 'cursor-pointer', 'flex', 'flex-col', 'justify-between', 'items-center', 'box-border']; // Classes de base
-        let innerHTML = '';
-        let lockedOverlay = char.locked ? '<span class="absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1">🔒</span>' : '';
+    function createCharacterCardElement(char, originalIndex, context) {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'relative p-2 rounded-lg border cursor-pointer flex flex-col justify-between items-center box-border min-h-[220px]'; // Classes de base + min-height
+
         let rarityTextColorClass = char.color;
         if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
         else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
         else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
 
-        // Styles pour l'image pour assurer une taille cohérente
-        const imageHeightStyle = "max-height: 120px;"; // Hauteur max pour l'image dans les cartes
-        const cardMinHeightStyle = "min-height: 220px;"; // Hauteur min pour la carte entière
+        const imageHeightStyle = "max-height: 120px;";
+        // const cardMinHeightStyle = "min-height: 220px;"; // Appliqué via classe Tailwind 'min-h-[220px]'
 
-        // Logique de base commune
-        let baseImageHTML = `<img src="${char.image}" alt="${char.name}" class="w-full h-auto object-contain rounded" loading="lazy" decoding="async" style="${imageHeightStyle}">`;
-        let baseNameHTML = `<p class="text-center text-white font-semibold mt-1 text-sm">${char.name}</p>`;
-        let baseRarityHTML = `<p class="text-center ${rarityTextColorClass} text-xs">${char.rarity}</p>`;
-        let baseLevelHTML = `<p class="text-center text-white text-xs">Niveau: ${char.level} / ${char.maxLevelCap || 60}</p>`;
-        let basePowerHTML = `<p class="text-center text-white text-xs">Puissance: ${char.power}</p>`;
-        let statRankHTML = '';
-        if (char.statRank && statRanks[char.statRank]) {
-            statRankHTML = `<p class="text-center text-white text-xs">Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span></p>`;
+        // Conteneur interne pour la logique de style (min-height et flex)
+        const innerCardContainer = document.createElement('div');
+        innerCardContainer.style.display = 'flex';
+        innerCardContainer.style.flexDirection = 'column';
+        innerCardContainer.style.justifyContent = 'space-between';
+        innerCardContainer.style.width = '100%'; // S'assurer qu'il prend toute la largeur de la carte
+        innerCardContainer.style.height = '100%'; // S'assurer qu'il prend toute la hauteur de la carte
+
+        if (char.locked) {
+            const lockedOverlay = document.createElement('span');
+            lockedOverlay.className = 'absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1';
+            lockedOverlay.textContent = '🔒';
+            cardDiv.appendChild(lockedOverlay);
+        }
+
+        const img = document.createElement('img');
+        img.src = char.image;
+        img.alt = char.name;
+        img.className = 'w-full h-auto object-contain rounded';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.style.cssText = imageHeightStyle;
+        innerCardContainer.appendChild(img);
+
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'mt-auto flex flex-col items-center'; // mt-auto pour pousser vers le bas
+
+        const nameP = document.createElement('p');
+        nameP.className = 'text-center text-white font-semibold mt-1 text-sm';
+        nameP.textContent = char.name;
+        infoContainer.appendChild(nameP);
+
+        const rarityP = document.createElement('p');
+        rarityP.className = `text-center ${rarityTextColorClass} text-xs`;
+        rarityP.textContent = char.rarity;
+        infoContainer.appendChild(rarityP);
+
+        if (context !== 'battleSelection' && context !== 'presetSelection' && context !== 'fusionSelection' && context !== 'autofuseGrid' && context !== 'curseSelection' && context !== 'traitSelection' && context !== 'limitBreakSelection' && context !== 'statChangeSelection') {
+            const levelP = document.createElement('p');
+            levelP.className = 'text-center text-white text-xs';
+            levelP.textContent = `Niveau: ${char.level} / ${char.maxLevelCap || 60}`;
+            infoContainer.appendChild(levelP);
+
+            if (char.statRank && statRanks[char.statRank]) {
+                const statRankP = document.createElement('p');
+                statRankP.className = 'text-center text-white text-xs';
+                statRankP.innerHTML = `Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span>`;
+                infoContainer.appendChild(statRankP);
+            }
         }
         
-        cardClasses.push('min-h-[220px]'); // Appliquer la hauteur minimale via classe Tailwind si possible
+        const powerP = document.createElement('p');
+        powerP.className = 'text-center text-white text-xs';
+        powerP.textContent = `Puissance: ${char.power}`;
+        infoContainer.appendChild(powerP);
+
 
         // Personnalisation basée sur le contexte
         switch (context) {
             case 'inventory':
-                cardClasses.push(getRarityBorderClass(char.rarity));
+                cardDiv.classList.add(getRarityBorderClass(char.rarity));
                 if (isDeleteMode) {
-                    if (char.locked) cardClasses.push('opacity-50', 'cursor-not-allowed');
-                    else if (selectedCharacterIndices.has(char.id)) cardClasses.push('selected-character');
+                    if (char.locked) cardDiv.classList.add('opacity-50', 'cursor-not-allowed');
+                    else if (selectedCharacterIndices.has(char.id)) cardDiv.classList.add('selected-character');
                 }
-                innerHTML = `<div style="${cardMinHeightStyle}">${lockedOverlay}${baseImageHTML}<div class="mt-auto">${baseNameHTML}${baseRarityHTML}${baseLevelHTML}${statRankHTML}${basePowerHTML}</div></div>`;
                 break;
             case 'battleSelection':
-            case 'presetSelection': 
+            case 'presetSelection':
+                // La logique pour battle/preset info (nom, rareté, niveau, puissance)
+                infoContainer.innerHTML = ''; // Vider pour reconstruire spécifiquement
+                const battleNameRarityLevelP = document.createElement('p');
+                battleNameRarityLevelP.className = `${rarityTextColorClass} font-semibold text-center`;
+                battleNameRarityLevelP.innerHTML = `${char.name} (<span class="${rarityTextColorClass}">${char.rarity}</span>, Niv. ${char.level})`;
+                infoContainer.appendChild(battleNameRarityLevelP);
+                infoContainer.appendChild(powerP); // Ré-ajouter powerP
+
                 let isSelectedBattle = context === 'battleSelection' ? selectedBattleCharacters.has(originalIndex) : selectedPresetCharacters.has(originalIndex);
-                let selectedNamesSet = context === 'battleSelection' ? 
+                let selectedNamesSet = context === 'battleSelection' ?
                     new Set(Array.from(selectedBattleCharacters).map(idx => ownedCharacters[idx]?.name)) :
                     new Set(Array.from(selectedPresetCharacters).map(idx => ownedCharacters[idx]?.name));
                 let currentSelectionSize = context === 'battleSelection' ? selectedBattleCharacters.size : selectedPresetCharacters.size;
                 let maxTeamSize = context === 'battleSelection' ? calculateMaxTeamSize() : calculateMaxPresetTeamSize();
-                
-                cardClasses.push(getRarityBorderClass(char.rarity));
-                if (isSelectedBattle) cardClasses.push('selected-for-battle');
-                else if (currentSelectionSize >= maxTeamSize || (selectedNamesSet.has(char.name) && !isSelectedBattle) ) {
-                     cardClasses.push(selectedNamesSet.has(char.name) && !isSelectedBattle ? 'non-selectable-for-battle' : 'opacity-50');
+
+                cardDiv.classList.add(getRarityBorderClass(char.rarity));
+                if (isSelectedBattle) cardDiv.classList.add('selected-for-battle');
+                else if (currentSelectionSize >= maxTeamSize || (selectedNamesSet.has(char.name) && !isSelectedBattle)) {
+                    cardDiv.classList.add(selectedNamesSet.has(char.name) && !isSelectedBattle ? 'non-selectable-for-battle' : 'opacity-50');
                 }
-                 innerHTML = `<div style="${cardMinHeightStyle}">${baseImageHTML}<div class="mt-auto">
-                             <p class="${rarityTextColorClass} font-semibold text-center">${char.name} (<span class="${rarityTextColorClass}">${char.rarity}</span>, Niv. ${char.level})</p>
-                             ${basePowerHTML}</div></div>`;
                 break;
             case 'fusionSelection':
-                cardClasses.push(getRarityBorderClass(char.rarity));
-                if (selectedFusionCharacters.has(char.id)) cardClasses.push('selected-for-fusion');
-                innerHTML = `<div style="${cardMinHeightStyle}">${baseImageHTML}<div class="mt-auto">
-                             <p class="${char.color} font-semibold text-center">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level})</p>
-                             ${basePowerHTML}</div></div>`;
+                 infoContainer.innerHTML = ''; // Vider pour reconstruire spécifiquement
+                const fusionNameRarityLevelP = document.createElement('p');
+                fusionNameRarityLevelP.className = `${char.color} font-semibold text-center`;
+                fusionNameRarityLevelP.innerHTML = `${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level})`;
+                infoContainer.appendChild(fusionNameRarityLevelP);
+                infoContainer.appendChild(powerP); // Ré-ajouter powerP
+
+                cardDiv.classList.add(getRarityBorderClass(char.rarity));
+                if (selectedFusionCharacters.has(char.id)) cardDiv.classList.add('selected-for-fusion');
                 break;
             case 'autofuseGrid':
-                 cardClasses.push(getRarityBorderClass(char.rarity), 'cursor-pointer', 'hover:bg-gray-700');
-                 if (currentAutofuseCharacterId === char.id) cardClasses.push('border-green-500');
-                 innerHTML = `<div style="min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;"><img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-2" loading="lazy" decoding="async">
-                              <div><p class="${char.color} font-semibold text-sm text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
-                              <p class="text-white text-xs text-center"><span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level} / ${char.maxLevelCap || 60}</p></div></div>`;
+                cardDiv.style.minHeight = '180px'; // Override pour ce contexte
+                img.className = 'w-full h-24 object-contain rounded mb-2'; // Style image spécifique
+                infoContainer.innerHTML = ''; // Vider
+
+                const autoFuseNameP = document.createElement('p');
+                autoFuseNameP.className = `${char.color} font-semibold text-sm text-center`;
+                autoFuseNameP.textContent = `${char.name} ${char.locked ? '🔒' : ''}`;
+                infoContainer.appendChild(autoFuseNameP);
+
+                const autoFuseRarityLevelP = document.createElement('p');
+                autoFuseRarityLevelP.className = 'text-white text-xs text-center';
+                autoFuseRarityLevelP.innerHTML = `<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level} / ${char.maxLevelCap || 60}`;
+                infoContainer.appendChild(autoFuseRarityLevelP);
+
+                cardDiv.classList.add(getRarityBorderClass(char.rarity), 'cursor-pointer', 'hover:bg-gray-700');
+                if (currentAutofuseCharacterId === char.id) cardDiv.classList.add('border-green-500');
                 break;
             case 'curseSelection':
             case 'traitSelection':
             case 'limitBreakSelection':
             case 'statChangeSelection':
-                let currentId, selectedClassSpecial; // Renamed selectedClass to avoid conflict
-                if (context === 'curseSelection') { currentId = currentCurseCharacterId; selectedClassSpecial = 'selected-for-curse'; }
-                else if (context === 'traitSelection') { currentId = currentTraitCharacterId; selectedClassSpecial = 'selected-for-trait'; }
-                else if (context === 'limitBreakSelection') { currentId = currentLimitBreakCharacterId; selectedClassSpecial = 'border-amber-500'; }
-                else if (context === 'statChangeSelection') { currentId = currentStatChangeCharacterId; selectedClassSpecial = 'border-green-500';}
+                cardDiv.style.minHeight = '160px'; // Override
+                img.className = 'w-full h-20 object-contain rounded mb-1'; // Style image spécifique
+                infoContainer.innerHTML = ''; // Vider
 
-                cardClasses.push(currentId === char.id ? selectedClassSpecial : (getRarityBorderClass(char.rarity) || 'border-gray-600 hover:border-gray-500'));
+                const specialContextNameP = document.createElement('p');
+                specialContextNameP.className = `${rarityTextColorClass} font-semibold text-xs text-center`;
+                specialContextNameP.textContent = `${char.name} ${char.locked ? '🔒' : ''}`;
+                infoContainer.appendChild(specialContextNameP);
+
+                // Réutiliser powerP déjà créé plus haut
+                infoContainer.appendChild(powerP);
+
+
+                let currentIdCtx, selectedClassSpecialCtx;
+                if (context === 'curseSelection') { currentIdCtx = currentCurseCharacterId; selectedClassSpecialCtx = 'selected-for-curse'; }
+                else if (context === 'traitSelection') { currentIdCtx = currentTraitCharacterId; selectedClassSpecialCtx = 'selected-for-trait'; }
+                else if (context === 'limitBreakSelection') { currentIdCtx = currentLimitBreakCharacterId; selectedClassSpecialCtx = 'border-amber-500'; }
+                else if (context === 'statChangeSelection') { currentIdCtx = currentStatChangeCharacterId; selectedClassSpecialCtx = 'border-green-500'; }
                 
-                let additionalInfo = '';
-                if(context === 'curseSelection' && char.curseEffect && char.curseEffect !== 0) {
-                    const baseP = char.basePower * char.statModifier;
-                    const perc = baseP !== 0 ? ((char.curseEffect / baseP) * 100) : 0;
-                    additionalInfo = `, <span class="text-xs ${char.curseEffect > 0 ? 'text-green-400' : 'text-red-400'}">Curse: ${char.curseEffect > 0 ? '+' : ''}${perc.toFixed(1)}%</span>`;
+                cardDiv.classList.add(currentIdCtx === char.id ? selectedClassSpecialCtx : (getRarityBorderClass(char.rarity) || 'border-gray-600 hover:border-gray-500'));
+
+                let additionalInfoP = document.createElement('p');
+                additionalInfoP.className = 'text-xs text-center';
+
+                if (context === 'curseSelection' && char.curseEffect && char.curseEffect !== 0) {
+                    const basePCurse = char.basePower * char.statModifier;
+                    const percCurse = basePCurse !== 0 ? ((char.curseEffect / basePCurse) * 100) : 0;
+                    additionalInfoP.innerHTML = `<span class="${char.curseEffect > 0 ? 'text-green-400' : 'text-red-400'}">Curse: ${char.curseEffect > 0 ? '+' : ''}${percCurse.toFixed(1)}%</span>`;
+                    // S'assurer que powerP est avant ce span
+                    powerP.innerHTML += `, ${additionalInfoP.innerHTML}`; // Ajoute à la ligne de puissance existante
+                    additionalInfoP = null; // Ne pas l'ajouter séparément
                 } else if (context === 'traitSelection' && char.trait && char.trait.id && char.trait.grade > 0) {
                     const tDef = TRAIT_DEFINITIONS[char.trait.id];
-                    if(tDef) {
+                    if (tDef) {
                         let traitNameMini = tDef.name;
                         if (tDef.gradeProbabilities && tDef.gradeProbabilities.length > 0) {
-                             traitNameMini += ` G${char.trait.grade}`;
+                            traitNameMini += ` G${char.trait.grade}`;
                         }
-                        additionalInfo = `<p class="text-xs text-center text-emerald-400">${traitNameMini}</p>`;
+                        additionalInfoP.className = 'text-xs text-center text-emerald-400';
+                        additionalInfoP.textContent = traitNameMini;
                     }
                 } else if (context === 'limitBreakSelection') {
                     const currentMax = char.maxLevelCap || 60;
                     const isAtCap = char.level >= currentMax;
-                    if (currentMax >= MAX_POSSIBLE_LEVEL_CAP) additionalInfo = '<p class="text-yellow-500 text-xs text-center">Cap Ultime</p>';
-                    else if (isAtCap) additionalInfo = `<p class="text-green-400 text-xs text-center">Prêt LB</p>`;
-                    else additionalInfo = `<p class="text-gray-400 text-xs text-center">Atteindre Niv. ${currentMax}</p>`;
+                    if (currentMax >= MAX_POSSIBLE_LEVEL_CAP) { additionalInfoP.className = 'text-yellow-500 text-xs text-center'; additionalInfoP.textContent = 'Cap Ultime'; }
+                    else if (isAtCap) { additionalInfoP.className = 'text-green-400 text-xs text-center'; additionalInfoP.textContent = 'Prêt LB'; }
+                    else { additionalInfoP.className = 'text-gray-400 text-xs text-center'; additionalInfoP.textContent = `Atteindre Niv. ${currentMax}`; }
+                } else if (context === 'statChangeSelection') {
+                     additionalInfoP.className = `text-xs text-center ${statRanks[char.statRank]?.color || 'text-white'}`;
+                     additionalInfoP.textContent = `Stat: ${char.statRank}`;
                 }
 
-                innerHTML = `<div style="min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
-                             <img src="${char.image}" alt="${char.name}" class="w-full h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
-                             <div><p class="${rarityTextColorClass} font-semibold text-xs text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
-                             <p class="text-white text-xs text-center">P: ${char.power}${context === 'curseSelection' ? additionalInfo : ''}</p>
-                             ${ (context === 'statChangeSelection') ? `<p class="text-white text-xs text-center ${statRanks[char.statRank]?.color || 'text-white'}">Stat: ${char.statRank}</p>` : ''}
-                             ${ (context === 'traitSelection') ? additionalInfo : ''}
-                             ${ (context === 'limitBreakSelection') ? additionalInfo : ''}
-                             </div></div>`;
+                if(additionalInfoP && additionalInfoP.textContent) infoContainer.appendChild(additionalInfoP);
+
                 break;
-            default: 
-                cardClasses.push(getRarityBorderClass(char.rarity));
-                innerHTML = `<div style="${cardMinHeightStyle}">${lockedOverlay}${baseImageHTML}<div class="mt-auto">${baseNameHTML}${baseRarityHTML}${baseLevelHTML}${statRankHTML}${basePowerHTML}</div></div>`;
+            default: // Fallback pour contextes inconnus ou non spécifiquement gérés ci-dessus
+                cardDiv.classList.add(getRarityBorderClass(char.rarity));
+                // La structure par défaut avec level, statRank et power est déjà construite.
         }
 
-        const cardDiv = document.createElement('div');
-        cardDiv.className = cardClasses.join(' ');
-        cardDiv.innerHTML = innerHTML;
-        cardDiv.style.minHeight = cardMinHeightStyle; // Assurer la hauteur minimale pour tous les contextes
+        innerCardContainer.appendChild(infoContainer);
+        cardDiv.appendChild(innerCardContainer);
 
         // Gestionnaire d'événements
         if (context === 'inventory') {
@@ -4340,6 +4416,11 @@
 
     // APRÈS
     function updateCharacterDisplay() {
+        if (!characterDisplay) {
+            console.error("Erreur: characterDisplay n'est pas défini.");
+            return;
+        }
+
         if (!ownedCharacters.length && !inventoryFilterName && inventoryFilterRarity === "all" && !inventoryFilterEvolvable && !inventoryFilterLimitBreak && !inventoryFilterCanReceiveExp) {
             characterDisplay.innerHTML = '<p class="text-white col-span-full text-center">Aucun personnage possédé.</p>';
             return;
@@ -4393,79 +4474,9 @@
             fragment.appendChild(p);
         } else {
             sortedAndFilteredCharacters.forEach((char) => {
-                const cardDiv = document.createElement('div');
-                const isSelected = selectedCharacterIndices.has(char.id);
-                let rarityTextColorClass = char.color;
-                if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
-                else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
-                else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
-
-                let cardClasses = ['relative', 'p-2', 'rounded-lg', 'border', 'cursor-pointer'];
-                
-                if (isDeleteMode) {
-                    if (char.locked) {
-                        cardClasses.push(getRarityBorderClass(char.rarity), 'opacity-50', 'cursor-not-allowed');
-                    } else {
-                        cardClasses.push(isSelected ? 'selected-character' : getRarityBorderClass(char.rarity));
-                    }
-                } else {
-                    cardClasses.push(getRarityBorderClass(char.rarity));
-                }
-                cardDiv.className = cardClasses.join(' ');
-
-                cardDiv.addEventListener('click', () => {
-                    if (isDeleteMode) {
-                        if (!char.locked) {
-                            deleteCharacter(char.id);
-                        }
-                    } else {
-                        showCharacterStats(char.id);
-                    }
-                });
-
-                if (char.locked) {
-                    const lockSpan = document.createElement('span');
-                    lockSpan.className = 'absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1';
-                    lockSpan.textContent = '🔒';
-                    cardDiv.appendChild(lockSpan);
-                }
-
-                const img = document.createElement('img');
-                img.src = char.image;
-                img.alt = char.name;
-                img.className = 'w-full h-auto object-contain rounded';
-                img.loading = 'lazy';
-                img.decoding = 'async';
-                cardDiv.appendChild(img);
-
-                const nameP = document.createElement('p');
-                nameP.className = 'text-center text-white font-semibold mt-1 text-sm';
-                nameP.textContent = char.name;
-                cardDiv.appendChild(nameP);
-
-                const rarityP = document.createElement('p');
-                rarityP.className = `text-center ${rarityTextColorClass} text-xs`;
-                rarityP.textContent = char.rarity;
-                cardDiv.appendChild(rarityP);
-
-                const levelP = document.createElement('p');
-                levelP.className = 'text-center text-white text-xs';
-                levelP.textContent = `Niveau: ${char.level} / ${char.maxLevelCap || 60}`;
-                cardDiv.appendChild(levelP);
-
-                if (char.statRank && statRanks[char.statRank]) {
-                    const statRankP = document.createElement('p');
-                    statRankP.className = 'text-center text-white text-xs';
-                    statRankP.innerHTML = `Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span>`;
-                    cardDiv.appendChild(statRankP);
-                }
-
-                const powerP = document.createElement('p');
-                powerP.className = 'text-center text-white text-xs';
-                powerP.textContent = `Puissance: ${char.power}`;
-                cardDiv.appendChild(powerP);
-                
-                fragment.appendChild(cardDiv); // Ajouter la carte au fragment
+                // Utiliser createCharacterCardElement au lieu de recréer la logique ici
+                const cardElement = createCharacterCardElement(char, -1, 'inventory'); // -1 car originalIndex n'est pas pertinent pour l'inventaire direct
+                fragment.appendChild(cardElement);
             });
         }
         characterDisplay.appendChild(fragment); // Ajouter le fragment au DOM en une seule fois

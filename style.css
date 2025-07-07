@@ -1,3 +1,7 @@
+* {
+    box-sizing: border-box;
+}
+
 @keyframes rainbow {
       0% { color: #ff0000; } 14% { color: #ff9900; } 28% { color: #33cc33; } 42% { color: #00ccff; }
       57% { color: #3333ff; } 71% { color: #cc00cc; } 85% { color: #ff3399; } 100% { color: #ff0000; }
