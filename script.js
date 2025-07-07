@@ -2262,7 +2262,8 @@
                 const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
                 if (originalIndex === -1) return; 
 
-                const cardElement = createCharacterCardHTML(char, originalIndex, 'presetSelection');
+                // MODIFICATION ICI: Utiliser createCharacterCardElement
+                const cardElement = createCharacterCardElement(char, originalIndex, 'presetSelection');
                 fragment.appendChild(cardElement);
             });
             presetSelectionList.appendChild(fragment);
