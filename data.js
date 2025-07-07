@@ -503,7 +503,7 @@ const standardCharacters = [
         name: "Delta",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/delta.webp",
+        image: "./images/perso/delta.png",
         power: 1250,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Dog Bone", 1, 50000, {
