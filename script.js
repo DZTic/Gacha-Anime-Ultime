@@ -5661,15 +5661,17 @@
     }
 
         function showTab(tabId) {
+        // Si l'onglet demandé est déjà actif et visible, ne rien faire.
+        // Exception: si on re-clique sur "play" ou "inventory", on veut s'assurer que le bon sous-onglet est visible.
         if (activeTabId === tabId && !document.getElementById(tabId)?.classList.contains("hidden")) {
-             // Si l'onglet demandé est déjà actif et visible, ne rien faire, sauf si c'est un rechargement forcé (non géré ici)
-             // ou si l'onglet est "play" ou "inventory" qui ont des sous-onglets à potentiellement réinitialiser.
-            if (tabId === "play" && document.getElementById("story")?.classList.contains("hidden")) {
-                showSubTab("story"); // Réinitialiser au sous-onglet par défaut si aucun n'est visible
-            } else if (tabId === "inventory" && document.getElementById("units")?.classList.contains("hidden")) {
-                showSubTab("units"); // Réinitialiser au sous-onglet par défaut
+            if (tabId === "play") {
+                // Si l'onglet "play" est déjà actif, s'assurer que le dernier sous-onglet actif (ou "story" par défaut) est affiché.
+                // Cela gère le cas où on clique sur "Play" alors qu'on est déjà dessus, pour forcer la réinitialisation du sous-onglet si besoin.
+                showSubTab(activePlaySubTabId || "story");
+            } else if (tabId === "inventory") {
+                showSubTab(activeInventorySubTabId || "units");
             }
-            return; 
+            return;
         }
 
         // Cacher l'ancien onglet actif s'il y en a un et qu'il n'est pas le même que le nouveau
@@ -5680,33 +5682,30 @@
             }
         }
 
-        // Retirer la classe spéciale d'arrière-plan du body par défaut
-        // (sera réappliquée si l'onglet "curse" est sélectionné et que le thème est sombre)
         document.body.classList.remove("curse-tab-active-bg");
 
-        // Afficher le contenu de l'onglet sélectionné
         const tabToShow = document.getElementById(tabId);
         if (tabToShow) {
             tabToShow.classList.remove("hidden");
         } else {
             console.error(`showTab: Onglet avec ID "${tabId}" non trouvé.`);
-            return; // Ne pas continuer si l'onglet n'existe pas
+            return;
         }
 
-        activeTabId = tabId; // Mettre à jour l'onglet actif
+        activeTabId = tabId;
 
-        // Mettre à jour l'apparence des boutons d'onglet
         const allVisibleTabButtons = document.querySelectorAll(".tab-button:not(.hidden)");
         allVisibleTabButtons.forEach(btn => {
             btn.classList.toggle("border-blue-500", btn.dataset.tab === tabId);
             btn.classList.toggle("border-transparent", btn.dataset.tab !== tabId);
         });
 
-        // Logique spécifique à chaque onglet lors de son affichage
         if (tabId === "inventory") {
-            showSubTab("units"); // Toujours afficher le sous-onglet par défaut "units"
+            // Restaurer le dernier sous-onglet actif de l'inventaire ou afficher "units" par défaut
+            showSubTab(activeInventorySubTabId || "units");
         } else if (tabId === "play") {
-            showSubTab("story"); // Toujours afficher le sous-onglet par défaut "story"
+            // Restaurer le dernier sous-onglet actif de "jouer" ou afficher "story" par défaut
+            showSubTab(activePlaySubTabId || "story");
         } else if (tabId === "index") {
             updateIndexDisplay();
         } else if (tabId === "evolution") {
@@ -5723,14 +5722,13 @@
         } else if (tabId === "limit-break") {
             updateLimitBreakTabDisplay();
         } else {
-            // Pour les autres onglets (missions, shop), s'assurer que le mode suppression est désactivé
             if (isDeleteMode) {
                 isDeleteMode = false;
                 selectedCharacterIndices.clear();
-                updateCharacterDisplay(); // Pour enlever le style de sélection des cartes
+                updateCharacterDisplay();
             }
         }
-        updateUI(); // Mettre à jour les éléments généraux de l'UI
+        updateUI();
     }
 
 
