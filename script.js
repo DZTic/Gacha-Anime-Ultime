@@ -25,205 +25,284 @@
     const userStatus = document.getElementById("user-status");
 
     // --- VARIABLES GLOBALES ENSUITE ---
-    let characterIdCounter = parseInt(localStorage.getItem("characterIdCounter")) || 0;
+
+    // Fonction utilitaire pour parser le JSON de manière sécurisée depuis localStorage
+    function safeJsonParse(key, defaultValue, validator = null) {
+        const rawValue = localStorage.getItem(key);
+        if (rawValue === null) {
+            // console.log(`[LocalStorage] Clé "${key}" non trouvée. Utilisation de la valeur par défaut.`);
+            return defaultValue;
+        }
+        try {
+            const parsedValue = JSON.parse(rawValue);
+            if (validator && !validator(parsedValue)) {
+                console.warn(`[LocalStorage] Validation échouée pour la clé "${key}". Valeur parsée:`, parsedValue, `Utilisation de la valeur par défaut.`);
+                // localStorage.removeItem(key); // Optionnel: supprimer la clé corrompue
+                return defaultValue;
+            }
+            // console.log(`[LocalStorage] Clé "${key}" chargée avec succès.`);
+            return parsedValue;
+        } catch (error) {
+            console.warn(`[LocalStorage] Erreur de parsing JSON pour la clé "${key}". Valeur brute:`, rawValue, `Erreur:`, error, `Utilisation de la valeur par défaut.`);
+            // localStorage.removeItem(key); // Optionnel: supprimer la clé corrompue
+            return defaultValue;
+        }
+    }
+
+    // Fonctions de validation spécifiques (exemples)
+    const isValidMissionsArray = (arr) => Array.isArray(arr) && arr.every(m =>
+        m && typeof m.id === 'number' &&
+        typeof m.description === 'string' &&
+        typeof m.type === 'string' &&
+        typeof m.goal === 'number' &&
+        typeof m.reward === 'object' && m.reward && typeof m.reward.gems === 'number' &&
+        typeof m.progress === 'number' &&
+        typeof m.completed === 'boolean'
+    );
+
+    const isValidShopOffersArray = (arr) => Array.isArray(arr) && arr.every(o =>
+        o && typeof o.type === 'string' &&
+        typeof o.cost === 'number' &&
+        typeof o.currency === 'string' &&
+        typeof o.description === 'string'
+        // `amount` peut être un nombre ou une chaîne (pour special-character), donc validation plus souple ici
+    );
+
+    const isValidStoryProgressArray = (arr) => Array.isArray(arr) && arr.every(p =>
+        p && typeof p.id === 'number' &&
+        typeof p.unlocked === 'boolean' &&
+        typeof p.completed === 'boolean'
+    );
+
+    const isValidStringArray = (arr) => Array.isArray(arr) && arr.every(s => typeof s === 'string');
+    const isValidNumberArray = (arr) => Array.isArray(arr) && arr.every(n => typeof n === 'number');
+
+
+    let characterIdCounter = parseInt(localStorage.getItem("characterIdCounter") || "0", 10);
+    if (isNaN(characterIdCounter)) {
+        console.warn("[LocalStorage] 'characterIdCounter' invalide. Réinitialisation à 0.");
+        characterIdCounter = 0;
+    }
+
     let gemsRaw = localStorage.getItem("gems");
     let gems;
     if (gemsRaw !== null) {
-        gems = parseInt(gemsRaw);
+        gems = parseInt(gemsRaw, 10);
         if (isNaN(gems)) {
-            console.warn("Valeur de 'gems' invalide dans localStorage:", gemsRaw, ". Réinitialisation à 1000.");
-            gems = 1000; // Valeur par défaut si localStorage est corrompu
+            console.warn("[LocalStorage] Valeur de 'gems' invalide:", gemsRaw, ". Réinitialisation à 1000.");
+            gems = 1000;
         }
     } else {
-        gems = 1000; // Valeur par défaut pour un nouveau joueur
+        gems = 1000;
     }
-    let coins = parseInt(localStorage.getItem("coins")) || 0;
-    let pullCount = parseInt(localStorage.getItem("pullCount")) || 0;
+
+    let coins = parseInt(localStorage.getItem("coins") || "0", 10);
+    if (isNaN(coins)) {
+        console.warn("[LocalStorage] 'coins' invalide. Réinitialisation à 0.");
+        coins = 0;
+    }
+
+    let pullCount = parseInt(localStorage.getItem("pullCount") || "0", 10);
+    if (isNaN(pullCount)) {
+        console.warn("[LocalStorage] 'pullCount' invalide. Réinitialisation à 0.");
+        pullCount = 0;
+    }
     
-    // Chargement et validation des personnages possédés depuis localStorage
     let ownedCharacters = [];
     const rawOwnedCharactersString = localStorage.getItem("ownedCharacters");
-    console.log("Vérification avant boucle: statRanks est défini?", typeof statRanks !== 'undefined'); // LOG DE CONTRÔLE
+    // console.log("Vérification avant boucle: statRanks est défini?", typeof statRanks !== 'undefined');
 
     if (rawOwnedCharactersString) {
         try {
-            const loadedChars = JSON.parse(rawOwnedCharactersString); // Tenter de parser la chaîne JSON
+            const loadedChars = JSON.parse(rawOwnedCharactersString);
             if (Array.isArray(loadedChars)) {
                 loadedChars.forEach((char, index) => {
                     try {
-                        if (!char || typeof char.name !== 'string') {
-                            console.warn(`[INIT Char ${index}] Personnage invalide ou nom manquant, skippé:`, char);
+                        if (!char || typeof char.name !== 'string' || char.name.trim() === "") {
+                            console.warn(`[INIT Char ${index}] Personnage invalide ou nom manquant/vide, skippé:`, char);
                             return;
                         }
 
                         const nameToFind = char.hasEvolved && char.originalName ? char.originalName : char.name;
                         const baseDefinition = allCharacters.find(c => c.name === nameToFind);
                         if (!baseDefinition) {
-                            console.warn(`[INIT Char ${index}] Définition de base non trouvée pour '${char.name}'. Skippé.`);
+                            console.warn(`[INIT Char ${index}] Définition de base non trouvée pour '${nameToFind}' (original: ${char.name}). Skippé.`);
                             return;
                         }
-                        const initialPowerFromDefinition = baseDefinition.power;
+                        const initialPowerFromDefinition = Number(baseDefinition.power) || 0;
 
                         let basePower = char.basePower;
                         let statRank = char.statRank;
                         let statModifier = char.statModifier;
                         
-                        // Gestion du statRank et statModifier
-                        if (!statRank || !statRanks[statRank]) { // Si statRank est invalide ou non défini
-                            statRank = getRandomStatRank(); // Assigner un rang aléatoire
+                        if (!statRank || !statRanks[statRank]) {
+                            statRank = getRandomStatRank();
                             statModifier = statRanks[statRank].modifier;
                             console.warn(`[INIT Char ${index}] '${char.name}' avait un statRank invalide. Nouveau statRank: ${statRank}`);
                         } else if (typeof statModifier === 'undefined' || statModifier === null || isNaN(Number(statModifier))) {
-                            // Si statModifier est invalide mais statRank est bon, recalculer statModifier
                             statModifier = statRanks[statRank].modifier;
                             console.warn(`[INIT Char ${index}] '${char.name}' avait un statModifier invalide. Recalculé à: ${statModifier} pour le rang ${statRank}`);
                         }
-                        statModifier = Number(statModifier); // S'assurer que c'est un nombre
+                        statModifier = Number(statModifier);
+                         if (isNaN(statModifier)) { // Ultime fallback
+                            console.error(`[INIT Char ${index}] '${char.name}' FATAL: statModifier est NaN après tentative de correction. Utilisation de 1.0.`);
+                            statModifier = 1.0;
+                        }
 
-                        // Gestion de basePower
+
                         if (typeof basePower === 'undefined' || basePower === null || isNaN(Number(basePower)) || Number(basePower) <= 0) {
-                            if (initialPowerFromDefinition && statModifier && statModifier !== 0) {
+                            if (initialPowerFromDefinition > 0 && statModifier !== 0) {
                                 basePower = initialPowerFromDefinition / statModifier;
                                 console.warn(`[INIT Char ${index}] '${char.name}' avait un basePower invalide. Dérivé à: ${basePower} (depuis def:${initialPowerFromDefinition} / mod:${statModifier})`);
-                            } else if (initialPowerFromDefinition) {
-                                basePower = initialPowerFromDefinition; // Fallback si statModifier est aussi problématique
+                            } else if (initialPowerFromDefinition > 0) {
+                                basePower = initialPowerFromDefinition;
                                 console.warn(`[INIT Char ${index}] '${char.name}' avait un basePower invalide. Défini à: ${basePower} (directement depuis def:${initialPowerFromDefinition}, statModifier problématique)`);
                             } else {
-                                basePower = 50; // Ultime fallback
+                                basePower = 50;
                                 console.error(`[INIT Char ${index}] '${char.name}' FATAL: basePower et initialPowerFromDefinition invalides. Défini à ${basePower}`);
                             }
                         }
-                        basePower = Number(basePower); // S'assurer que c'est un nombre
+                        basePower = Number(basePower);
+                        if (isNaN(basePower) || basePower <= 0) {
+                            console.error(`[INIT Char ${index}] '${char.name}' FATAL: basePower est ${basePower} après toutes les corrections. Réinitialisation à 50.`);
+                            basePower = 50;
+                        }
 
-                        // Migration et validation des traits
+
                         let traitObject = { id: null, grade: 0 };
-                        if (char.trait) {
+                        if (char.trait && typeof char.trait === 'object') {
                             let tempTraitId = char.trait.id;
                             let tempTraitGrade = char.trait.grade;
 
-                            // Migration de 'level' vers 'grade'
                             if (typeof char.trait.level !== 'undefined' && typeof tempTraitGrade === 'undefined') {
-                                tempTraitGrade = Number(char.trait.level) > 0 ? Number(char.trait.level) : 0;
+                                tempTraitGrade = Number(char.trait.level);
+                                if (isNaN(tempTraitGrade)) tempTraitGrade = 0;
                             }
                             tempTraitGrade = Number(tempTraitGrade) || 0;
 
-                            if (tempTraitId && TRAIT_DEFINITIONS[tempTraitId]) {
+                            if (tempTraitId && typeof tempTraitId === 'string' && TRAIT_DEFINITIONS[tempTraitId]) {
                                 const traitDef = TRAIT_DEFINITIONS[tempTraitId];
-                                if (traitDef.grades && traitDef.grades.length > 0) {
+                                if (traitDef.grades && Array.isArray(traitDef.grades) && traitDef.grades.length > 0) {
                                     const maxGradeForTrait = traitDef.grades.length;
                                     if (tempTraitGrade > maxGradeForTrait) {
-                                        console.warn(`[INIT Char ${char.name}] Trait ${tempTraitId} avait un grade ${tempTraitGrade} > max ${maxGradeForTrait}. Ajustement.`);
+                                        console.warn(`[INIT Char ${char.name}] Trait ${tempTraitId} grade ${tempTraitGrade} > max ${maxGradeForTrait}. Ajustement.`);
                                         tempTraitGrade = maxGradeForTrait;
                                     }
                                     if (tempTraitGrade > 0) {
                                         traitObject = { id: tempTraitId, grade: tempTraitGrade };
                                     } else {
-                                         console.warn(`[INIT Char ${char.name}] Trait ${tempTraitId} avec grade ${tempTraitGrade} (<=0) après migration/validation. Trait remis à null.`);
+                                         console.warn(`[INIT Char ${char.name}] Trait ${tempTraitId} avec grade ${tempTraitGrade} (<=0) après validation. Trait remis à null.`);
                                     }
                                 } else {
-                                     console.warn(`[INIT Char ${char.name}] Trait ${tempTraitId} existe mais n'a pas de définition de grades. Trait remis à null.`);
+                                     console.warn(`[INIT Char ${char.name}] Trait ${tempTraitId} existe mais n'a pas de définition de grades valide. Trait remis à null.`);
                                 }
                             } else if (tempTraitId) {
-                                console.warn(`[INIT Char ${char.name}] Trait ID '${tempTraitId}' non trouvé dans TRAIT_DEFINITIONS. Trait remis à null.`);
+                                console.warn(`[INIT Char ${char.name}] Trait ID '${tempTraitId}' non trouvé ou invalide dans TRAIT_DEFINITIONS. Trait remis à null.`);
                             }
                         }
 
-
                         const newCharData = {
-                            ...(baseDefinition ? baseDefinition : {}), // Copie superficielle de la définition de base
-                            ...char, // Copie superficielle des propriétés sauvegardées (écrase celles de baseDefinition si conflit)
-                            id: char.id || `char_${characterIdCounter++}`,
-                            level: Number(char.level) || 1,
-                            exp: Number(char.exp) || 0,
-                            locked: char.locked || false,
-                            hasEvolved: char.hasEvolved || false,
-                            curseEffect: Number(char.curseEffect) || 0,
-                            basePower: basePower,
-                            maxLevelCap: Number(char.maxLevelCap) || 60,
-                            statRank: statRank,
-                            statModifier: statModifier,
-                            trait: traitObject 
+                            ...baseDefinition,
+                            ...char,
+                            id: char.id && typeof char.id === 'string' ? char.id : `char_${characterIdCounter++}`,
+                            level: typeof char.level === 'number' && !isNaN(char.level) && char.level > 0 ? char.level : 1,
+                            exp: typeof char.exp === 'number' && !isNaN(char.exp) && char.exp >= 0 ? char.exp : 0,
+                            locked: typeof char.locked === 'boolean' ? char.locked : false,
+                            hasEvolved: typeof char.hasEvolved === 'boolean' ? char.hasEvolved : false,
+                            curseEffect: typeof char.curseEffect === 'number' && !isNaN(char.curseEffect) ? char.curseEffect : 0,
+                            basePower: basePower, // Déjà validé
+                            maxLevelCap: typeof char.maxLevelCap === 'number' && !isNaN(char.maxLevelCap) && char.maxLevelCap >= 60 ? char.maxLevelCap : 60,
+                            statRank: statRank, // Déjà validé
+                            statModifier: statModifier, // Déjà validé
+                            trait: traitObject // Déjà validé
                         };
-                        delete newCharData.power; // S'assurer que l'ancienne puissance est retirée avant recalcul
+                        delete newCharData.power;
 
-                        recalculateCharacterPower(newCharData); // Recalculer la puissance avec les données validées/migrées
+                        recalculateCharacterPower(newCharData);
 
                         if (isNaN(newCharData.power) || newCharData.power <= 0) {
-                             console.warn(`[INIT Char ${index}] Puissance INVALIDE pour ${newCharData.name} après recalcul et validation. Power: ${newCharData.power}. SKIPPED.`);
-                             console.log("[INIT Char Detail for Skipped]: ", JSON.parse(JSON.stringify(newCharData))); // Log détaillé
-                             return; // Ne pas ajouter le personnage si la puissance est toujours invalide
+                             console.warn(`[INIT Char ${index}] Puissance INVALIDE pour ${newCharData.name} après recalcul final. Power: ${newCharData.power}. SKIPPED.`);
+                             console.log("[INIT Char Detail for Skipped]: ", JSON.parse(JSON.stringify(newCharData)));
+                             return;
                         }
                         ownedCharacters.push(newCharData);
                     } catch (errorForChar) {
-                        console.error(`[INIT Char ${index}] ERREUR lors du traitement du personnage sauvegardé:`, char, errorForChar);
+                        console.error(`[INIT Char ${index}] ERREUR critique lors du traitement du personnage sauvegardé:`, char, errorForChar);
                     }
                 });
                 if (loadedChars.length !== ownedCharacters.length) {
-                    console.warn("[INIT] Attention: Certains personnages de la sauvegarde n'ont pas pu être chargés correctement.");
+                    console.warn("[INIT] Attention: Certains personnages de la sauvegarde n'ont pas pu être chargés correctement en raison d'erreurs ou de données invalides.");
                 }
             } else {
-                console.warn("[INIT] 'ownedCharacters' depuis localStorage n'est pas un tableau. Initialisation à vide.");
+                console.warn("[INIT] 'ownedCharacters' depuis localStorage n'est pas un tableau. Initialisation à un tableau vide.");
+                ownedCharacters = [];
             }
         } catch (e) {
-            console.error("[INIT] ERREUR FATALE lors du JSON.parse de 'ownedCharacters' ou de son traitement:", e);
+            console.error("[INIT] ERREUR FATALE lors du JSON.parse de 'ownedCharacters'. La sauvegarde des personnages est corrompue et sera réinitialisée.", e);
             ownedCharacters = [];
+            // Optionnel: localStorage.removeItem("ownedCharacters");
         }
     } else {
         // console.log("[INIT] 'ownedCharacters' non trouvé dans localStorage. Initialisation à un tableau vide.");
+        ownedCharacters = [];
     }
-    localStorage.setItem("characterIdCounter", characterIdCounter);
+    localStorage.setItem("characterIdCounter", characterIdCounter.toString());
 
-    let level = parseInt(localStorage.getItem("level")) || 1;
-    let exp = parseInt(localStorage.getItem("exp")) || 0;
-    let expMultiplier = parseFloat(localStorage.getItem("expMultiplier")) || 1;
-    let pullTickets = parseInt(localStorage.getItem("pullTickets")) || 0;
-    let missions = JSON.parse(localStorage.getItem("missions")) || [];
+
+    let level = parseInt(localStorage.getItem("level") || "1", 10);
+    if (isNaN(level) || level < 1) { console.warn("[LocalStorage] 'level' invalide. Réinitialisation à 1."); level = 1; }
+
+    let exp = parseInt(localStorage.getItem("exp") || "0", 10);
+    if (isNaN(exp) || exp < 0) { console.warn("[LocalStorage] 'exp' invalide. Réinitialisation à 0."); exp = 0; }
+
+    let expMultiplier = parseFloat(localStorage.getItem("expMultiplier") || "1");
+    if (isNaN(expMultiplier) || expMultiplier < 0) { console.warn("[LocalStorage] 'expMultiplier' invalide. Réinitialisation à 1."); expMultiplier = 1; }
+
+    let pullTickets = parseInt(localStorage.getItem("pullTickets") || "0", 10);
+    if (isNaN(pullTickets) || pullTickets < 0) { console.warn("[LocalStorage] 'pullTickets' invalide. Réinitialisation à 0."); pullTickets = 0; }
+
+    let missions = safeJsonParse("missions", [], isValidMissionsArray);
     let isDeleteMode = false;
     let selectedCharacterIndices = new Set(); 
-    let shopOffers = JSON.parse(localStorage.getItem("shopOffers")) || [];
-    let shopRefreshTime = parseInt(localStorage.getItem("shopRefreshTime")) || Date.now() + 2 * 60 * 60 * 1000;
-    let expBoostEndTime = parseInt(localStorage.getItem("expBoostEndTime")) || 0;
+    let shopOffers = safeJsonParse("shopOffers", [], isValidShopOffersArray);
+
+    let shopRefreshTime = parseInt(localStorage.getItem("shopRefreshTime") || (Date.now() + TWO_HOURS_MS).toString(), 10);
+    if (isNaN(shopRefreshTime)) {
+        console.warn("[LocalStorage] 'shopRefreshTime' invalide. Réinitialisation.");
+        shopRefreshTime = Date.now() + TWO_HOURS_MS;
+    }
+    let expBoostEndTime = parseInt(localStorage.getItem("expBoostEndTime") || "0", 10);
+    if (isNaN(expBoostEndTime)) { console.warn("[LocalStorage] 'expBoostEndTime' invalide. Réinitialisation à 0."); expBoostEndTime = 0; }
+
     let storyProgress = (() => {
       const savedProgressString = localStorage.getItem("storyProgress");
       let loadedProgressArray = [];
       if (savedProgressString) {
           try {
-              loadedProgressArray = JSON.parse(savedProgressString);
-              if (!Array.isArray(loadedProgressArray)) {
-                  console.warn("storyProgress depuis localStorage n'est pas un tableau. Il sera ignoré.");
-                  loadedProgressArray = [];
+              const parsed = JSON.parse(savedProgressString);
+              if (isValidStoryProgressArray(parsed)) {
+                  loadedProgressArray = parsed;
+              } else {
+                  console.warn("[LocalStorage] 'storyProgress' n'est pas un tableau valide d'objets de progression. Il sera ignoré.");
               }
           } catch (e) {
-              console.error("Erreur lors du parsing de storyProgress depuis localStorage:", e);
-              loadedProgressArray = [];
+              console.error("[LocalStorage] Erreur lors du parsing de storyProgress:", e);
           }
       }
 
-      // 1. Utiliser une Map pour s'assurer que chaque niveau de allGameLevels a une entrée
-      //    et que les états sauvegardés sont prioritaires.
       let currentProgressMap = new Map();
-
       allGameLevels.forEach(levelDefinition => {
         const savedLevelState = loadedProgressArray.find(sl => sl.id === levelDefinition.id);
-        
-        let isUnlockedInitial = levelDefinition.unlocked || false; // Utiliser la valeur de la définition, ou false
-
-        // Logique de déverrouillage initial spécifique pour les types de niveaux
+        let isUnlockedInitial = levelDefinition.unlocked || false;
         if (levelDefinition.type === 'story' && !levelDefinition.isInfinite) {
-            // Seul le premier niveau d'histoire (ID 1) est débloqué au départ
             isUnlockedInitial = (levelDefinition.id === 1);
         } else if (levelDefinition.type === 'material' || levelDefinition.type === 'challenge') {
-            // Les niveaux de matériaux et challenges sont toujours débloqués initialement
             isUnlockedInitial = true;
         }
-        // Pour les types 'legendary' et 'infinite' (sauf si ID 1), on se fie à leur `unlocked` dans allGameLevels
-        // ou à la logique de migration ci-dessous.
 
         if (savedLevelState && typeof savedLevelState.unlocked === 'boolean' && typeof savedLevelState.completed === 'boolean') {
-          // Si un état sauvegardé valide existe, on l'utilise
           currentProgressMap.set(levelDefinition.id, { ...savedLevelState });
         } else {
-          // Sinon, on utilise l'état initial déduit de la définition du niveau
           currentProgressMap.set(levelDefinition.id, {
             id: levelDefinition.id,
             unlocked: isUnlockedInitial,
@@ -232,45 +311,26 @@
         }
       });
 
-      // Convertir la Map en Array pour la suite de la logique
       let currentProgress = Array.from(currentProgressMap.values());
-
-      // 2. Logique de déblocage additionnelle pour les mondes d'histoire (migration pour joueurs existants)
-      //    Cette partie est cruciale pour s'assurer que si un joueur a terminé un monde, le suivant se débloque.
-      //    On utilise une liste de mondes triée par leur premier ID de niveau pour assurer l'ordre correct.
       const storyWorldDefinitions = [...new Set(baseStoryLevels
-          .filter(l => l.type === 'story' && !l.isInfinite) // Uniquement les niveaux d'histoire standard
-          .map(l => ({ // Créer un objet avec le nom du monde et le plus petit ID de niveau de ce monde
-              world: l.world,
-              firstId: Math.min(...baseStoryLevels
-                  .filter(sl => sl.world === l.world && sl.type === 'story' && !sl.isInfinite)
-                  .map(sl => sl.id))
-          }))
-          .sort((a, b) => a.firstId - b.firstId) // Trier les mondes par leur premier ID de niveau
+          .filter(l => l.type === 'story' && !l.isInfinite)
+          .map(l => ({ world: l.world, firstId: Math.min(...baseStoryLevels.filter(sl => sl.world === l.world && sl.type === 'story' && !sl.isInfinite).map(sl => sl.id))}))
+          .sort((a, b) => a.firstId - b.firstId)
       )];
 
-      for (let i = 0; i < storyWorldDefinitions.length - 1; i++) { // Itérer jusqu'à l'avant-dernier monde
+      for (let i = 0; i < storyWorldDefinitions.length - 1; i++) {
           const currentWorldName = storyWorldDefinitions[i].world;
           const nextWorldName = storyWorldDefinitions[i + 1].world;
-
-          // Vérifier si tous les niveaux du monde actuel sont complétés
           const levelsInCurrentWorldProgress = currentProgress.filter(p => {
               const levelDef = baseStoryLevels.find(lDef => lDef.id === p.id);
               return levelDef && levelDef.world === currentWorldName && levelDef.type === 'story' && !levelDef.isInfinite;
           });
 
           if (levelsInCurrentWorldProgress.length > 0 && levelsInCurrentWorldProgress.every(p => p.completed)) {
-              // Si le monde actuel est complété, trouver le premier niveau du prochain monde
-              const levelsInNextWorldDefs = baseStoryLevels.filter(lDef =>
-                  lDef.world === nextWorldName &&
-                  lDef.type === 'story' &&
-                  !lDef.isInfinite);
-              
+              const levelsInNextWorldDefs = baseStoryLevels.filter(lDef => lDef.world === nextWorldName && lDef.type === 'story' && !lDef.isInfinite);
               if (levelsInNextWorldDefs.length > 0) {
                   const firstLevelOfNextWorldId = Math.min(...levelsInNextWorldDefs.map(l => l.id));
                   const progressForFirstLevelNextWorld = currentProgress.find(p => p.id === firstLevelOfNextWorldId);
-                  
-                  // Débloquer le premier niveau du prochain monde s'il n'est pas déjà débloqué
                   if (progressForFirstLevelNextWorld && !progressForFirstLevelNextWorld.unlocked) {
                       console.log(`[MIGRATION PROGRESSION] Déblocage du niveau ID ${firstLevelOfNextWorldId} (${levelsInNextWorldDefs.find(l=>l.id === firstLevelOfNextWorldId)?.name}) car le monde ${currentWorldName} est complété.`);
                       progressForFirstLevelNextWorld.unlocked = true;
@@ -279,25 +339,21 @@
           }
       }
       
-      // 3. Logique de déblocage pour le Niveau Infini (ID 49) - Si tous les niveaux d'histoire standard sont faits
       const infiniteLevelId = 49; 
       const infiniteLevelProgress = currentProgress.find(p => p.id === infiniteLevelId);
       const infiniteLevelDef = allGameLevels.find(l => l.id === infiniteLevelId && l.isInfinite);
-
       if (infiniteLevelProgress && infiniteLevelDef && !infiniteLevelProgress.unlocked) {
           const allStandardStoryLevels = baseStoryLevels.filter(l => l.type === 'story' && !l.isInfinite);
           const allStandardStoryLevelsCompleted = allStandardStoryLevels.every(stdLevel => {
               const progress = currentProgress.find(p => p.id === stdLevel.id);
               return progress && progress.completed;
           });
-
           if (allStandardStoryLevelsCompleted) {
               console.log(`[MIGRATION PROGRESSION] Déblocage de ${infiniteLevelDef.name} (ID ${infiniteLevelId}) car tous les mondes d'histoire standard sont complétés.`);
               infiniteLevelProgress.unlocked = true;
           }
       }
 
-      // 4. Logique de déblocage pour les niveaux légendaires - Si le monde standard correspondant est terminé
       const uniqueStoryWorldNames = [...new Set(baseStoryLevels.filter(l => l.type === 'story' && !l.isInfinite).map(l => l.world))];
       uniqueStoryWorldNames.forEach(worldName => {
           const standardLevelsInThisWorld = baseStoryLevels.filter(l => l.world === worldName && l.type === 'story' && !l.isInfinite);
@@ -305,7 +361,6 @@
               const prog = currentProgress.find(p => p.id === l.id);
               return prog && prog.completed;
           });
-
           if (isThisStandardWorldCompleted) {
               const legendaryLevelForThisWorld = legendaryStoryLevels.find(ll => ll.world === worldName);
               if (legendaryLevelForThisWorld) {
@@ -317,157 +372,176 @@
               }
           }
       });
-
-
       return currentProgress;
     })();
+
     let selectedBattleCharacters = new Set();
     let selectedFusionCharacters = new Set();
     let currentLevelId = null;
     let currentFusionCharacterId = null;
+
     let soundEnabled = localStorage.getItem("soundEnabled") !== "false";
     let animationsEnabled = localStorage.getItem("animationsEnabled") !== "false";
     let theme = localStorage.getItem("theme") || "dark";
+    if (theme !== "dark" && theme !== "light") {
+        console.warn("[LocalStorage] 'theme' invalide. Réinitialisation à 'dark'.");
+        theme = "dark";
+    }
+
     let infiniteLevelStartTime = null;
-    let everOwnedCharacters = JSON.parse(localStorage.getItem("everOwnedCharacters")) || [];
+    let everOwnedCharacters = safeJsonParse("everOwnedCharacters", [], isValidStringArray);
+
     let sortCriteria = localStorage.getItem("sortCriteria") || "power";
+    const validSortCriteria = ["power", "rarity", "level", "name", "none"];
+    if (!validSortCriteria.includes(sortCriteria)) {
+        console.warn("[LocalStorage] 'sortCriteria' invalide. Réinitialisation à 'power'.");
+        sortCriteria = "power";
+    }
     let battleSortCriteria = localStorage.getItem("battleSortCriteria") || "power";
-    let inventory = JSON.parse(localStorage.getItem("inventory")) || {
-            "Haricots": 0,
-            "Fluide mystérieux": 0,
-            "Wisteria Flower": 0,
-            "Pass XP": pullTickets,
-            "Cursed Token": 0,
-            "Shadow Tracer": 0,
-            "Stat Chip": 0,
-            "Reroll Token": 0,
-            "Divin Wish": 0,
-            "Hellsing Arms": 0,
-            "Green Essence": 0,
-            "Yellow Essence": 0,
-            "Blue Essence": 0,
-            "Pink Essence": 0,
-            "Rainbow Essence": 0,
-            "Crystal": 0,
-            "Magic Pendant": 0,
-            "Chocolate Bar's": 0,
-            "Head Captain's Coat": 0,
-            "Broken Sword": 0,
-            "Chipped Blade": 0,
-            "Cast Blades": 0,
-            "Hardened Blood": 0,
-            "Silverite Sword": 0,
-            "Cursed Finger": 0,
-            "Magic Stone": 0,
-            "Magma Stone": 0,
-            "Broken Pendant": 0,
-            "Stone Pendant": 0,
-            "Demon Beads": 0,
-            "Alien Core": 0,
-            "Nichirin Cleavers": 0,
-            "Tavern Pie": 0,
-            "Blue Chakra": 0,
-            "Red Chakra": 0,
-            "Skin Patch": 0,
-            "Snake Scale": 0,
-            "Senzu Bean": 0,
-            "Holy Corpse Eyes": 0,
-            "Holy Corpse Arms": 0,
-            "Completed Holy Corpse": 0,
-            "Gorgon's Blindfold": 0,
-            "Caster's Headpiece": 0,
-            "Avalon": 0,
-            "Goddess' Sword": 0,
-            "Blade of Death": 0,
-            "Berserker's Blade": 0,
-            "Shunpo Spirit": 0,
-            "Energy Arrow": 0,
-            "Hair Ornament": 0,
-            "Bucket Hat": 0,
-            "Horn of Salvation": 0,
-            "Energy Bone": 0,
-            "Prison Chair": 0,
-            "Rotara Earring 2": 0,
-            "Rotara Earring 1": 0,
-            "Z Blade": 0,
-            "Champ's Belt": 0,
-            "Dog Bone": 0,
-            "Six Eyes": 0,
-            "Tome of Wisdom": 0,
-            "Corrupted Visor": 0,
-            "Tainted Ribbon": 0,
-            "Demon Chalice": 0,
-            "Essence of the Spirit King": 0,
-            "Ring of Friendship": 0,
-            "Red Jewel": 0,
-            "Majan Essence": 0,
-            "Donut": 0,
-            "Atomic Essence": 0,
-            "Plume Céleste": 0,
-            "Sablier Ancien": 0,
-            "Restricting Headband": 0,
-        };
-    inventory["Pass XP"] = pullTickets;
+    if (!validSortCriteria.includes(battleSortCriteria)) {
+        console.warn("[LocalStorage] 'battleSortCriteria' invalide. Réinitialisation à 'power'.");
+        battleSortCriteria = "power";
+    }
+
+    const defaultInventoryData = {
+        "Haricots": 0, "Fluide mystérieux": 0, "Wisteria Flower": 0, "Pass XP": 0,
+        "Cursed Token": 0, "Shadow Tracer": 0, "Stat Chip": 0, "Reroll Token": 0, "Divin Wish": 0,
+        "Hellsing Arms": 0, "Green Essence": 0, "Yellow Essence": 0, "Blue Essence": 0,
+        "Pink Essence": 0, "Rainbow Essence": 0, "Crystal": 0, "Magic Pendant": 0,
+        "Chocolate Bar's": 0, "Head Captain's Coat": 0, "Broken Sword": 0, "Chipped Blade": 0,
+        "Cast Blades": 0, "Hardened Blood": 0, "Silverite Sword": 0, "Cursed Finger": 0,
+        "Magic Stone": 0, "Magma Stone": 0, "Broken Pendant": 0, "Stone Pendant": 0,
+        "Demon Beads": 0, "Alien Core": 0, "Nichirin Cleavers": 0, "Tavern Pie": 0,
+        "Blue Chakra": 0, "Red Chakra": 0, "Skin Patch": 0, "Snake Scale": 0, "Senzu Bean": 0,
+        "Holy Corpse Eyes": 0, "Holy Corpse Arms": 0, "Completed Holy Corpse": 0,
+        "Gorgon's Blindfold": 0, "Caster's Headpiece": 0, "Avalon": 0, "Goddess' Sword": 0,
+        "Blade of Death": 0, "Berserker's Blade": 0, "Shunpo Spirit": 0, "Energy Arrow": 0,
+        "Hair Ornament": 0, "Bucket Hat": 0, "Horn of Salvation": 0, "Energy Bone": 0,
+        "Prison Chair": 0, "Rotara Earring 2": 0, "Rotara Earring 1": 0, "Z Blade": 0,
+        "Champ's Belt": 0, "Dog Bone": 0, "Six Eyes": 0, "Tome of Wisdom": 0,
+        "Corrupted Visor": 0, "Tainted Ribbon": 0, "Demon Chalice": 0, "Essence of the Spirit King": 0,
+        "Ring of Friendship": 0, "Red Jewel": 0, "Majan Essence": 0, "Donut": 0, "Atomic Essence": 0,
+        "Plume Céleste": 0, "Sablier Ancien": 0, "Restricting Headband": 0, "Toil Ribbon": 0
+    };
+    let inventory = safeJsonParse("inventory", { ...defaultInventoryData }, (inv) => {
+        if (typeof inv !== 'object' || inv === null) return false;
+        for (const key in defaultInventoryData) {
+            if (typeof inv[key] !== 'number' || isNaN(inv[key])) {
+                 // Si une clé de l'inventaire par défaut n'est pas un nombre valide dans l'inventaire chargé,
+                 // on la corrige ici au lieu de rejeter toute la sauvegarde de l'inventaire.
+                console.warn(`[LocalStorage Validation] Clé d'inventaire "${key}" invalide ou manquante. Réinitialisation à la valeur par défaut (${defaultInventoryData[key]}).`);
+                inv[key] = defaultInventoryData[key];
+            }
+        }
+        // Vérifier les clés supplémentaires dans l'inventaire chargé qui ne sont pas dans defaultInventoryData
+        for (const loadedKey in inv) {
+            if (!defaultInventoryData.hasOwnProperty(loadedKey)) {
+                console.warn(`[LocalStorage Validation] Clé d'inventaire inconnue "${loadedKey}" trouvée dans la sauvegarde. Elle sera ignorée.`);
+                // Pas besoin de la supprimer ici, elle ne sera juste pas utilisée si elle n'est pas dans defaultInventoryData
+            }
+        }
+        return true;
+    });
+    // Assurer que toutes les clés de l'inventaire par défaut sont présentes
+    for (const defaultItemKey in defaultInventoryData) {
+        if (!inventory.hasOwnProperty(defaultItemKey) || typeof inventory[defaultItemKey] !== 'number' || isNaN(inventory[defaultItemKey])) {
+            inventory[defaultItemKey] = defaultInventoryData[defaultItemKey];
+        }
+    }
+    inventory["Pass XP"] = pullTickets; // Synchroniser avec pullTickets après le chargement
+
     let selectedItemsForGiving = new Map(); 
     let currentGiveItemsCharacterId = null;
     let currentEvolutionCharacterId = null;
     let selectedEvolutionItems = new Map(); 
-    let purchasedOffers = JSON.parse(localStorage.getItem("purchasedOffers")) || [];
-    let characterPreset = JSON.parse(localStorage.getItem("characterPreset")) || []; 
+
+    let purchasedOffers = safeJsonParse("purchasedOffers", [], isValidNumberArray);
+    let characterPreset = safeJsonParse("characterPreset", [], isValidStringArray);
     let presetConfirmed = localStorage.getItem("presetConfirmed") === "true"; 
+
     let selectedPresetCharacters = new Set(); 
-    let presetSortCriteria = localStorage.getItem("presetSortCriteria") || "power"; 
+    let presetSortCriteria = localStorage.getItem("presetSortCriteria") || "power";
+    if (!validSortCriteria.includes(presetSortCriteria)) {
+        console.warn("[LocalStorage] 'presetSortCriteria' invalide. Réinitialisation à 'power'.");
+        presetSortCriteria = "power";
+    }
+
     let currentAutofuseCharacterId = null;
-    let autofuseSelectedRarities = new Set();
-    let discoveredCharacters = JSON.parse(localStorage.getItem("discoveredCharacters")) || [];
-    let lastUsedBattleTeamIds = [];
+    let autofuseSelectedRarities = new Set(); // Sera peuplé par l'UI si sauvegardé, ou vide
+    let discoveredCharacters = safeJsonParse("discoveredCharacters", [], isValidStringArray);
+
+    let lastUsedBattleTeamIds = safeJsonParse("lastUsedBattleTeamIds", [], isValidStringArray);
+    if (lastUsedBattleTeamIds.length > 5) { // Limiter la taille au cas où
+        console.warn("[LocalStorage] 'lastUsedBattleTeamIds' trop long. Tronqué.");
+        lastUsedBattleTeamIds = lastUsedBattleTeamIds.slice(0,5);
+    }
+
+
     let currentCurseCharacterId = null;
     let currentStatChangeCharacterId = null; 
     let curseConfirmationCallback = null;
     let statChangeConfirmationCallback = null;
     let statChangeInfoTimeoutId = null;
     let currentTraitCharacterId = null;
-    let traitKeepBetterToggleState = false;
+    let traitKeepBetterToggleState = false; // Initialisé par l'UI
     let traitConfirmationCallback = null;
     let infoMsgTraitTimeoutId = null;
     let currentLimitBreakCharacterId = null;
     let bannerTimerIntervalId = null;
-    let currentMaxTeamSize = 3;
+    let currentMaxTeamSize = 3; // Recalculé dynamiquement
+
     let battleSearchName = localStorage.getItem("battleSearchName") || "";
     let battleFilterRarity = localStorage.getItem("battleFilterRarity") || "all";
+    const validRarities = ["all", "Rare", "Épique", "Légendaire", "Mythic", "Secret", "Vanguard"];
+    if (!validRarities.includes(battleFilterRarity)) {
+        console.warn("[LocalStorage] 'battleFilterRarity' invalide. Réinitialisation à 'all'.");
+        battleFilterRarity = "all";
+    }
     let presetSearchName = localStorage.getItem("presetSearchName") || "";
     let presetFilterRarity = localStorage.getItem("presetFilterRarity") || "all";
+     if (!validRarities.includes(presetFilterRarity)) {
+        console.warn("[LocalStorage] 'presetFilterRarity' invalide. Réinitialisation à 'all'.");
+        presetFilterRarity = "all";
+    }
     let fusionSearchName = localStorage.getItem("fusionSearchName") || "";
     let fusionFilterRarity = localStorage.getItem("fusionFilterRarity") || "all";
-    let standardPityCount = parseInt(localStorage.getItem("standardPityCount")) || 0;
-    let specialPityCount = parseInt(localStorage.getItem("specialPityCount")) || 0;
+    if (!validRarities.includes(fusionFilterRarity)) {
+        console.warn("[LocalStorage] 'fusionFilterRarity' invalide. Réinitialisation à 'all'.");
+        fusionFilterRarity = "all";
+    }
+
+    let standardPityCount = parseInt(localStorage.getItem("standardPityCount") || "0", 10);
+    if (isNaN(standardPityCount) || standardPityCount < 0) { console.warn("[LocalStorage] 'standardPityCount' invalide. Réinitialisation à 0."); standardPityCount = 0; }
+    let specialPityCount = parseInt(localStorage.getItem("specialPityCount") || "0", 10);
+    if (isNaN(specialPityCount) || specialPityCount < 0) { console.warn("[LocalStorage] 'specialPityCount' invalide. Réinitialisation à 0."); specialPityCount = 0; }
+
     let sortCriteriaSecondary = localStorage.getItem("sortCriteriaSecondary") || "none";
+     if (!validSortCriteria.includes(sortCriteriaSecondary)) { // Réutiliser validSortCriteria
+        console.warn("[LocalStorage] 'sortCriteriaSecondary' invalide. Réinitialisation à 'none'.");
+        sortCriteriaSecondary = "none";
+    }
+
     let inventoryFilterName = localStorage.getItem("inventoryFilterName") || "";
     let inventoryFilterRarity = localStorage.getItem("inventoryFilterRarity") || "all";
+    if (!validRarities.includes(inventoryFilterRarity)) {
+        console.warn("[LocalStorage] 'inventoryFilterRarity' invalide. Réinitialisation à 'all'.");
+        inventoryFilterRarity = "all";
+    }
     let inventoryFilterEvolvable = localStorage.getItem("inventoryFilterEvolvable") === "true";
     let inventoryFilterLimitBreak = localStorage.getItem("inventoryFilterLimitBreak") === "true";
     let inventoryFilterCanReceiveExp = localStorage.getItem("inventoryFilterCanReceiveExp") === "true";
-    let saveTimeoutId = null; // Pour stocker l'ID du minuteur de sauvegarde
-    const SAVE_DELAY_MS = 2000; // 2 secondes de délai avant la sauvegarde
+
+    let saveTimeoutId = null;
+    const SAVE_DELAY_MS = 2000;
+
     let miniGameState = {
-        isActive: false,
-        bossMaxHealth: 0,
-        bossCurrentHealth: 0,
-        damagePerClick: 0,
-        timer: 30,
-        intervalId: null,
-        levelData: null
+        isActive: false, bossMaxHealth: 0, bossCurrentHealth: 0, damagePerClick: 0,
+        timer: 30, intervalId: null, levelData: null
     };
     let isSelectingLevelForMultiAction = false;
     let multiActionState = {
-        isRunning: false,
-        type: null, // 'pulls' ou 'levels'
-        action: null, // 'standard-1', 'standard-10', ou un levelId
-        total: 0,
-        current: 0,
-        stopRequested: false,
-        selectedLevelId: null,
-        selectedLevelName: ''
+        isRunning: false, type: null, action: null, total: 0, current: 0,
+        stopRequested: false, selectedLevelId: null, selectedLevelName: ''
     };
     let disableAutoClickerWarning = localStorage.getItem("disableAutoClickerWarning") === "true";
 
@@ -676,6 +750,23 @@
     const battleSound = new Audio("https://freesound.org/data/previews/270/270330_5121236-lq.mp3");
     const winSound = new Audio('');
     const loseSound = new Audio('');
+
+    // Fonction générique pour encapsuler les gestionnaires d'événements avec try...catch
+    function safeEventListener(element, eventType, handlerFn) {
+        if (element) {
+            element.addEventListener(eventType, (...args) => {
+                try {
+                    handlerFn(...args);
+                } catch (error) {
+                    console.error(`[Erreur Inattendue] Événement "${eventType}" sur l'élément "${element.id || element.tagName}":`, error);
+                    resultElement.innerHTML = "<p class='text-red-500'>Une erreur inattendue est survenue. Veuillez essayer de rafraîchir la page ou vérifier la console pour plus de détails.</p>";
+                }
+            });
+        } else {
+            // console.warn(`safeEventListener: Élément non trouvé pour attacher l'événement ${eventType}.`);
+        }
+    }
+
 
     function setupAuthUI() {
         // Logique pour basculer entre les vues de connexion et d'inscription
@@ -963,26 +1054,56 @@
     }
 
     function recalculateCharacterPower(char) {
-        // Assurer que les valeurs numériques de base sont valides
-        char.basePower = Number(char.basePower) || 0;
-        char.curseEffect = Number(char.curseEffect) || 0;
+        // S'assurer que les propriétés numériques clés sont bien des nombres au début.
+        char.basePower = Number(char.basePower);
+        if (isNaN(char.basePower) || char.basePower <= 0) {
+            // Essayer de récupérer depuis la définition de base si basePower est invalide
+            const baseDefinition = allCharacters.find(c => c.name === (char.originalName || char.name));
+            const initialPowerFromDefinition = baseDefinition ? Number(baseDefinition.power) : 0;
+            if (initialPowerFromDefinition > 0 && char.statModifier && Number(char.statModifier) !== 0) {
+                char.basePower = initialPowerFromDefinition / Number(char.statModifier);
+                 console.warn(`[RecalculatePower] '${char.name}' basePower invalide (${char.basePower}). Dérivé à: ${char.basePower} depuis def:${initialPowerFromDefinition} / mod:${char.statModifier}`);
+            } else if (initialPowerFromDefinition > 0) {
+                char.basePower = initialPowerFromDefinition;
+                console.warn(`[RecalculatePower] '${char.name}' basePower invalide (${char.basePower}). Défini à: ${char.basePower} depuis def (statModifier problématique).`);
+            } else {
+                char.basePower = 50; // Ultime fallback
+                console.error(`[RecalculatePower] '${char.name}' FATAL: basePower et initialPowerFromDefinition invalides. Défini à ${char.basePower}`);
+            }
+             if (isNaN(char.basePower) || char.basePower <= 0) char.basePower = 50; // S'assurer que ce n'est pas NaN/0
+        }
+
+        char.curseEffect = Number(char.curseEffect);
+        if (isNaN(char.curseEffect)) {
+            console.warn(`[RecalculatePower] '${char.name}' curseEffect était NaN. Réinitialisé à 0.`);
+            char.curseEffect = 0;
+        }
 
         // Valider et initialiser statRank et statModifier
         if (!char.statRank || !statRanks[char.statRank]) {
-            console.warn(`RecalculatePower: ${char.name} - statRank invalide (${char.statRank}). Assignation de A par défaut.`);
+            console.warn(`[RecalculatePower] ${char.name} - statRank invalide (${char.statRank}). Assignation de A par défaut.`);
             char.statRank = "A"; 
-            char.statModifier = statRanks["A"].modifier;
-        } else if (typeof char.statModifier !== 'number' || isNaN(char.statModifier)) {
-            console.warn(`RecalculatePower: ${char.name} - statModifier invalide (${char.statModifier}) pour rang ${char.statRank}. Recalcul.`);
-            char.statModifier = statRanks[char.statRank].modifier;
         }
-        // S'assurer que statModifier est un nombre
-        char.statModifier = Number(char.statModifier);
-        if (isNaN(char.statModifier)) { // Ultime fallback pour statModifier
-            console.error(`RecalculatePower: ${char.name} - statModifier est NaN même après tentative de correction. Utilisation de 1.0.`);
+        // Assurer que statModifier est un nombre et correspond au statRank
+        let expectedModifier = statRanks[char.statRank]?.modifier;
+        if (typeof expectedModifier === 'undefined') { // Si statRank est toujours invalide après le fallback
+            console.error(`[RecalculatePower] ${char.name} - statRank "${char.statRank}" n'a pas de modificateur défini dans statRanks. Utilisation de A.`);
+            char.statRank = "A";
+            expectedModifier = statRanks["A"].modifier;
+        }
+        char.statModifier = Number(char.statModifier); // Convertir en nombre
+        if (isNaN(char.statModifier) || char.statModifier !== expectedModifier) {
+             if (isNaN(char.statModifier)) {
+                console.warn(`[RecalculatePower] ${char.name} - statModifier était NaN. Recalculé pour le rang ${char.statRank}.`);
+             } else {
+                console.warn(`[RecalculatePower] ${char.name} - statModifier (${char.statModifier}) ne correspondait pas au rang ${char.statRank} (${expectedModifier}). Recalculé.`);
+             }
+            char.statModifier = expectedModifier;
+        }
+         if (isNaN(char.statModifier)) { // Ultime fallback
+            console.error(`[RecalculatePower] ${char.name} - statModifier est NaN même après recalcul. Utilisation de 1.0.`);
             char.statModifier = 1.0;
         }
-
 
         let powerBeforeTrait = char.basePower * char.statModifier;
         let traitPowerBonus = 0; 
@@ -990,46 +1111,33 @@
 
         if (char.trait && char.trait.id && typeof char.trait.grade === 'number' && char.trait.grade > 0) {
             const traitDef = TRAIT_DEFINITIONS[char.trait.id];
-            // Vérifier si traitDef et traitDef.grades existent
             if (traitDef && traitDef.grades && Array.isArray(traitDef.grades)) {
                 const gradeDef = traitDef.grades.find(g => g.grade === char.trait.grade);
                 if (gradeDef) {
-                    if (typeof gradeDef.powerBonus === 'number') {
+                    if (typeof gradeDef.powerBonus === 'number' && !isNaN(gradeDef.powerBonus)) {
                         traitPowerBonus = gradeDef.powerBonus;
                     }
-                    if (typeof gradeDef.powerMultiplier === 'number') {
+                    if (typeof gradeDef.powerMultiplier === 'number' && !isNaN(gradeDef.powerMultiplier)) {
                         traitPowerMultiplier = 1.0 + gradeDef.powerMultiplier;
                     }
                 } else {
-                    // console.warn(`RecalculatePower: ${char.name} - Définition de grade ${char.trait.grade} non trouvée pour trait ${char.trait.id}.`);
+                     // console.warn(`[RecalculatePower] ${char.name} - Définition de grade ${char.trait.grade} non trouvée pour trait ${char.trait.id}.`);
                 }
             } else {
-                // console.warn(`RecalculatePower: ${char.name} - Définition de trait ${char.trait.id} ou ses grades sont invalides.`);
+                 // console.warn(`[RecalculatePower] ${char.name} - Définition de trait ${char.trait.id} ou ses grades sont invalides.`);
             }
         }
         
         let powerAfterTraitMultiplier = powerBeforeTrait * traitPowerMultiplier;
         let powerAfterTraitBonus = powerAfterTraitMultiplier + traitPowerBonus;
         
-        char.power = Math.floor(powerAfterTraitBonus) + char.curseEffect; // curseEffect est déjà un nombre
+        char.power = Math.floor(powerAfterTraitBonus) + char.curseEffect;
         char.power = Math.max(1, char.power); // Assurer une puissance minimale de 1
 
-        // Ultime vérification pour NaN ou puissance <= 0
         if (isNaN(char.power) || char.power <= 0) {
-            console.error(`RecalculatePower: ${char.name} - Puissance finale est NaN ou <= 0. Power: ${char.power}. Réinitialisation à 1.`);
-            console.log("Détails du personnage avant réinitialisation de la puissance:", JSON.parse(JSON.stringify(char)));
-            
-            // Tentative de récupération plus simple si basePower est le problème
-            if (isNaN(char.basePower) || char.basePower <= 0) {
-                 const baseDefinitionForFallback = allCharacters.find(c => c.name === (char.originalName || char.name));
-                 char.basePower = baseDefinitionForFallback ? Number(baseDefinitionForFallback.power) : 50;
-                 console.warn(`RecalculatePower: ${char.name} - basePower était ${char.basePower}, réinitialisé à ${baseDefinitionForFallback ? baseDefinitionForFallback.power : 50}`);
-                 // Relancer un calcul simple sans traits/curses pour cette fois
-                 powerBeforeTrait = char.basePower * char.statModifier;
-                 char.power = Math.max(1, Math.floor(powerBeforeTrait));
-            } else {
-                 char.power = 1; // Si basePower semble OK, alors le problème est ailleurs, fallback à 1.
-            }
+            console.error(`[RecalculatePower] ${char.name} - Puissance finale est NaN ou <= 0. Power: ${char.power}. Réinitialisation à 1.`);
+            // console.log("Détails du personnage avant réinitialisation de la puissance:", JSON.parse(JSON.stringify(char)));
+            char.power = 1;
         }
     }
 
@@ -1808,6 +1916,18 @@
 
         // Supprimer les personnages fusionnés en utilisant leurs IDs
         ownedCharacters = ownedCharacters.filter(c => !characterIdsToFuse.includes(c.id));
+
+        // Nettoyer les IDs des personnages fusionnés de lastUsedBattleTeamIds et characterPreset
+        characterIdsToFuse.forEach(deletedId => {
+            lastUsedBattleTeamIds = lastUsedBattleTeamIds.filter(id => id !== deletedId);
+            characterPreset = characterPreset.filter(id => id !== deletedId);
+        });
+        localStorage.setItem("lastUsedBattleTeamIds", JSON.stringify(lastUsedBattleTeamIds));
+        localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
+        // Si le preset a été affecté et était confirmé, il faudrait peut-être le marquer comme non confirmé
+        // ou informer l'utilisateur, mais pour l'instant, on nettoie juste les IDs.
+        // presetConfirmed reste tel quel, il sera réévalué au prochain usage du preset si la taille a changé.
+
 
         addExp(totalExpGained); // Ajouter l'EXP au joueur
 
@@ -3954,16 +4074,30 @@
         });
 
         // Filtrer ownedCharacters pour retirer ceux qui sont sélectionnés ET non verrouillés
+        const trulyDeletedIds = [];
         ownedCharacters = ownedCharacters.filter(char => {
-            return !selectedCharacterIndices.has(char.id) || (selectedCharacterIndices.has(char.id) && char.locked);
+            if (selectedCharacterIndices.has(char.id) && !char.locked) {
+                trulyDeletedIds.push(char.id);
+                return false; // Supprimer
+            }
+            return true; // Conserver
         });
 
-        if (actualDeletedCount > 0) {
-            addGems(totalGemsGained); // Utilise la fonction addGems
-            coins = Math.min(coins + totalCoinsGained, 10000000); // << CORRECTION ICI: Ajouter totalCoinsGained
-            resultElement.innerHTML = `<p class="text-green-400">${actualDeletedCount} personnage(s) non verrouillé(s) supprimé(s) ! +${totalGemsGained} gemmes, +${totalCoinsGained} pièces</p>`;
+        if (actualDeletedCount > 0) { // actualDeletedCount est basé sur la sélection, pas sur trulyDeletedIds
+            addGems(totalGemsGained);
+            coins = Math.min(coins + totalCoinsGained, 10000000);
+            resultElement.innerHTML = `<p class="text-green-400">${actualDeletedCount} personnage(s) non verrouillé(s) sélectionné(s) pour suppression ont été supprimé(s) ! +${totalGemsGained} gemmes, +${totalCoinsGained} pièces</p>`;
+
+            // Nettoyer les IDs des personnages supprimés de lastUsedBattleTeamIds et characterPreset
+            trulyDeletedIds.forEach(deletedId => {
+                lastUsedBattleTeamIds = lastUsedBattleTeamIds.filter(id => id !== deletedId);
+                characterPreset = characterPreset.filter(id => id !== deletedId);
+            });
+            localStorage.setItem("lastUsedBattleTeamIds", JSON.stringify(lastUsedBattleTeamIds));
+            localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
+
         } else {
-            resultElement.innerHTML = `<p class="text-yellow-400">Aucun personnage non verrouillé n'a été sélectionné pour la suppression.</p>`;
+            resultElement.innerHTML = `<p class="text-yellow-400">Aucun personnage non verrouillé n'a été sélectionné pour la suppression ou supprimé.</p>`;
         }
         
         selectedCharacterIndices.clear();
@@ -3971,7 +4105,7 @@
         updateCharacterDisplay();
         updateIndexDisplay();
         updateUI();
-        scheduleSave(); // Sauvegarder après modification de coins
+        scheduleSave();
       }
     }
 
@@ -4523,17 +4657,29 @@
 
       ownedCharacters = ownedCharacters.filter(c => !selectedFusionCharacters.has(c.id));
 
-      missions.forEach(mission => {
-          if (mission.type === "fuse_chars" && !mission.completed) {
-              mission.progress += idsToDelete.length;
-          }
+        // Nettoyer les IDs des personnages fusionnés de lastUsedBattleTeamIds et characterPreset
+        idsToDelete.forEach(deletedId => {
+            lastUsedBattleTeamIds = lastUsedBattleTeamIds.filter(id => id !== deletedId);
+            characterPreset = characterPreset.filter(id => id !== deletedId);
       });
+        localStorage.setItem("lastUsedBattleTeamIds", JSON.stringify(lastUsedBattleTeamIds));
+        localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
+
 
       missions.forEach(mission => {
           if (mission.type === "fuse_chars" && !mission.completed) {
-              mission.progress += charactersToFuse.length;
+                mission.progress += idsToDelete.length;
           }
       });
+
+        // Cette deuxième boucle semble redondante si charactersToFuse est le même que idsToDelete.
+        // Si charactersToFuse est différent (par exemple, avant le filtrage par locked), alors c'est ok.
+        // En supposant que idsToDelete est la liste définitive des personnages à fusionner :
+        // missions.forEach(mission => {
+        //     if (mission.type === "fuse_chars" && !mission.completed) {
+        //         mission.progress += charactersToFuse.length;
+        //     }
+        // });
 
       addExp(totalExpGained);
 
