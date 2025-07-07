@@ -58,16 +58,16 @@
     .modal-content-wrapper { display: flex; flex-direction: column; }
     .modal-content-wrapper:not([class*="max-h-"]) { max-height: 85vh; }
     .modal-scroll-list-container { flex-grow: 1; overflow: hidden; min-height: 50px; position: relative; }
-    .modal-scroll-list { height: 100%; overflow-y: auto; padding-right: 10px; scrollbar-width: none; -ms-overflow-style: none; }
-    .modal-scroll-list::-webkit-scrollbar { display: none; }
+    .modal-scroll-list { height: 100%; overflow-y: auto; padding-right: 10px; /* scrollbar-width and -ms-overflow-style removed */ }
+    /* ::-webkit-scrollbar for .modal-scroll-list removed, use .hide-scrollbar class */
     .modal-scroll-list-pb-7 { padding-bottom: 7rem !important; }
     .modal-sticky-footer { position: sticky; bottom: 0; left: 0; right: 0; padding: 1rem; z-index: 100; flex-shrink: 0; }
     /* --- MODAL STYLING REFACTOR END --- */
     
     /* Autofuse Modal specific styles (minimal, as Tailwind and .modal-content-wrapper handle most) */
     #autofuse-modal .bg-gray-800 > div:first-of-type { flex-shrink: 0; }
-    #autofuse-character-grid { overflow-y: auto; min-height: 100px; padding-right: 10px; padding-bottom: 7rem; scrollbar-width: none; -ms-overflow-style: none; gap: 8px; }
-    #autofuse-character-grid::-webkit-scrollbar { display: none; }
+    #autofuse-character-grid { overflow-y: auto; min-height: 100px; padding-right: 10px; padding-bottom: 7rem; gap: 8px; /* scrollbar-width and -ms-overflow-style removed */ }
+    /* ::-webkit-scrollbar for #autofuse-character-grid removed, use .hide-scrollbar class */
 
     /* Z-index for modal buttons and list items */
     #confirm-selection, #cancel-selection, #confirm-fusion, #cancel-fusion, #confirm-give-items, #cancel-give-items,
@@ -156,77 +156,17 @@
     }
     .text-vanguard { animation: vanguard-text 2.5s ease-in-out infinite; }
     .border-vanguard { animation: vanguard-border 2.5s ease-in-out infinite; }
+    .hide-scrollbar {
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none;  /* IE 10+ */
+    }
     .hide-scrollbar::-webkit-scrollbar {
       display: none; /* Safari, Chrome, Edge, Opera */
     }
 
-    #stats-modal > .bg-gray-800,
-    #character-selection-modal > .modal-content-wrapper,
-    #fusion-modal > .bg-gray-800,
-    #settings-modal > .bg-gray-800,
-    #reset-confirm-modal > .bg-gray-800,
-    #give-items-modal > .bg-gray-800, /* Cible la div externe de la modale Donner des objets */
-    #evolution-modal > .bg-gray-800,   /* Cible la div externe de la modale Évolution */
-    #preset-selection-modal > .bg-gray-800,
-    #autofuse-modal > .modal-content-wrapper,
-    #pull-method-modal > .bg-gray-800,
-    #probabilities-modal > .bg-gray-800,
-    #stat-rank-probabilities-modal > .bg-gray-800,
-    #curse-confirm-continue-modal > .bg-gray-800,
-    #stat-change-confirm-continue-modal > .bg-gray-800,
-    #trait-probabilities-modal > .bg-gray-800,
-    #trait-action-confirm-modal > .bg-gray-800 {
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-    }
-
-    #stats-modal > .bg-gray-800::-webkit-scrollbar,
-    #character-selection-modal > .modal-content-wrapper::-webkit-scrollbar,
-    #fusion-modal > .bg-gray-800::-webkit-scrollbar,
-    #settings-modal > .bg-gray-800::-webkit-scrollbar,
-    #reset-confirm-modal > .bg-gray-800::-webkit-scrollbar,
-    #give-items-modal > .bg-gray-800::-webkit-scrollbar,
-    #evolution-modal > .bg-gray-800::-webkit-scrollbar,
-    #preset-selection-modal > .bg-gray-800::-webkit-scrollbar,
-    #autofuse-modal > .modal-content-wrapper::-webkit-scrollbar,
-    #pull-method-modal > .bg-gray-800::-webkit-scrollbar,
-    #probabilities-modal > .bg-gray-800::-webkit-scrollbar,
-    #stat-rank-probabilities-modal > .bg-gray-800::-webkit-scrollbar,
-    #curse-confirm-continue-modal > .bg-gray-800::-webkit-scrollbar,
-    #stat-change-confirm-continue-modal > .bg-gray-800::-webkit-scrollbar,
-    #trait-probabilities-modal > .bg-gray-800::-webkit-scrollbar,
-    #trait-action-confirm-modal > .bg-gray-800::-webkit-scrollbar {
-        display: none;
-    }
-
-    /* S'assurer que les listes internes scrollables cachent aussi leur scrollbar */
-    /* (elles devraient déjà le faire avec .modal-scroll-list, mais pour être sûr) */
-    #stat-change-char-selection-grid,
-    #curse-character-selection-grid,
-    #trait-character-selection-grid,
-    #limit-break-char-selection-grid,
-    #fusion-selection-list,
-    #item-selection-list,
-    #preset-selection-list,
-    #evolution-selection-list, /* Déjà .modal-scroll-list mais ajout explicite pour test */
-    #character-selection-list, /* Déjà .modal-scroll-list mais ajout explicite pour test */
-    #autofuse-character-grid { /* Déjà stylé mais ajout explicite pour test */
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-    }
-
-    #stat-change-char-selection-grid::-webkit-scrollbar,
-    #curse-character-selection-grid::-webkit-scrollbar,
-    #trait-character-selection-grid::-webkit-scrollbar,
-    #limit-break-char-selection-grid::-webkit-scrollbar,
-    #fusion-selection-list::-webkit-scrollbar,
-    #item-selection-list::-webkit-scrollbar,
-    #preset-selection-list::-webkit-scrollbar,
-    #evolution-selection-list::-webkit-scrollbar,
-    #character-selection-list::-webkit-scrollbar,
-    #autofuse-character-grid::-webkit-scrollbar {
-        display: none;
-    }
+    /* Les styles pour masquer les barres de défilement des modales et des listes internes
+       seront gérés en ajoutant la classe .hide-scrollbar aux éléments concernés dans script.js,
+       donc les blocs de sélecteurs spécifiques ci-dessous sont supprimés. */
 
     body {
       scrollbar-gutter: stable;
