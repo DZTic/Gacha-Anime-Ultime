@@ -2553,10 +2553,20 @@
                 let isRewardReduced = false;
                 const affectedTypesForReduction = ['legendary', 'challenge', 'material'];
 
-                if (affectedTypesForReduction.includes(levelData.type) && progress.completed) {
+                // Réduction pour les niveaux histoire déjà complétés
+                if (levelData.type === 'story' && !levelData.isInfinite && progress.completed) {
+                    actualGemsToAward = Math.floor(baseGemsRewardForLevel * 0.5);
+                    actualCoinsToAward = Math.floor(baseCoinsRewardForLevel * 0.5);
+                    // L'EXP n'est pas réduite pour les niveaux histoire répétées selon la demande initiale implicite.
+                    // Si l'EXP doit aussi être réduite pour les niveaux histoire, ajoutez:
+                    // actualExpToAward = Math.floor(baseExpRewardForLevel * 0.5);
+                    isRewardReduced = true; // Marquer qu'une réduction a eu lieu (utile pour l'affichage du message)
+                }
+                // Réduction pour les autres types de niveaux déjà complétés
+                else if (affectedTypesForReduction.includes(levelData.type) && progress.completed) {
                     actualGemsToAward = Math.floor(baseGemsRewardForLevel * 0.5);
                     actualExpToAward = Math.floor(baseExpRewardForLevel * 0.5);
-                    // actualCoinsToAward = Math.floor(baseCoinsRewardForLevel * 0.5); // Décommentez si les pièces doivent aussi être réduites
+                    // actualCoinsToAward = Math.floor(baseCoinsRewardForLevel * 0.5); // Les pièces ne sont pas réduites pour ces types actuellement
                     isRewardReduced = true;
                 }
 
@@ -2594,18 +2604,25 @@
                 selectedCharsObjects.forEach(char => addCharacterExp(char, actualExpToAward)); // De même pour l'EXP des personnages
 
                 let rewardMessageParts = [];
+                // Gems
                 rewardMessageParts.push(`+${finalGemsAwarded} gemmes`);
-                if (isRewardReduced && affectedTypesForReduction.includes(levelData.type)) {
+                if (isRewardReduced && (levelData.type === 'story' || affectedTypesForReduction.includes(levelData.type))) {
                     rewardMessageParts.push('(réduit)');
                 }
                 if (fortuneBonusGems > 0) rewardMessageParts.push(`(+${fortuneBonusGems} Fortune)`);
                 if (golderBonusGems > 0) rewardMessageParts.push(`(+${golderBonusGems} Golder)`);
                 
+                // Coins
                 rewardMessageParts.push(`, +${finalCoinsAwarded} pièces`);
+                if (isRewardReduced && levelData.type === 'story') { // Reduction de pièces s'applique seulement aux niveaux histoire pour l'instant
+                    rewardMessageParts.push('(réduit)');
+                }
                 if (golderBonusCoins > 0) rewardMessageParts.push(`(+${golderBonusCoins} Golder)`);
 
+                // EXP
                 rewardMessageParts.push(`, +${actualExpToAward} EXP`);
-                 if (isRewardReduced && affectedTypesForReduction.includes(levelData.type)) {
+                // La réduction d'EXP pour 'story' n'est pas faite, donc on vérifie seulement affectedTypesForReduction
+                if (isRewardReduced && affectedTypesForReduction.includes(levelData.type)) {
                     rewardMessageParts.push('(réduit)');
                 }
 
