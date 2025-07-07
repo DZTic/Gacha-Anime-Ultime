@@ -744,8 +744,173 @@
     const disableAutoClickerWarningCheckbox = document.getElementById("disable-autoclicker-warning");
     const autoClickerWarningModal = document.getElementById('auto-clicker-warning-modal');
 
+    // Add hide-scrollbar to relevant list containers dynamically
+    const listContainersToHideScrollbar = [
+        "character-selection-list", "fusion-selection-list", "item-selection-list",
+        "evolution-selection-list", "preset-selection-list", "stat-rank-probabilities-content",
+        "trait-probabilities-content", "autofuse-character-grid", "curse-character-selection-grid",
+        "trait-character-selection-grid", "limit-break-char-selection-grid", "stat-change-char-selection-grid",
+        "standard-probabilities", "special-probabilities", "index-display", "evolution-display", 
+        "mission-list", "shop-items", "level-list", "legende-level-list", "challenge-level-list", "materiaux-level-list"
+    ];
+    listContainersToHideScrollbar.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("hide-scrollbar");
+    });
     
     const pullSound = new Audio("https://freesound.org/data/previews/270/270333_5121236-lq.mp3");
+
+    function createCharacterCardHTML(char, originalIndex, context) {
+        let cardClasses = ['relative', 'p-2', 'rounded-lg', 'border', 'cursor-pointer', 'flex', 'flex-col', 'justify-between', 'items-center', 'box-border']; // Classes de base
+        let innerHTML = '';
+        let lockedOverlay = char.locked ? '<span class="absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1">🔒</span>' : '';
+        let rarityTextColorClass = char.color;
+        if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
+        else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
+        else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
+
+        // Styles pour l'image pour assurer une taille cohérente
+        const imageHeightStyle = "max-height: 120px;"; // Hauteur max pour l'image dans les cartes
+        const cardMinHeightStyle = "min-height: 220px;"; // Hauteur min pour la carte entière
+
+        // Logique de base commune
+        let baseImageHTML = `<img src="${char.image}" alt="${char.name}" class="w-full h-auto object-contain rounded" loading="lazy" decoding="async" style="${imageHeightStyle}">`;
+        let baseNameHTML = `<p class="text-center text-white font-semibold mt-1 text-sm">${char.name}</p>`;
+        let baseRarityHTML = `<p class="text-center ${rarityTextColorClass} text-xs">${char.rarity}</p>`;
+        let baseLevelHTML = `<p class="text-center text-white text-xs">Niveau: ${char.level} / ${char.maxLevelCap || 60}</p>`;
+        let basePowerHTML = `<p class="text-center text-white text-xs">Puissance: ${char.power}</p>`;
+        let statRankHTML = '';
+        if (char.statRank && statRanks[char.statRank]) {
+            statRankHTML = `<p class="text-center text-white text-xs">Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span></p>`;
+        }
+        
+        cardClasses.push('min-h-[220px]'); // Appliquer la hauteur minimale via classe Tailwind si possible
+
+        // Personnalisation basée sur le contexte
+        switch (context) {
+            case 'inventory':
+                cardClasses.push(getRarityBorderClass(char.rarity));
+                if (isDeleteMode) {
+                    if (char.locked) cardClasses.push('opacity-50', 'cursor-not-allowed');
+                    else if (selectedCharacterIndices.has(char.id)) cardClasses.push('selected-character');
+                }
+                innerHTML = `<div style="${cardMinHeightStyle}">${lockedOverlay}${baseImageHTML}<div class="mt-auto">${baseNameHTML}${baseRarityHTML}${baseLevelHTML}${statRankHTML}${basePowerHTML}</div></div>`;
+                break;
+            case 'battleSelection':
+            case 'presetSelection': 
+                let isSelectedBattle = context === 'battleSelection' ? selectedBattleCharacters.has(originalIndex) : selectedPresetCharacters.has(originalIndex);
+                let selectedNamesSet = context === 'battleSelection' ? 
+                    new Set(Array.from(selectedBattleCharacters).map(idx => ownedCharacters[idx]?.name)) :
+                    new Set(Array.from(selectedPresetCharacters).map(idx => ownedCharacters[idx]?.name));
+                let currentSelectionSize = context === 'battleSelection' ? selectedBattleCharacters.size : selectedPresetCharacters.size;
+                let maxTeamSize = context === 'battleSelection' ? calculateMaxTeamSize() : calculateMaxPresetTeamSize();
+                
+                cardClasses.push(getRarityBorderClass(char.rarity));
+                if (isSelectedBattle) cardClasses.push('selected-for-battle');
+                else if (currentSelectionSize >= maxTeamSize || (selectedNamesSet.has(char.name) && !isSelectedBattle) ) {
+                     cardClasses.push(selectedNamesSet.has(char.name) && !isSelectedBattle ? 'non-selectable-for-battle' : 'opacity-50');
+                }
+                 innerHTML = `<div style="${cardMinHeightStyle}">${baseImageHTML}<div class="mt-auto">
+                             <p class="${rarityTextColorClass} font-semibold text-center">${char.name} (<span class="${rarityTextColorClass}">${char.rarity}</span>, Niv. ${char.level})</p>
+                             ${basePowerHTML}</div></div>`;
+                break;
+            case 'fusionSelection':
+                cardClasses.push(getRarityBorderClass(char.rarity));
+                if (selectedFusionCharacters.has(char.id)) cardClasses.push('selected-for-fusion');
+                innerHTML = `<div style="${cardMinHeightStyle}">${baseImageHTML}<div class="mt-auto">
+                             <p class="${char.color} font-semibold text-center">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level})</p>
+                             ${basePowerHTML}</div></div>`;
+                break;
+            case 'autofuseGrid':
+                 cardClasses.push(getRarityBorderClass(char.rarity), 'cursor-pointer', 'hover:bg-gray-700');
+                 if (currentAutofuseCharacterId === char.id) cardClasses.push('border-green-500');
+                 innerHTML = `<div style="min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;"><img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-2" loading="lazy" decoding="async">
+                              <div><p class="${char.color} font-semibold text-sm text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
+                              <p class="text-white text-xs text-center"><span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level} / ${char.maxLevelCap || 60}</p></div></div>`;
+                break;
+            case 'curseSelection':
+            case 'traitSelection':
+            case 'limitBreakSelection':
+            case 'statChangeSelection':
+                let currentId, selectedClassSpecial; // Renamed selectedClass to avoid conflict
+                if (context === 'curseSelection') { currentId = currentCurseCharacterId; selectedClassSpecial = 'selected-for-curse'; }
+                else if (context === 'traitSelection') { currentId = currentTraitCharacterId; selectedClassSpecial = 'selected-for-trait'; }
+                else if (context === 'limitBreakSelection') { currentId = currentLimitBreakCharacterId; selectedClassSpecial = 'border-amber-500'; }
+                else if (context === 'statChangeSelection') { currentId = currentStatChangeCharacterId; selectedClassSpecial = 'border-green-500';}
+
+                cardClasses.push(currentId === char.id ? selectedClassSpecial : (getRarityBorderClass(char.rarity) || 'border-gray-600 hover:border-gray-500'));
+                
+                let additionalInfo = '';
+                if(context === 'curseSelection' && char.curseEffect && char.curseEffect !== 0) {
+                    const baseP = char.basePower * char.statModifier;
+                    const perc = baseP !== 0 ? ((char.curseEffect / baseP) * 100) : 0;
+                    additionalInfo = `, <span class="text-xs ${char.curseEffect > 0 ? 'text-green-400' : 'text-red-400'}">Curse: ${char.curseEffect > 0 ? '+' : ''}${perc.toFixed(1)}%</span>`;
+                } else if (context === 'traitSelection' && char.trait && char.trait.id && char.trait.grade > 0) {
+                    const tDef = TRAIT_DEFINITIONS[char.trait.id];
+                    if(tDef) {
+                        let traitNameMini = tDef.name;
+                        if (tDef.gradeProbabilities && tDef.gradeProbabilities.length > 0) {
+                             traitNameMini += ` G${char.trait.grade}`;
+                        }
+                        additionalInfo = `<p class="text-xs text-center text-emerald-400">${traitNameMini}</p>`;
+                    }
+                } else if (context === 'limitBreakSelection') {
+                    const currentMax = char.maxLevelCap || 60;
+                    const isAtCap = char.level >= currentMax;
+                    if (currentMax >= MAX_POSSIBLE_LEVEL_CAP) additionalInfo = '<p class="text-yellow-500 text-xs text-center">Cap Ultime</p>';
+                    else if (isAtCap) additionalInfo = `<p class="text-green-400 text-xs text-center">Prêt LB</p>`;
+                    else additionalInfo = `<p class="text-gray-400 text-xs text-center">Atteindre Niv. ${currentMax}</p>`;
+                }
+
+                innerHTML = `<div style="min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
+                             <img src="${char.image}" alt="${char.name}" class="w-full h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
+                             <div><p class="${rarityTextColorClass} font-semibold text-xs text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
+                             <p class="text-white text-xs text-center">P: ${char.power}${context === 'curseSelection' ? additionalInfo : ''}</p>
+                             ${ (context === 'statChangeSelection') ? `<p class="text-white text-xs text-center ${statRanks[char.statRank]?.color || 'text-white'}">Stat: ${char.statRank}</p>` : ''}
+                             ${ (context === 'traitSelection') ? additionalInfo : ''}
+                             ${ (context === 'limitBreakSelection') ? additionalInfo : ''}
+                             </div></div>`;
+                break;
+            default: 
+                cardClasses.push(getRarityBorderClass(char.rarity));
+                innerHTML = `<div style="${cardMinHeightStyle}">${lockedOverlay}${baseImageHTML}<div class="mt-auto">${baseNameHTML}${baseRarityHTML}${baseLevelHTML}${statRankHTML}${basePowerHTML}</div></div>`;
+        }
+
+        const cardDiv = document.createElement('div');
+        cardDiv.className = cardClasses.join(' ');
+        cardDiv.innerHTML = innerHTML;
+        cardDiv.style.minHeight = cardMinHeightStyle; // Assurer la hauteur minimale pour tous les contextes
+
+        // Gestionnaire d'événements
+        if (context === 'inventory') {
+            cardDiv.addEventListener('click', () => {
+                if (isDeleteMode) { if (!char.locked) deleteCharacter(char.id); } 
+                else showCharacterStats(char.id);
+            });
+        } else if (context === 'battleSelection') {
+            if (!cardDiv.classList.contains('opacity-50') && !cardDiv.classList.contains('non-selectable-for-battle')) {
+                cardDiv.addEventListener("click", () => selectBattleCharacter(originalIndex));
+            }
+        } else if (context === 'presetSelection') {
+             if (!cardDiv.classList.contains('opacity-50') && !cardDiv.classList.contains('non-selectable-for-battle')) {
+                cardDiv.addEventListener("click", () => selectPresetCharacter(originalIndex));
+            }
+        } else if (context === 'fusionSelection') {
+            cardDiv.addEventListener("click", () => selectFusionCharacter(char.id));
+        } else if (context === 'autofuseGrid') {
+            cardDiv.addEventListener("click", () => { currentAutofuseCharacterId = char.id; updateAutofuseDisplay(); });
+        } else if (context === 'curseSelection') {
+            cardDiv.addEventListener("click", () => selectCurseCharacter(char.id));
+        } else if (context === 'traitSelection') {
+            cardDiv.addEventListener("click", () => selectTraitCharacter(char.id));
+        } else if (context === 'limitBreakSelection') {
+            cardDiv.addEventListener("click", () => selectLimitBreakCharacter(char.id));
+        } else if (context === 'statChangeSelection') {
+            cardDiv.addEventListener("click", () => selectStatChangeCharacter(char.id));
+        }
+        return cardDiv;
+    }
+
     const buySound = new Audio("https://freesound.org/data/previews/156/156859_2048418-lq.mp3");
     const battleSound = new Audio("https://freesound.org/data/previews/270/270330_5121236-lq.mp3");
     const winSound = new Audio('');
@@ -920,8 +1085,7 @@
         scheduleSave();
 
         if (!disableAutoClickerWarning && autoClickerWarningModal) {
-            autoClickerWarningModal.classList.remove('hidden');
-            enableNoScroll();
+            openModal(autoClickerWarningModal);
         }
     }
 
@@ -1367,13 +1531,11 @@
             `;
             statRankProbabilitiesContent.appendChild(probDiv);
         });
-        statRankProbabilitiesModal.classList.remove("hidden");
-        enableNoScroll();
+        openModal(statRankProbabilitiesModal);
     }
 
     function closeStatRankProbabilitiesModal() {
-        statRankProbabilitiesModal.classList.add("hidden");
-        disableNoScroll();
+        closeModalHelper(statRankProbabilitiesModal);
     }
 
     function getExpNeededForCharacterLevel(level, rarity) {
@@ -1585,15 +1747,13 @@
         resetMultiActionState();
         updateMultiActionModalUI();
         multiActionModal.classList.remove('hidden');
-        enableNoScroll();
     }
 
     function closeMultiActionModal() {
         if (multiActionState.isRunning) {
             multiActionState.stopRequested = true; // Demander l'arrêt si on ferme pendant l'exécution
         }
-        multiActionModal.classList.add('hidden');
-        disableNoScroll();
+        closeModalHelper(multiActionModal);
         isSelectingLevelForMultiAction = false;
     }
 
@@ -1765,9 +1925,8 @@
       }
       currentAutofuseCharacterId = null;
       autofuseSelectedRarities.clear();
-      settingsModal.classList.add("hidden");
-      autofuseModal.classList.remove("hidden");
-      enableNoScroll();
+      closeModalHelper(settingsModal);
+      openModal(autofuseModal);
       updateAutofuseDisplay();
     }
 
@@ -1793,26 +1952,21 @@
       }
 
       // Afficher la grille des personnages disponibles pour être sélectionné comme principal
-      autofuseCharacterGrid.innerHTML = ownedCharacters
-        // MODIFIÉ: Utiliser maxLevelCap
-        .filter(char => char.level < (char.maxLevelCap || 60))
-        .sort((a, b) => b.power - a.power)
-        .map(char => `
-          <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${getRarityBorderClass(char.rarity)} cursor-pointer hover:bg-gray-700 ${currentAutofuseCharacterId === char.id ? 'border-green-500' : ''}" data-id="${char.id}">
-            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-cover rounded mb-2" loading="lazy" decoding="async">
-            <p class="${char.color} font-semibold text-sm">${char.name} ${char.locked ? '🔒' : ''}</p>
-            <p class="text-white text-xs"><span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level} / ${char.maxLevelCap || 60}</p>
-          </div>
-        `)
-        .join("") || '<p class="text-gray-400 col-span-full">Aucun personnage éligible (niveau inférieur à son cap actuel) disponible.</p>';
+      autofuseCharacterGrid.innerHTML = ""; // Clear previous
+      const autofuseFragment = document.createDocumentFragment();
+      const eligibleForAutofuseBase = ownedCharacters
+          .filter(char => char.level < (char.maxLevelCap || 60))
+          .sort((a, b) => b.power - a.power);
 
-      // Ajouter des écouteurs aux vignettes
-      autofuseCharacterGrid.querySelectorAll("[data-id]").forEach(element => {
-        element.addEventListener("click", () => {
-          currentAutofuseCharacterId = element.dataset.id;
-          updateAutofuseDisplay(); // Mettre à jour l'affichage après sélection
-        });
-      });
+      if (eligibleForAutofuseBase.length === 0) {
+          autofuseCharacterGrid.innerHTML = '<p class="text-gray-400 col-span-full">Aucun personnage éligible (niveau inférieur à son cap actuel) disponible.</p>';
+      } else {
+          eligibleForAutofuseBase.forEach(char => {
+              const cardElement = createCharacterCardHTML(char, -1, 'autofuseGrid');
+              autofuseFragment.appendChild(cardElement);
+          });
+          autofuseCharacterGrid.appendChild(autofuseFragment);
+      }
 
       // Mettre à jour l'état des cases à cocher
       Object.keys(autofuseRarityCheckboxes).forEach(rarity => {
@@ -1846,8 +2000,7 @@
     function cancelAutofuse() {
       console.log("cancelAutofuse appelé");
       autofuseSelectedRarities.clear();
-      autofuseModal.classList.add("hidden");
-      disableNoScroll();
+      closeModalHelper(autofuseModal);
     }
 
     function confirmAutofuse() {
@@ -1861,15 +2014,13 @@
         if (!mainChar) {
             console.log("Personnage principal non trouvé, currentAutofuseCharacterId:", currentAutofuseCharacterId);
             resultElement.innerHTML = '<p class="text-red-400">Personnage principal non trouvé !</p>';
-            autofuseModal.classList.add("hidden");
-            document.body.classList.remove("no-scroll");
+            closeModalHelper(autofuseModal);
             return;
         }
         if (mainChar.level >= 100) {
             console.log("Personnage au niveau maximum");
             resultElement.innerHTML = '<p class="text-red-400">Ce personnage est déjà au niveau maximum (100) !</p>';
-            autofuseModal.classList.add("hidden");
-            document.body.classList.remove("no-scroll");
+            closeModalHelper(autofuseModal);
             return;
         }
         if (mainChar.level >= (mainChar.maxLevelCap || 60)) {
@@ -1940,8 +2091,7 @@
         <p class="text-white">Total +${totalExpGained} EXP gagné pour ${mainChar.name} et le joueur</p>
       `;
         autofuseSelectedRarities.clear(); // Réinitialiser les raretés sélectionnées
-        autofuseModal.classList.add("hidden");
-        disableNoScroll(); // Utiliser la fonction pour gérer le scroll et padding
+        closeModalHelper(autofuseModal);
         updateCharacterDisplay();
         // updateAutofuseCharacterGrid(); // Pas nécessaire car la modale est fermée
         updateUI();
@@ -1957,8 +2107,7 @@
     function openPullMethodModal(pullType) {
       console.log("openPullMethodModal appelé avec pullType:", pullType);
       currentPullType = pullType;
-      pullMethodModal.classList.remove("hidden");
-      document.body.classList.add("no-scroll");
+      openModal(pullMethodModal);
       pullWithGemsButton.disabled = (pullType === "standard" && gems < 100) || (pullType === "special" && gems < 150);
       pullWithGemsButton.classList.toggle("opacity-50", pullWithGemsButton.disabled);
       pullWithGemsButton.classList.toggle("cursor-not-allowed", pullWithGemsButton.disabled);
@@ -1969,8 +2118,7 @@
 
     function cancelPullMethod() {
       console.log("cancelPullMethod appelé");
-      pullMethodModal.classList.add("hidden");
-      document.body.classList.remove("no-scroll");
+      closeModalHelper(pullMethodModal);
       currentPullType = null;
     }
 
@@ -1984,14 +2132,13 @@
       currentLevelId = levelId;
       infiniteLevelStartTime = Date.now();
       updateCharacterSelectionDisplay();
-      characterSelectionModal.classList.remove("hidden");
+      openModal(characterSelectionModal); // Corrected: was characterSelectionModal.classList.remove("hidden");
     }
 
     function openPresetSelectionModal() {
       console.log("openPresetSelectionModal appelé");
       selectedPresetCharacters.clear();
-      presetSelectionModal.classList.remove("hidden");
-      enableNoScroll();
+      openModal(presetSelectionModal); // Corrected: was presetSelectionModal.classList.remove("hidden"); enableNoScroll();
       updatePresetSelectionDisplay();
     }
 
@@ -2037,54 +2184,10 @@
             const fragment = document.createDocumentFragment();
             sortedCharacters.forEach((char) => {
                 const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
-                if (originalIndex === -1) return;
+                if (originalIndex === -1) return; 
 
-                const charElement = document.createElement("div");
-                let isCurrentlySelectedInPreset = selectedPresetCharacters.has(originalIndex);
-                let isSelectableForPreset = true;
-                let additionalClassesPreset = [];
-
-                if (!isCurrentlySelectedInPreset && selectedPresetCharacters.size < currentFunctionalMaxPresetTeamSize) {
-                    if (selectedPresetCharacterNames.has(char.name)) {
-                        isSelectableForPreset = false;
-                        additionalClassesPreset.push("non-selectable-for-battle");
-                    }
-                } else if (!isCurrentlySelectedInPreset && selectedPresetCharacters.size >= currentFunctionalMaxPresetTeamSize) {
-                    isSelectableForPreset = false;
-                    additionalClassesPreset.push("opacity-50");
-                }
-
-                let rarityTextClass = char.color;
-                if (char.rarity === "Mythic") rarityTextClass = "rainbow-text";
-                else if (char.rarity === "Secret") rarityTextClass = "text-secret";
-                else if (char.rarity === "Vanguard") rarityTextClass = "text-vanguard";
-
-                charElement.className = `bg-gray-800 bg-opacity-50 p-4 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 ${getRarityBorderClass(char.rarity)} ${isCurrentlySelectedInPreset ? 'selected-for-battle' : ''} ${additionalClassesPreset.join(' ')}`;
-
-                const img = document.createElement('img');
-                img.src = char.image;
-                img.alt = char.name;
-                img.className = 'w-full h-32 object-contain rounded mb-2';
-                img.loading = 'lazy';
-                img.decoding = 'async';
-                charElement.appendChild(img);
-
-                const nameP = document.createElement('p');
-                nameP.className = `${rarityTextClass} font-semibold`;
-                nameP.innerHTML = `${char.name} (<span class="${rarityTextClass}">${char.rarity}</span>, Niv. ${char.level})`;
-                charElement.appendChild(nameP);
-
-                const powerP = document.createElement('p');
-                powerP.className = 'text-white';
-                powerP.textContent = `Puissance: ${char.power}`;
-                charElement.appendChild(powerP);
-
-                if (isSelectableForPreset || isCurrentlySelectedInPreset) {
-                    charElement.addEventListener("click", () => {
-                        selectPresetCharacter(originalIndex);
-                    });
-                }
-                fragment.appendChild(charElement);
+                const cardElement = createCharacterCardHTML(char, originalIndex, 'presetSelection');
+                fragment.appendChild(cardElement);
             });
             presetSelectionList.appendChild(fragment);
         }
@@ -2150,8 +2253,7 @@
       localStorage.setItem("presetConfirmed", presetConfirmed);
       resultElement.innerHTML = '<p class="text-green-400">Preset enregistré avec succès !</p>';
       selectedPresetCharacters.clear();
-      presetSelectionModal.classList.add("hidden");
-      disableNoScroll();
+      closeModalHelper(presetSelectionModal);
       updateCharacterDisplay();
     }
 
@@ -2159,8 +2261,7 @@
     function cancelPreset() {
       console.log("cancelPreset appelé");
       selectedPresetCharacters.clear();
-      presetSelectionModal.classList.add("hidden");
-      disableNoScroll();
+      closeModalHelper(presetSelectionModal);
       updateCharacterDisplay();
     }
 
@@ -2798,21 +2899,21 @@
       localStorage.setItem("theme", theme);
       localStorage.setItem("autosellSettings", JSON.stringify(autosellSettings));
       applySettings();
-      settingsModal.classList.add("hidden");
+      closeModalHelper(settingsModal);
       console.log("Paramètres sauvegardés:", { soundEnabled, animationsEnabled, theme, autosellSettings });
     }
 
     function resetGame() {
         console.log("resetGame appelé");
-        resetConfirmModal.classList.remove("hidden");
+        openModal(resetConfirmModal);
         // La confirmation se fera via le bouton de la modale
     }
 
     // APRÈS
     async function confirmReset() {
         console.log("Réinitialisation de la partie pour l'utilisateur:", currentUser.uid);
-        resetConfirmModal.classList.add("hidden");
-        settingsModal.classList.add("hidden"); // NOUVEAU: Ferme la modale des paramètres
+        closeModalHelper(resetConfirmModal);
+        closeModalHelper(settingsModal); // NOUVEAU: Ferme la modale des paramètres
 
         // Supprimer la sauvegarde de la base de données
         if (currentUser) {
@@ -2883,7 +2984,7 @@
     }
 
     function cancelReset() {
-      resetConfirmModal.classList.add("hidden");
+      closeModalHelper(resetConfirmModal);
     }
 
     function updateShopOffers() {
@@ -3924,7 +4025,7 @@
         `;
 
         statsModal.classList.remove("hidden");
-        enableNoScroll(); 
+        openModal(statsModal);
 
         fuseButton.disabled = isAtCurrentMaxLevel || isDeleteMode || ownedCharacters.length <= 1 || char.locked;
         fuseButton.classList.toggle("opacity-50", fuseButton.disabled);
@@ -3985,9 +4086,24 @@
       }
     }
 
-    function closeModal() {
-      statsModal.classList.add("hidden");
-      disableNoScroll(); // <--- AJOUTER CETTE LIGNE
+    // Helper function to open a modal
+    function openModal(modalElement) {
+        if (modalElement) {
+            modalElement.classList.remove("hidden");
+            enableNoScroll();
+        }
+    }
+
+    // Helper function to close a modal (renamed to avoid conflict with closeModalButton)
+    function closeModalHelper(modalElement) {
+        if (modalElement) {
+            modalElement.classList.add("hidden");
+            disableNoScroll();
+        }
+    }
+
+    function closeModal() { // This specific one is for the statsModal via its button
+      closeModalHelper(statsModal);
     }
 
     function toggleDeleteMode() {
@@ -4397,57 +4513,10 @@
             const fragment = document.createDocumentFragment();
             sortedCharacters.forEach((char) => {
                 const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
-                if (originalIndex === -1) return;
+                if (originalIndex === -1) return; // Should not happen if sortedCharacters is derived from ownedCharacters
 
-                const charElement = document.createElement("div");
-                let isCurrentlySelected = selectedBattleCharacters.has(originalIndex);
-                let isSelectable = true;
-                let additionalClasses = [];
-
-                if (!isCurrentlySelected && selectedBattleCharacters.size < currentMaxTeamSize) {
-                    if (selectedCharacterNames.has(char.name)) {
-                        isSelectable = false;
-                        additionalClasses.push("non-selectable-for-battle");
-                    }
-                } else if (!isCurrentlySelected && selectedBattleCharacters.size >= currentMaxTeamSize) {
-                    isSelectable = false;
-                    additionalClasses.push("opacity-50");
-                }
-
-                let rarityTextClass = char.color;
-                if (char.rarity === "Mythic") rarityTextClass = "rainbow-text";
-                else if (char.rarity === "Secret") rarityTextClass = "text-secret";
-                else if (char.rarity === "Vanguard") rarityTextClass = "text-vanguard";
-
-                charElement.className = `bg-gray-800 bg-opacity-50 p-4 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 ${getRarityBorderClass(char.rarity)} ${isCurrentlySelected ? 'selected-for-battle' : ''} ${additionalClasses.join(' ')}`;
-
-                const img = document.createElement('img');
-                img.src = char.image;
-                img.alt = char.name;
-                img.className = 'w-full h-32 object-contain rounded mb-2'; // h-32 for consistency
-                img.loading = 'lazy';
-                img.decoding = 'async';
-                // Already had loading='lazy' and decoding='async' here from a previous similar function.
-                // This is just to ensure it's consistent if it was missed.
-                charElement.appendChild(img);
-
-                const nameP = document.createElement('p');
-                nameP.className = `${rarityTextClass} font-semibold`;
-                // Use innerHTML for the span part to keep rainbow/secret text
-                nameP.innerHTML = `${char.name} (<span class="${rarityTextClass}">${char.rarity}</span>, Niv. ${char.level})`;
-                charElement.appendChild(nameP);
-
-                const powerP = document.createElement('p');
-                powerP.className = 'text-white';
-                powerP.textContent = `Puissance: ${char.power}`;
-                charElement.appendChild(powerP);
-
-                if (isSelectable || isCurrentlySelected) {
-                    charElement.addEventListener("click", () => {
-                        selectBattleCharacter(originalIndex);
-                    });
-                }
-                fragment.appendChild(charElement);
+                const cardElement = createCharacterCardHTML(char, originalIndex, 'battleSelection');
+                fragment.appendChild(cardElement);
             });
             characterSelectionList.appendChild(fragment);
         }
@@ -4501,9 +4570,8 @@
 
     function cancelSelection() {
       selectedBattleCharacters.clear();
-      characterSelectionModal.classList.add("hidden");
+      closeModalHelper(characterSelectionModal);
       updateLevelDisplay();
-      disableNoScroll();
       updateCharacterSelectionDisplay();
     }
 
@@ -4533,9 +4601,8 @@
 
       currentFusionCharacterId = id;
       selectedFusionCharacters.clear();
-      statsModal.classList.add("hidden"); // Fermer la modale stats si elle était ouverte
-      fusionModal.classList.remove("hidden");
-      enableNoScroll(); // Assurer la gestion correcte du scroll
+      closeModalHelper(statsModal); // Fermer la modale stats si elle était ouverte
+      openModal(fusionModal);
 
       console.log("Personnage principal pour fusion:", char.name);
 
@@ -4560,25 +4627,15 @@
     function updateFusionSelectionDisplay() {
       fusionSelectionList.innerHTML = "";
       // Filtrez les personnages non verrouillés et différents du personnage principal
-      const availableForFusion = ownedCharacters.filter(char => char.id !== currentFusionCharacterId && !char.locked); 
+      const availableForFusion = ownedCharacters.filter(char => char.id !== currentFusionCharacterId && !char.locked);
+      const fragment = document.createDocumentFragment();
 
-      availableForFusion.forEach((char) => { // Utilisez la liste filtrée
-        // if (char.id === currentFusionCharacterId) return; // Ce check est déjà fait par le filter
-        const charElement = document.createElement("div");
-        charElement.className = `bg-gray-800 bg-opacity-50 p-4 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 ${getRarityBorderClass(char.rarity)} ${
-          selectedFusionCharacters.has(char.id) ? 'selected-for-fusion' : ''
-        }`;
-        charElement.innerHTML = `
-          <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2" loading="lazy" decoding="async">
-          <p class="${char.color} font-semibold">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level})</p>
-          <p class="text-white">Puissance: ${char.power}</p>
-        `;
-        charElement.addEventListener("click", () => {
-          console.log("Clic sur personnage pour fusion, id:", char.id);
-          selectFusionCharacter(char.id);
-        });
-        fusionSelectionList.appendChild(charElement);
+      availableForFusion.forEach((char) => {
+          const cardElement = createCharacterCardHTML(char, -1, 'fusionSelection'); // originalIndex non pertinent ici
+          fragment.appendChild(cardElement);
       });
+      fusionSelectionList.appendChild(fragment);
+
 
       if (availableForFusion.length === 0) {
          fusionSelectionList.innerHTML = '<p class="text-gray-400 col-span-full">Aucun personnage non verrouillé disponible pour la fusion.</p>';
@@ -4604,8 +4661,7 @@
     function cancelFusion() {
       console.log("cancelFusion appelé");
       selectedFusionCharacters.clear();
-      fusionModal.classList.add("hidden");
-      disableNoScroll(); // Utilisation de disableNoScroll
+      closeModalHelper(fusionModal);
       updateCharacterDisplay();
     }
 
@@ -4619,15 +4675,13 @@
       if (!mainChar) {
         console.log("Personnage principal non trouvé, currentFusionCharacterId:", currentFusionCharacterId);
         resultElement.innerHTML = '<p class="text-red-400">Personnage principal non trouvé !</p>';
-        fusionModal.classList.add("hidden");
-        document.body.classList.remove("no-scroll");
+        closeModalHelper(fusionModal);
         return;
       }
       if (mainChar.level >= 100) {
         console.log("Personnage au niveau maximum");
         resultElement.innerHTML = '<p class="text-red-400">Ce personnage est déjà au niveau maximum (100) !</p>';
-        fusionModal.classList.add("hidden");
-        document.body.classList.remove("no-scroll");
+        closeModalHelper(fusionModal);
         return;
       }
 
@@ -4693,8 +4747,7 @@
         <p class="text-white">Total +${totalExpGained} EXP gagné pour ${mainChar.name} et le joueur</p>
       `;
       selectedFusionCharacters.clear();
-      fusionModal.classList.add("hidden");
-      disableNoScroll(); // Utilisation de disableNoScroll
+      closeModalHelper(fusionModal);
       updateCharacterDisplay();
       updateUI();
       scheduleSave();
@@ -4801,6 +4854,21 @@
     // Variable globale pour la largeur de la barre de défilement
     let scrollbarWidth = 0;
     let isNoScrollActive = false;
+
+    // Fonctions utilitaires pour les modales
+    function openModal(modalElement) {
+        if (modalElement) {
+            modalElement.classList.remove("hidden");
+            enableNoScroll();
+        }
+    }
+
+    function closeModalHelper(modalElement) {
+        if (modalElement) {
+            modalElement.classList.add("hidden");
+            disableNoScroll();
+        }
+    }
 
     // Calculer la largeur de la barre de défilement
     function calculateScrollbarWidth() {
@@ -5118,26 +5186,12 @@
       if (availableCharacters.length === 0) {
           limitBreakCharSelectionGridElement.innerHTML = `<p class="text-gray-400 col-span-full">${searchTerm ? 'Aucun personnage trouvé pour "' + searchTerm + '".' : 'Aucun personnage.'}</p>`;
       } else {
+            const fragment = document.createDocumentFragment();
           availableCharacters.sort((a, b) => b.power - a.power).forEach(c => {
-              const charElement = document.createElement("div");
-              const currentMax = c.maxLevelCap || 60;
-              const isAtCurrentCap = c.level >= currentMax;
-              const canBreakLimit = isAtCurrentCap && currentMax < MAX_POSSIBLE_LEVEL_CAP && (inventory["Divin Wish"] || 0) >= LIMIT_BREAK_COST;
-
-              charElement.className = `bg-gray-800 bg-opacity-50 p-2 rounded-lg transition transform hover:scale-105 cursor-pointer border-2
-                  ${currentLimitBreakCharacterId === c.id ? 'border-amber-500' : (getRarityBorderClass(c.rarity) || 'border-gray-600 hover:border-gray-500')}
-                  ${!isAtCurrentCap && currentMax < MAX_POSSIBLE_LEVEL_CAP ? 'opacity-60' : ''} 
-                  ${currentMax >= MAX_POSSIBLE_LEVEL_CAP ? 'opacity-40' : ''}`;
-
-              charElement.innerHTML = `
-                  <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
-                  <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
-                  <p class="text-white text-xs text-center">Niv: ${c.level} / ${currentMax}</p>
-                  ${currentMax >= MAX_POSSIBLE_LEVEL_CAP ? '<p class="text-yellow-500 text-xs text-center">Cap Ultime Atteint</p>' : (isAtCurrentCap ? (canBreakLimit ? '<p class="text-green-400 text-xs text-center">Prêt pour Limit Break</p>' : '<p class="text-red-400 text-xs text-center">Orbes manquants</p>') : `<p class="text-gray-400 text-xs text-center">Atteindre Niv. ${currentMax}</p>`)}
-              `;
-              charElement.addEventListener("click", () => selectLimitBreakCharacter(c.id));
-              limitBreakCharSelectionGridElement.appendChild(charElement);
+                const cardElement = createCharacterCardHTML(c, -1, 'limitBreakSelection');
+                fragment.appendChild(cardElement);
           });
+            limitBreakCharSelectionGridElement.appendChild(fragment);
       }
 
       const isCharacterSelected = char !== null;
@@ -5885,23 +5939,13 @@
         if (availableCharacters.length === 0) {
             charSelectionGrid.innerHTML = `<p class="text-gray-400 col-span-full">${searchTerm ? 'Aucun personnage trouvé pour "' + searchTerm + '".' : 'Aucun personnage disponible.'}</p>`;
         } else {
+            const fragment = document.createDocumentFragment();
             availableCharacters.sort((a,b) => (statRanks[b.statRank]?.order || 0) - (statRanks[a.statRank]?.order || 0) || b.power - a.power)
             .forEach(c => {
-                const charElement = document.createElement("div");
-                charElement.className = `bg-gray-800 bg-opacity-50 p-2 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 
-                    ${currentStatChangeCharacterId === c.id ? 'border-green-500' : (statRanks[c.statRank]?.borderColor || 'border-gray-600')}
-                    hover:border-gray-500`;
-                charElement.innerHTML = `
-                    <img src="${c.image}" alt="${c.name}" class="w-full h-24 object-contain rounded mb-1" loading="lazy" decoding="async">
-                    <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
-                    <p class="text-white text-xs text-center ${statRanks[c.statRank]?.color || 'text-white'}">Stat: ${c.statRank}</p>
-                    <p class="text-white text-xs text-center">P: ${c.power}</p>
-                `;
-                charElement.addEventListener("click", () => {
-                  selectStatChangeCharacter(c.id);
-                });
-                charSelectionGrid.appendChild(charElement);
+                const cardElement = createCharacterCardHTML(c, -1, 'statChangeSelection');
+                fragment.appendChild(cardElement);
             });
+            charSelectionGrid.appendChild(fragment);
         }
 
         // La logique de disableApplyButton est maintenant plus simple:
@@ -5949,14 +5993,12 @@
     function openStatChangeConfirmModal(message, callback) {
         statChangeConfirmMessageElement.textContent = message;
         statChangeConfirmationCallback = callback;
-        statChangeConfirmContinueModal.classList.remove("hidden"); // Affiche la modale
-        enableNoScroll();
+        openModal(statChangeConfirmContinueModal); // Affiche la modale
     }
 
     function closeStatChangeConfirmModal() {
-        statChangeConfirmContinueModal.classList.add("hidden");
+        closeModalHelper(statChangeConfirmContinueModal);
         statChangeConfirmationCallback = null;
-        disableNoScroll();
     }
 
     function selectStatChangeCharacter(id) {
@@ -6252,40 +6294,12 @@
         if (availableCharacters.length === 0) {
             traitCharacterSelectionGridElement.innerHTML = `<p class="text-gray-400 col-span-full">${searchTerm ? 'Aucun personnage trouvé pour "' + searchTerm + '".' : 'Aucun personnage disponible.'}</p>`;
         } else {
+            const fragment = document.createDocumentFragment();
             availableCharacters.sort((a, b) => b.power - a.power).forEach(c => {
-                const charElement = document.createElement("div");
-                charElement.className = `bg-gray-800 bg-opacity-50 p-2 rounded-lg transition transform hover:scale-105 cursor-pointer border-2
-                    ${currentTraitCharacterId === c.id ? 'selected-for-trait' : (getRarityBorderClass(c.rarity) || 'border-gray-600 hover:border-gray-500')}`;
-
-                let traitDisplayMini = '';
-                if (c.trait && c.trait.id && c.trait.grade > 0) {
-                    const tDef = TRAIT_DEFINITIONS[c.trait.id];
-                    if (tDef) {
-                        const gradeDefMini = tDef.grades.find(g => g.grade === c.trait.grade);
-                        let traitNameMini = tDef.name;
-                        let miniTextColorClass = 'text-emerald-400'; 
-                        
-                        if (tDef.id === 'golder' && gradeDefMini?.description === "+15% Gemmes & Pièces (Tous modes)") {
-                           miniTextColorClass = 'text-gold-brilliant'; 
-                        }
-
-                        if (tDef.gradeProbabilities && tDef.gradeProbabilities.length > 0) { 
-                            traitDisplayMini = `<p class="text-xs text-center ${miniTextColorClass}">${traitNameMini} G${c.trait.grade}</p>`;
-                        } else { 
-                            traitDisplayMini = `<p class="text-xs text-center ${miniTextColorClass}">${traitNameMini}</p>`;
-                        }
-                    }
-                }
-
-                charElement.innerHTML = `
-                    <img src="${c.image}" alt="${c.name}" class="w-full h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
-                    <p class="${c.rarity === 'Secret' ? 'text-secret' : c.color} font-semibold text-xs text-center">${c.name} ${c.locked ? '🔒' : ''}</p>
-                    <p class="text-white text-xs text-center">P: ${c.power}</p>
-                    ${traitDisplayMini}
-                `;
-                charElement.addEventListener("click", () => selectTraitCharacter(c.id));
-                traitCharacterSelectionGridElement.appendChild(charElement);
+                const cardElement = createCharacterCardHTML(c, -1, 'traitSelection');
+                fragment.appendChild(cardElement);
             });
+            traitCharacterSelectionGridElement.appendChild(fragment);
         }
 
         // Activer/désactiver les checkboxes cibles
@@ -6783,40 +6797,12 @@
       if (availableCharacters.length === 0) {
         curseCharacterSelectionGridElement.innerHTML = `<p class="text-gray-400 col-span-full">${searchTermCurse ? 'Aucun personnage trouvé pour "' + searchTermCurse + '".' : 'Aucun personnage disponible pour la malédiction.'}</p>`;
       } else {
+        const fragment = document.createDocumentFragment();
         availableCharacters.sort((a, b) => b.power - a.power).forEach(char => {
-          const charElement = document.createElement("div");
-          charElement.className = `bg-gray-800 bg-opacity-50 p-2 rounded-lg transition transform hover:scale-105 cursor-pointer border-2 ${
-            currentCurseCharacterId === char.id ? 'selected-for-curse' : (getRarityBorderClass(char.rarity) || 'border-gray-600 hover:border-gray-500')
-          }`; 
-          
-          let curseDisplayHtml = '';
-            if (char.curseEffect && char.curseEffect !== 0) {
-                const basePowerForCurseDisplay = (char.basePower || char.power) * (char.statModifier || 1); // Fallback pour basePower et statModifier
-                let cursePercentage = 0;
-                if (basePowerForCurseDisplay !== 0) {
-                    cursePercentage = (char.curseEffect / basePowerForCurseDisplay) * 100;
-                } else if ((char.basePower || char.power) !== 0) { 
-                    cursePercentage = (char.curseEffect / (char.basePower || char.power)) * 100;
-                }
-                const displayCursePercentage = cursePercentage.toFixed(cursePercentage % 1 === 0 ? 0 : (Math.abs(cursePercentage) < 0.1 ? 2 : 1));
-                const curseColor = char.curseEffect > 0 ? 'text-green-400' : 'text-red-400';
-                const curseSign = char.curseEffect > 0 ? '+' : '';
-                curseDisplayHtml = `, <span class="text-xs ${curseColor}">Curse: ${curseSign}${displayCursePercentage}%</span>`;
-            }
-
-          charElement.innerHTML = `
-            <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-1" loading="lazy" decoding="async">
-            <p class="${char.rarity === 'Secret' ? 'text-secret' : char.color} font-semibold text-xs text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
-            <p class="text-white text-xs text-center">
-              <span class="${char.rarity === 'Mythic' ? 'rainbow-text' : (char.rarity === 'Secret' ? 'text-secret' : '')}">${char.rarity}</span>, 
-              P: ${char.power}${curseDisplayHtml}
-            </p>
-          `;
-          charElement.addEventListener("click", () => {
-            selectCurseCharacter(char.id);
-          });
-          curseCharacterSelectionGridElement.appendChild(charElement);
+            const cardElement = createCharacterCardHTML(char, -1, 'curseSelection');
+            fragment.appendChild(cardElement);
         });
+        curseCharacterSelectionGridElement.appendChild(fragment);
       }
 
       let disableApplyCurseButton = !currentCurseCharacterId || (inventory["Cursed Token"] || 0) < 1;
@@ -6996,14 +6982,12 @@
     function openCurseConfirmModal(message, callback) {
         curseConfirmMessageElement.textContent = message;
         curseConfirmationCallback = callback; // Stocker la fonction à appeler après le choix
-        curseConfirmContinueModal.classList.remove("hidden");
-        enableNoScroll(); // Empêcher le défilement de l'arrière-plan
+        openModal(curseConfirmContinueModal); // Empêcher le défilement de l'arrière-plan
     }
 
     function closeCurseConfirmModal() {
-        curseConfirmContinueModal.classList.add("hidden");
+        closeModalHelper(curseConfirmContinueModal);
         curseConfirmationCallback = null; // Réinitialiser le callback
-        disableNoScroll(); // Rétablir le défilement
     }
 
     function launchMiniGame(levelData, selectedTeam) {
@@ -7032,8 +7016,7 @@
         miniGameStartScreen.classList.remove('hidden');
         miniGameMainScreen.classList.add('hidden');
         miniGameResultScreen.classList.add('hidden');
-        miniGameModal.classList.remove('hidden');
-        enableNoScroll();
+        openModal(miniGameModal);
     }
 
     function startMiniGame() {
@@ -7150,8 +7133,7 @@
     }
 
     function closeMiniGame() {
-        miniGameModal.classList.add('hidden');
-        disableNoScroll();
+        closeModalHelper(miniGameModal);
         selectedBattleCharacters.clear(); // Vider la sélection après avoir fini
     }
 
@@ -7248,13 +7230,11 @@
             traitProbabilitiesContent.appendChild(warningDiv);
         }
 
-        traitProbabilitiesModal.classList.remove("hidden");
-        enableNoScroll();
+        openModal(traitProbabilitiesModal);
     }
 
     function closeTraitProbabilitiesModal() {
-        traitProbabilitiesModal.classList.add("hidden");
-        disableNoScroll();
+        closeModalHelper(traitProbabilitiesModal);
     }
 
     tabButtons.forEach(btn => {
@@ -7377,8 +7357,7 @@
 
     // Ouvrir la modale
     infoButton.addEventListener("click", () => {
-      probabilitiesModal.classList.remove("hidden");
-      enableNoScroll();
+      openModal(probabilitiesModal);
       updateProbabilitiesDisplay(); // Ceci va créer l'élément #standard-banner-timer
       showProbTab("standard");
 
@@ -7411,8 +7390,7 @@
 
     // Fermer la modale
     closeProbabilitiesButton.addEventListener("click", () => {
-      probabilitiesModal.classList.add("hidden");
-      disableNoScroll();
+      closeModalHelper(probabilitiesModal);
       if (bannerTimerIntervalId) { // Effacer l'intervalle lorsque la modale est fermée
         clearInterval(bannerTimerIntervalId);
         bannerTimerIntervalId = null;
@@ -7432,14 +7410,14 @@
         if (curseConfirmationCallback) {
             curseConfirmationCallback(true); // L'utilisateur a confirmé
         }
-        closeCurseConfirmModal();
+        closeModalHelper(curseConfirmContinueModal);
     });
 
     curseConfirmNoButton.addEventListener("click", () => {
         if (curseConfirmationCallback) {
             curseConfirmationCallback(false); // L'utilisateur a annulé
         }
-        closeCurseConfirmModal();
+        closeModalHelper(curseConfirmContinueModal);
     });
 
     if (traitProbabilitiesInfoButton) { // Vérifier si l'élément existe (au cas où)
@@ -7455,14 +7433,14 @@
         if (statChangeConfirmationCallback) {
             statChangeConfirmationCallback(true);
         }
-        closeStatChangeConfirmModal();
+        closeModalHelper(statChangeConfirmContinueModal);
     });
 
     statChangeConfirmNoButton.addEventListener("click", () => {
         if (statChangeConfirmationCallback) {
             statChangeConfirmationCallback(false);
         }
-        closeStatChangeConfirmModal();
+        closeModalHelper(statChangeConfirmContinueModal);
     });
 
     traitKeepBetterToggle.addEventListener("change", () => {
@@ -7474,14 +7452,14 @@
         if (traitConfirmationCallback) {
             traitConfirmationCallback(true);
         }
-        closeTraitActionConfirmModal();
+        closeModalHelper(traitActionConfirmModal);
     });
 
     traitActionConfirmNoButton.addEventListener("click", () => {
         if (traitConfirmationCallback) {
             traitConfirmationCallback(false);
         }
-        closeTraitActionConfirmModal();
+        closeModalHelper(traitActionConfirmModal);
     });
 
     const inventoryFilterNameInput = document.getElementById("inventory-filter-name");
@@ -7597,10 +7575,7 @@
      const autoClickerModalCloseButton = document.getElementById('auto-clicker-modal-close-button');
     if (autoClickerModalCloseButton) {
         autoClickerModalCloseButton.addEventListener('click', () => {
-            if (autoClickerWarningModal) {
-                autoClickerWarningModal.classList.add('hidden');
-                disableNoScroll();
-            }
+            closeModalHelper(autoClickerWarningModal);
         });
     }
 

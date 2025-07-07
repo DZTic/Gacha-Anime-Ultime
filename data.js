@@ -1,773 +1,692 @@
+// Fonction d'aide pour générer les exigences d'évolution communes
+function createEvolutionRequirements(specificItemName, specificItemQuantity, coinsCost, options = {}) {
+    const {
+        essenceQuantities = {
+            Green: 20, Yellow: 20, Blue: 20, Purple: 20, Pink: 20, Red: 20, Rainbow: 10
+        },
+        additionalItems = [],
+        excludeEssences = [] // Nouveau: pour exclure certaines essences par défaut
+    } = options;
+
+    const requirements = [{ item: specificItemName, quantity: specificItemQuantity }];
+    if (coinsCost > 0) {
+        requirements.push({ coins: coinsCost });
+    }
+
+    for (const [essence, quantity] of Object.entries(essenceQuantities)) {
+        if (quantity > 0 && !excludeEssences.includes(essence)) {
+            requirements.push({ item: `${essence} Essence`, quantity });
+        }
+    }
+
+    if (additionalItems.length > 0) {
+        requirements.push(...additionalItems);
+    }
+    return requirements;
+}
+
+// Fonction d'aide pour générer les données d'évolution
+function createEvolutionData(baseName, evolutionName, powerIncrease, options = {}) {
+    const { newRarity, newColor } = options;
+    // Simplification du nom de fichier image: minuscules, espaces -> underscores
+    const imageName = evolutionName.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '');
+    const data = {
+        newName: `${baseName} (${evolutionName})`,
+        newImage: `./images/evolve/${imageName}.webp`, // Standardisation partielle
+        basePowerIncrease: powerIncrease,
+    };
+    if (newRarity) data.newRarity = newRarity;
+    if (newColor) data.newColor = newColor;
+    return data;
+}
+
+
 const standardCharacters = [
-        { name: "Goku", rarity: "Rare", color: "text-gray-400", image: "./images/perso/goku.webp", power: 350, level: 1 },
-        { name: "Naruto", rarity: "Rare", color: "text-gray-400", image: "./images/perso/naruto.png", power: 370, level: 1 },
-        { name: "Luffy", rarity: "Rare", color: "text-gray-400", image: "./images/perso/luffy.webp", power: 370, level: 1 },
-        { name: "Ichigo", rarity: "Rare", color: "text-gray-400", image: "./images/perso/ichigo.webp", power: 360, level: 1 },
-        { name: "Sanji", rarity: "Rare", color: "text-gray-400", image: "./images/perso/sanji.webp", power: 355, level: 1 },
-        { name: "Crocodile", rarity: "Épique", color: "text-purple-400", image: "./images/perso/crocodile.webp", power: 550, level: 1 },
-        { name: "Killua", rarity: "Épique", color: "text-purple-400", image: "./images/perso/killua.webp", power: 550, level: 1 },
-        { name: "Picolo", rarity: "Épique", color: "text-purple-400", image: "./images/perso/picolo.webp", power: 560, level: 1 },
-        { name: "Zenitsu", rarity: "Épique", color: "text-purple-400", image: "./images/perso/zenitsu.webp", power: 570, level: 1 },
-        { name: "Goku Black", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/goku black.webp", power: 800, level: 1 },
-        { name: "Gon", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/gon.webp", power: 820, level: 1 },
-        { name: "Kizaru", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/kizaru.webp", power: 820, level: 1 },
-        { name: "Itachi", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/itachi.webp", power: 820, level: 1 },
-        { name: "Pain", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/pain.webp", power: 850, level: 1 },
-        { name: "Toge", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/toge.webp", power: 860, level: 1 },
-        {
-          name: "Sung Jin Wu",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/sung jin wu.webp",
-          power: 1250,
-          level: 1,
-          evolutionRequirements: [ { item: "Shadow Tracer", quantity: 3 }, { coins: 50000 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 } ],
-          evolutionData: {
-              newName: "Sung Jin Wu (Monarch)",
-              newImage: "./images/evolve/sung jin wu monarch.webp",
-              basePowerIncrease: 500
-          }
-        },
-        {
-            name: "Satoru Gojo",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/gojo.webp",
-            power: 1100,
-            level: 1,
-            evolutionRequirements: [ { item: "Six Eyes", quantity: 5 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 30 }, { item: "Red Essence", quantity: 30 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 100000 } ],
-            evolutionData: {
-                newName: "Satoru Gojo (Infinity)",
-                newImage: "./images/evolve/satoru gojo (infinity).webp",
-                basePowerIncrease: 800, 
-                newRarity: "Secret",   
-                newColor: "text-secret" 
-            }
-        },
-        {
-          name: "Archer",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/archer.png",
-          power: 1200,
-          level: 1,
-          evolutionRequirements: [ { item: "Cast Blades", quantity: 5 }, { coins: 50000 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 } ],
-          evolutionData: {
-              newName: "Archer (Counter Spirit)",
-              newImage: "./images/evolve/archer (counter spirit).webp",
-              basePowerIncrease: 500
-          }
-        },
-        {
-          name: "Cha Hae-In",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/cha.png    ",
-          power: 1080,
-          level: 1,
-          evolutionRequirements: [ { item: "Broken Sword", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 75000 } ],
-          evolutionData: {
-              newName: "Cha Hae-In (Sword Dance)",
-              newImage: "./images/evolve/cha hae-in (sword dance).webp",
-              basePowerIncrease: 500
-          }
-        },
-        {
-          name: "Kenpachi Zaraki",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/kenpachi.webp",
-          power: 1150,
-          level: 1,
-          evolutionRequirements: [ { item: "Chipped Blade", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 75000 } ],
-          evolutionData: {
-              newName: "Kenpachi Zaraki (Shikai)",
-              newImage: "./images/evolve/kenpachi zaraki (shikai).webp",
-              basePowerIncrease: 500
-          }
-        },
-        {
-            name: "Choso",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/choso.png",
-            power: 1180,
-            level: 1,
-            evolutionRequirements: [ { item: "Hardened Blood", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 75000 } ],
-            evolutionData: {
-                newName: "Choso (Blood Curse)",
-                newImage: "./images/evolve/choso (blood curse).webp",
-                basePowerIncrease: 590
-            }
-        },
-        {
-          name: "Yuji Itadori", 
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/itadori.webp",
-          power: 1220,
-          level: 1,
-          evolutionRequirements: [ { item: "Cursed Finger", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 75000 } ],
-          evolutionData: {
-              newName: "Sukuna",
-              newImage: "./images/evolve/sukuna.webp",
-              basePowerIncrease: 600,
-              newRarity: "Secret",
-              newColor: "text-secret"
-          }
-        },
-        {
-            name: "Jogo",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/jogo.webp",
-            power: 1240,
-            level: 1,
-            evolutionRequirements: [ { item: "Magma Stone", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Jogo (Volcanic)",
-                newImage: "./images/evolve/jogo (volcanic).webp",
-                basePowerIncrease: 580
-            }
-        },
-        {
-            name: "Aoi Todo",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/todo.webp",
-            power: 1120,
-            level: 1,
-            evolutionRequirements: [ { item: "Broken Pendant", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Aoi Todo (Unleashed)",
-                newImage: "./images/evolve/aoi todo (unleashed).webp",
-                basePowerIncrease: 600
-            }
-        },
-        {
-            name: "Akaza",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/akaza.png",
-            power: 1280,
-            level: 1,
-            evolutionRequirements: [ { item: "Demon Beads", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 10 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Akaza (Destructive)",
-                newImage: "./images/evolve/akaza (destructive).webp",
-                basePowerIncrease: 620
-            }
-        },
-        {
-            name: "Tengen Uzui",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/tengen.webp",
-            power: 1230,
-            level: 1,
-            evolutionRequirements: [ { item: "Nichirin Cleavers", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Tengen Uzui (Flashiness)",
-                newImage: "./images/evolve/tengen uzui (flashiness).webp",
-                basePowerIncrease: 590
-            }
-        },
-        {
-            name: "Naruto (Sage)",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/naruto (sage).webp",
-            power: 1270,
-            level: 1,
-            evolutionRequirements: [ { item: "Blue Chakra", quantity: 5 }, { item: "Red Chakra", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Naruto (Six Tails)",
-                newImage: "./images/evolve/Naruto (Six Tails).webp",
-                basePowerIncrease: 610
-            }
-        },
-        {
-            name: "Obito Uchiha",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/obito.webp",
-            power: 1240,
-            level: 1,
-            evolutionRequirements: [ { item: "Skin Patch", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Obito Uchiha (Awakened)",
-                newImage: "./images/evolve/Obito Uchiha (Awakened).webp",
-                basePowerIncrease: 600
-            }
-        },
-        {
-            name: "Sasuke (Hebi)",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/sasuke (hebi).webp",
-            power: 1250,
-            level: 1,
-            evolutionRequirements: [ { item: "Snake Scale", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Sasuke (Storm)",
-                newImage: "./images/evolve/Sasuke (Storm).webp",
-                basePowerIncrease: 610
-            }
-        },
-        {
-            name: "Vegeta (Super)",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/vegeta (super).webp",
-            power: 1290,
-            level: 1,
-            evolutionRequirements: [ { item: "Senzu Bean", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Vegeta (Super Awakened)",
-                newImage: "./images/evolve/Vegeta (Super Awakened).webp",
-                basePowerIncrease: 620
-            }
-        },
-        {
-          name: "Alucard",
-          rarity: "Secret",
-          color: "text-yellow-400",
-          image: "./images/perso/alucard.png",
-          power: 1400,
-          level: 1,
-          evolutionRequirements: [ { item: "Hellsing Arms", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 100000 } ],
-          evolutionData: {
-              newName: "Alucard (Vampire King)",
-              newImage: "./images/evolve/Alucard (Vampire King).webp",
-              basePowerIncrease: 750
-          }
-        },
-        {
-          name: "Yamamoto",
-          rarity: "Secret",
-          color: "text-yellow-400",
-          image: "./images/perso/yamamoto.webp",
-          power: 1500,
-          level: 1,
-          evolutionRequirements: [ { item: "Head Captain's Coat", quantity: 5 }, { coins: 100000 }, { item: "Green Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 } ],
-          evolutionData: {
-              newName: "Yamamoto (Captain)",
-              newImage: "./images/evolve/Yamamoto (Captain).webp",
-              basePowerIncrease: 750
-          }
-        },
-        {
-          name: "Regnaw", 
-          rarity: "Secret",
-          color: "text-yellow-400", 
-          image: "./images/perso/regnaw.webp",
-          power: 1510, 
-          level: 1,
-          evolutionRequirements: [ { item: "Silverite Sword", quantity: 1 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 100000 } ],
-          evolutionData: {
-              newName: "Regnaw (Rage)",
-              newImage: "./images/evolve/Regnaw (Rage).webp",
-              basePowerIncrease: 750
-          }
-        },
-        {
-          name: "Giro",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/giro.webp",
-          power: 1250,
-          level: 1,
-          evolutionRequirements: [ { item: "Holy Corpse Eyes", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Giro (Ball Breaker)",
-            newImage: "./images/evolve/Giro (Ball Breaker).webp",
-            basePowerIncrease: 550
-          }
-        },
-        {
-          name: "Johnni",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/johnni.webp",
-          power: 1260,
-          level: 1,
-          evolutionRequirements: [ { item: "Holy Corpse Arms", quantity: 1 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Johnni (Infinite Spin)",
-            newImage: "./images/evolve/Johnni (Infinite Spin).webp",
-            basePowerIncrease: 600
-          }
-        },
-        {
-          name: "Valentine",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/valentine.webp",
-          power: 1300,
-          level: 1,
-          evolutionRequirements: [ { item: "Completed Holy Corpse", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 750000 } ],
-          evolutionData: {
-            newName: "Valentine (Love Train)",
-            newImage: "./images/evolve/Valentine (Love Train).webp",
-            basePowerIncrease: 700,
+    { name: "Goku", rarity: "Rare", color: "text-gray-400", image: "./images/perso/goku.webp", power: 350, level: 1 },
+    { name: "Naruto", rarity: "Rare", color: "text-gray-400", image: "./images/perso/naruto.png", power: 370, level: 1 },
+    { name: "Luffy", rarity: "Rare", color: "text-gray-400", image: "./images/perso/luffy.webp", power: 370, level: 1 },
+    { name: "Ichigo", rarity: "Rare", color: "text-gray-400", image: "./images/perso/ichigo.webp", power: 360, level: 1 },
+    { name: "Sanji", rarity: "Rare", color: "text-gray-400", image: "./images/perso/sanji.webp", power: 355, level: 1 },
+    { name: "Crocodile", rarity: "Épique", color: "text-purple-400", image: "./images/perso/crocodile.png", power: 550, level: 1 },
+    { name: "Killua", rarity: "Épique", color: "text-purple-400", image: "./images/perso/killua.webp", power: 550, level: 1 },
+    { name: "Picolo", rarity: "Épique", color: "text-purple-400", image: "./images/perso/picolo.webp", power: 560, level: 1 },
+    { name: "Zenitsu", rarity: "Épique", color: "text-purple-400", image: "./images/perso/zenitsu.webp", power: 570, level: 1 },
+    { name: "Goku Black", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/goku black.webp", power: 800, level: 1 },
+    { name: "Gon", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/gon.webp", power: 820, level: 1 },
+    { name: "Kizaru", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/kizaru.webp", power: 820, level: 1 },
+    { name: "Itachi", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/itachi.webp", power: 820, level: 1 },
+    { name: "Pain", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/pain.webp", power: 850, level: 1 },
+    { name: "Toge", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/toge.webp", power: 860, level: 1 },
+    {
+        name: "Sung Jin Wu",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/sung jin wu.webp",
+        power: 1250,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Shadow Tracer", 3, 50000, {
+            essenceQuantities: { Green: 20, Yellow: 20, Pink: 20, Rainbow: 10, Blue: 0, Purple: 0, Red: 0 } // Désactive celles non listées explicitement avant
+        }),
+        evolutionData: createEvolutionData("Sung Jin Wu", "Monarch", 500)
+    },
+    {
+        name: "Satoru Gojo",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/gojo.webp",
+        power: 1100,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Six Eyes", 5, 100000, {
+            essenceQuantities: { Green: 40, Blue: 30, Red: 30, Rainbow: 10, Yellow: 0, Purple: 0, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Satoru Gojo", "Infinity", 800, { newRarity: "Secret", newColor: "text-secret" })
+    },
+    {
+        name: "Archer",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/archer.png",
+        power: 1200,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Cast Blades", 5, 50000, {
+            essenceQuantities: { Green: 20, Yellow: 20, Blue: 20, Purple: 20, Red: 20, Rainbow: 10, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Archer", "Counter Spirit", 500)
+    },
+    {
+        name: "Cha Hae-In",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/cha.png", // Espace en fin de nom de fichier retiré
+        power: 1080,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Broken Sword", 5, 75000, {
+            essenceQuantities: { Green: 20, Blue: 20, Purple: 20, Rainbow: 10, Yellow: 0, Pink: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Cha Hae-In", "Sword Dance", 500)
+    },
+    {
+        name: "Kenpachi Zaraki",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/kenpachi.webp",
+        power: 1150,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Chipped Blade", 5, 75000, {
+            essenceQuantities: { Green: 20, Yellow: 20, Red: 20, Purple: 20, Rainbow: 10, Blue: 0, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Kenpachi Zaraki", "Shikai", 500)
+    },
+    {
+        name: "Choso",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/choso.png",
+        power: 1180,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Hardened Blood", 5, 75000), // Utilise les valeurs par défaut pour les essences
+        evolutionData: createEvolutionData("Choso", "Blood Curse", 590)
+    },
+    {
+        name: "Yuji Itadori",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/itadori.webp",
+        power: 1220,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Cursed Finger", 5, 75000, {
+            essenceQuantities: { Green: 20, Yellow: 20, Pink: 20, Red: 20, Rainbow: 10, Blue: 0, Purple: 0 }
+        }),
+        evolutionData: createEvolutionData("Yuji Itadori", "Sukuna", 600, { newRarity: "Secret", newColor: "text-secret" })
+    },
+    {
+        name: "Jogo",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/jogo.webp",
+        power: 1240,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Magma Stone", 5, 50000, {
+            essenceQuantities: { Green: 20, Yellow: 20, Purple: 20, Rainbow: 10, Blue: 0, Pink: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Jogo", "Volcanic", 580)
+    },
+    {
+        name: "Aoi Todo",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/todo.webp",
+        power: 1120,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Broken Pendant", 5, 50000, {
+            essenceQuantities: { Green: 20, Blue: 20, Yellow: 20, Purple: 20, Rainbow: 10, Pink: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Aoi Todo", "Unleashed", 600)
+    },
+    {
+        name: "Akaza",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/akaza.png",
+        power: 1280,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Demon Beads", 5, 50000, {
+            essenceQuantities: { Green: 20, Blue: 20, Yellow: 20, Purple: 20, Pink: 10, Red: 20, Rainbow: 10 }
+        }),
+        evolutionData: createEvolutionData("Akaza", "Destructive", 620)
+    },
+    {
+        name: "Tengen Uzui",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/tengen.webp",
+        power: 1230,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Nichirin Cleavers", 5, 50000, {
+            essenceQuantities: { Green: 20, Blue: 20, Yellow: 20, Purple: 20, Rainbow: 10, Pink: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Tengen Uzui", "Flashiness", 590)
+    },
+    {
+        name: "Naruto (Sage)",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/naruto (sage).webp",
+        power: 1270,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Blue Chakra", 5, 50000, {
+            additionalItems: [{ item: "Red Chakra", quantity: 5 }],
+            essenceQuantities: { Green: 20, Blue: 20, Pink: 20, Rainbow: 10, Yellow: 0, Purple: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Naruto", "Six Tails", 610) // Base name simplifié
+    },
+    {
+        name: "Obito Uchiha",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/obito.webp",
+        power: 1240,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Skin Patch", 5, 50000, {
+            essenceQuantities: { Green: 20, Purple: 20, Yellow: 20, Rainbow: 10, Blue: 0, Pink: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Obito Uchiha", "Awakened", 600)
+    },
+    {
+        name: "Sasuke (Hebi)",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/sasuke (hebi).webp",
+        power: 1250,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Snake Scale", 5, 50000, {
+            essenceQuantities: { Green: 20, Pink: 20, Red: 20, Rainbow: 10, Blue: 0, Purple: 0, Yellow: 0 }
+        }),
+        evolutionData: createEvolutionData("Sasuke", "Storm", 610) // Base name simplifié
+    },
+    {
+        name: "Vegeta (Super)",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/vegeta (super).webp",
+        power: 1290,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Senzu Bean", 5, 50000, {
+            essenceQuantities: { Green: 20, Blue: 20, Yellow: 20, Rainbow: 10, Pink: 0, Purple: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Vegeta", "Super Awakened", 620) // Base name simplifié
+    },
+    {
+        name: "Alucard",
+        rarity: "Secret",
+        color: "text-yellow-400",
+        image: "./images/perso/alucard.png",
+        power: 1400,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Hellsing Arms", 5, 100000),
+        evolutionData: createEvolutionData("Alucard", "Vampire King", 750)
+    },
+    {
+        name: "Yamamoto",
+        rarity: "Secret",
+        color: "text-yellow-400",
+        image: "./images/perso/yamamoto.webp",
+        power: 1500,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Head Captain's Coat", 5, 100000, {
+            essenceQuantities: { Green: 20, Red: 20, Purple: 20, Rainbow: 10, Blue: 0, Yellow: 0, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Yamamoto", "Captain", 750)
+    },
+    {
+        name: "Regnaw",
+        rarity: "Secret",
+        color: "text-yellow-400",
+        image: "./images/perso/regnaw.webp",
+        power: 1510,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Silverite Sword", 1, 100000),
+        evolutionData: createEvolutionData("Regnaw", "Rage", 750)
+    },
+    {
+        name: "Giro",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/giro.webp",
+        power: 1250,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Holy Corpse Eyes", 5, 50000, {
+             essenceQuantities: { Green: 20, Blue: 20, Yellow: 20, Purple: 20, Rainbow: 10, Pink: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Giro", "Ball Breaker", 550)
+    },
+    {
+        name: "Johnni",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/johnni.webp",
+        power: 1260,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Holy Corpse Arms", 1, 50000, {
+             essenceQuantities: { Green: 20, Blue: 20, Purple: 20, Pink: 20, Rainbow: 10, Yellow: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Johnni", "Infinite Spin", 600)
+    },
+    {
+        name: "Valentine",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/valentine.webp",
+        power: 1300,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Completed Holy Corpse", 5, 750000, { // Noté: coût élevé en pièces
+             essenceQuantities: { Green: 20, Purple: 20, Pink: 20, Red: 20, Rainbow: 10, Blue: 0, Yellow: 0 }
+        }),
+        evolutionData: createEvolutionData("Valentine", "Love Train", 700, { newRarity: "Secret", newColor: "text-secret" })
+    },
+    {
+        name: "Medusa",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/medusa.webp",
+        power: 1280,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Gorgon's Blindfold", 5, 50000),
+        evolutionData: createEvolutionData("Medusa", "Gorgon", 580)
+    },
+    {
+        name: "Medea",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/medea.webp",
+        power: 1290,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Caster's Headpiece", 5, 50000),
+        evolutionData: createEvolutionData("Medea", "Witch of Betrayal", 590)
+    },
+    {
+        name: "Saber",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/saber.webp",
+        power: 1300,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Avalon", 5, 50000),
+        evolutionData: createEvolutionData("Saber", "King of Knights", 610)
+    },
+    {
+        name: "Ishtar",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/ishtar.webp",
+        power: 1300,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Goddess' Sword", 5, 50000, {
+            essenceQuantities: { Green: 20, Blue: 20, Yellow: 20, Purple: 20, Red: 20, Rainbow: 10, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Ishtar", "Divinity", 600)
+    },
+    {
+        name: "Cu Chulainn",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/cu chulainn.webp",
+        power: 1290,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Blade of Death", 5, 50000),
+        evolutionData: { // Nom d'image personnalisé
+            newName: "Cu Chulainn (Child of Light)",
+            newImage: "./images/evolve/Cu Chulainn (Child of Light).webp", // Gardé car le nom de fichier est différent
+            basePowerIncrease: 580
+        }
+    },
+    {
+        name: "Lilia",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/lilia.webp",
+        power: 1310,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Berserker's Blade", 5, 50000, {
+            essenceQuantities: { Green: 20, Yellow: 20, Pink: 20, Purple: 20, Red: 20, Rainbow: 10, Blue: 0 }
+        }),
+        evolutionData: createEvolutionData("Lilia", "and Berserker", 600) // Nom d'évolution un peu spécial
+    },
+    {
+        name: "Yoruichi",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/yoruichi.webp",
+        power: 1330,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Shunpo Spirit", 5, 50000, {
+            essenceQuantities: { Green: 20, Yellow: 20, Purple: 20, Red: 20, Rainbow: 10, Blue: 0, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Yoruichi", "Raijin", 620)
+    },
+    {
+        name: "Uryu",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/uryu.webp",
+        power: 1340,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Energy Arrow", 5, 50000, {
+            essenceQuantities: { Green: 20, Blue: 20, Yellow: 20, Pink: 20, Rainbow: 10, Purple: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Uryu", "Antithesis", 630)
+    },
+    {
+        name: "Orihime",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/orihime.webp",
+        power: 1260,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Hair Ornament", 5, 50000, {
+            essenceQuantities: { Green: 20, Blue: 20, Purple: 20, Pink: 20, Rainbow: 10, Yellow: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Orihime", "Faith", 570)
+    },
+    {
+        name: "Kisuke",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/kisuke.webp",
+        power: 1280,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Bucket Hat", 5, 50000, {
+            essenceQuantities: { Green: 20, Purple: 20, Pink: 20, Red: 20, Rainbow: 10, Blue: 0, Yellow: 0 }
+        }),
+        evolutionData: createEvolutionData("Kisuke", "Scientist", 590)
+    },
+    {
+        name: "Ichigo (True Release)",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/ichigo (true release).webp",
+        power: 1350,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Horn of Salvation", 5, 50000, {
+            essenceQuantities: { Green: 20, Blue: 20, Purple: 20, Red: 20, Rainbow: 5, Pink: 0, Yellow: 0 }
+        }),
+        evolutionData: createEvolutionData("Ichigo", "Savior", 650) // Base name simplifié
+    },
+    {
+        name: "Giselle",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/giselle.webp",
+        power: 1270,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Energy Bone", 1, 50000, {
+            essenceQuantities: { Green: 30, Purple: 15, Blue: 20, Yellow: 12, Rainbow: 2, Pink: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Giselle", "Zombie", 580)
+    },
+    {
+        name: "Aizen",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/aizen.webp",
+        power: 1320,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Prison Chair", 1, 75000, {
+            essenceQuantities: { Green: 30, Blue: 12, Yellow: 12, Purple: 15, Rainbow: 2, Pink: 0, Red: 0 }
+        }),
+        evolutionData: createEvolutionData("Aizen", "Aura", 730, { newRarity: "Secret", newColor: "text-secret" })
+    },
+    {
+        name: "Goku (Angel)",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/goku (angel).webp",
+        power: 1300,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Rotara Earring 2", 1, 75000, {
+            additionalItems: [{ item: "Rotara Earring 1", quantity: 1 }],
+            essenceQuantities: { Green: 40, Red: 30, Blue: 30, Rainbow: 3, Yellow: 0, Purple: 0, Pink: 0 }
+        }),
+        evolutionData: { // Nom d'image et de perso un peu différent
+            newName: "Roku (Super 3)", // Note: Roku au lieu de Goku
+            newImage: "./images/evolve/Goku (Super 3).webp",
+            basePowerIncrease: 850,
             newRarity: "Secret",
             newColor: "text-secret"
-          }
-        },
-        {
-          name: "Medusa",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/medusa.webp",
-          power: 1280,
-          level: 1,
-          evolutionRequirements: [ { item: "Gorgon's Blindfold", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Medusa (Gorgon)",
-            newImage: "./images/evolve/Medusa (Gorgon).webp",
-            basePowerIncrease: 580
-          }
-        },
-        {
-          name: "Medea",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/medea.webp",
-          power: 1290,
-          level: 1,
-          evolutionRequirements: [ { item: "Caster's Headpiece", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Medea (Witch of Betrayal)",
-            newImage: "./images/evolve/Medea (Witch of Betrayal).webp",
-            basePowerIncrease: 590
-          }
-        },
-        {
-          name: "Saber",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/saber.webp",
-          power: 1300,
-          level: 1,
-          evolutionRequirements: [ { item: "Avalon", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Saber (King of Knights)",
-            newImage: "./images/evolve/Saber (King of Knights).webp",
-            basePowerIncrease: 610
-          }
-        },
-        {
-          name: "Ishtar",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/ishtar.webp",
-          power: 1300,
-          level: 1,
-          evolutionRequirements: [ { item: "Goddess' Sword", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Ishtar (Divinity)",
-            newImage: "./images/evolve/Ishtar (Divinity).webp",
-            basePowerIncrease: 600
-          }
-        },
-        {
-          name: "Cu Chulainn",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/cu chulainn.webp",
-          power: 1290,
-          level: 1,
-          evolutionRequirements: [ { item: "Blade of Death", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Cu Chulainn (Child of Light)",
-            newImage: "./images/evolve/Cu Chulainn (Child of Light)",
-            basePowerIncrease: 580
-          }
-        },
-        {
-          name: "Lilia",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/lilia.webp",
-          power: 1310,
-          level: 1,
-          evolutionRequirements: [ { item: "Berserker's Blade", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Lilia and Berserker",
-            newImage: "./images/evolve/Lilia and Berserker.webp",
-            basePowerIncrease: 600
-          }
-        },
-        {
-          name: "Yoruichi",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/yoruichi.webp",
-          power: 1330,
-          level: 1,
-          evolutionRequirements: [ { item: "Shunpo Spirit", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins:50000 } ],
-          evolutionData: {
-            newName: "Yoruichi (Raijin)",
-            newImage: "./images/evolve/Yoruichi (Raijin).webp",
-            basePowerIncrease: 620
-          }
-        },
-        {
-          name: "Uryu",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/uryu.webp",
-          power: 1340,
-          level: 1,
-          evolutionRequirements: [ { item: "Energy Arrow", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Uryu (Antithesis)",
-            newImage: "./images/evolve/Uryu (Antithesis).webp",
-            basePowerIncrease: 630
-          }
-        },
-        {
-          name: "Orihime",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/orihime.webp",
-          power: 1260,
-          level: 1,
-          evolutionRequirements: [ { item: "Hair Ornament", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Orihime (Faith)",
-            newImage: "./images/evolve/Orihime (Faith).webp",
-            basePowerIncrease: 570
-          }
-        },
-         {
-          name: "Kisuke",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/kisuke.webp",
-          power: 1280,
-          level: 1,
-          evolutionRequirements: [ { item: "Bucket Hat", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Kisuke (Scientist)",
-            newImage: "./images/evolve/Kisuke (Scientist).webp",
-            basePowerIncrease: 590
-          }
-        },
-        {
-          name: "Ichigo (True Release)",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/ichigo (true release).webp",
-          power: 1350,
-          level: 1,
-          evolutionRequirements: [ { item: "Horn of Salvation", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 5 }, { coins: 50000 } ],
-          evolutionData: {
-            newName: "Ichigo (Savior)",
-            newImage: "./images/evolve/Ichigo (Savior).webp",
-            basePowerIncrease: 650 
-          }
-        },
-        {
-          name: "Giselle",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/giselle.webp",
-          power: 1270,
-          level: 1,
-          evolutionRequirements: [ { item: "Energy Bone", quantity: 1 }, { item: "Green Essence", quantity: 30 }, { item: "Purple Essence", quantity: 15 }, { item: "Blue Essence", quantity: 20 }, { item: "Yellow Essence", quantity: 12 }, { item: "Rainbow Essence", quantity: 2 }, { coins:50000 } ],
-          evolutionData: {
-            newName: "Giselle (Zombie)",
-            newImage: "./images/evolve/Giselle (Zombie).webp",
-            basePowerIncrease: 580
-          }
-        },
-        {
-          name: "Aizen",
-          rarity: "Mythic",
-          color: "rainbow-text",
-          image: "./images/perso/aizen.webp",
-          power: 1320,
-          level: 1,
-          evolutionRequirements: [ { item: "Prison Chair", quantity: 1 }, { item: "Green Essence", quantity: 30 }, { item: "Blue Essence", quantity: 12 }, { item: "Yellow Essence", quantity: 12 }, { item: "Purple Essence", quantity: 15 }, { item: "Rainbow Essence", quantity: 2 }, { coins: 75000 } ],
-            evolutionData: {
-                newName: "Aizen (Aura)",
-                newImage: "./images/evolve/Aizen (Aura).webp",
-                basePowerIncrease: 730,
-                newRarity: "Secret",
-                newColor: "text-secret"
-            }
-        },
-        {
-            name: "Goku (Angel)",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/goku (angel).webp",
-            power: 1300,
-            level: 1,
-            evolutionRequirements: [ { item: "Rotara Earring 2", quantity: 1 }, { item: "Rotara Earring 1", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Red Essence", quantity: 30 }, { item: "Blue Essence", quantity: 30 }, { item: "Rainbow Essence", quantity: 3 }, { coins: 75000 } ],
-            evolutionData: {
-                newName: "Roku (Super 3)",
-                newImage: "./images/evolve/Goku (Super 3).webp",
-                basePowerIncrease: 850,
-                newRarity: "Secret",
-                newColor: "text-secret"
-            }
-        },
-        {
-            name: "Gohan (Adult)",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/gohan (adult).webp",
-            power: 1300,
-            level: 1,
-            evolutionRequirements: [ { item: "Z Blade", quantity: 12 }, { item: "Green Essence", quantity: 30 }, { item: "Red Essence", quantity: 10 }, { item: "Purple Essence", quantity: 5 }, { item: "Yellow Essence", quantity: 5 }, { item: "Blue Essence", quantity: 15 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Ultimate Gohan",
-                newImage: "./images/evolve/Ultimate Gohan.webp",
-                basePowerIncrease: 700
-            }
-        },
-        {
-            name: "Hercules",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/hercules.webp",
-            power: 1280,
-            level: 1,
-            evolutionRequirements: [ { item: "Champ's Belt", quantity: 12 }, { item: "Green Essence", quantity: 30 }, { item: "Red Essence", quantity: 15 }, { item: "Purple Essence", quantity: 20 }, { item: "Blue Essence", quantity: 5 }, { item: "Yellow Essence", quantity: 15 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Hercules and Mr Boo",
-                newImage: "./images/evolve/Hercules and Mr Boo.webp",
-                basePowerIncrease: 650
-            }
-        },
-        {
-            name: "Delta",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/delta.webp",
-            power: 1250,
-            level: 1,
-            evolutionRequirements: [ { item: "Dog Bone", quantity: 1 }, { item: "Green Essence", quantity: 30 }, { item: "Red Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 50000 } ],
-            evolutionData: {
-                newName: "Delta (Hunt)",
-                newImage: "./images/evolve/Delta (Hunt).webp",
-                basePowerIncrease: 600
-            }
-        },
-        {
-            name: "Subaru Natsuki",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "./images/perso/subaru.webp",
-            power: 1500,
-            level: 1,
-            evolutionRequirements: [ { item: "Tome of Wisdom", quantity: 1 }, { coins: 100000 } ],
-            evolutionData: {
-                newName: "Subaru Natsuki (Contract)", 
-                newImage: "./images/evolve/Subaru Natsuki (Contract).webp",
-                basePowerIncrease: 800,
-            }
-        },
-        {
-            name: "Artoria Pendragon (Alternate)",
-            rarity: "Secret",
-            color: "text-secret", 
-            image: "./images/perso/artoria pendragon (alternate).webp",
-            power: 1510,
-            level: 1,
-            evolutionRequirements: [ { item: "Corrupted Visor", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 12 }, { item: "Yellow Essence", quantity: 12 }, { item: "Red Essence", quantity: 15 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 30000 } ],
-            evolutionData: {
-                newName: "Artoria Pendragon (Black Tyrant)",
-                newImage: "./images/evolve/Artoria Pendragon (Black Tyrant).webp",
-                basePowerIncrease: 900,
-            }
-        },
-        {
-            name: "Sakura Matou",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "./images/perso/sakura.webp",
-            power: 1550,
-            level: 1,
-            evolutionRequirements: [ { item: "Tainted Ribbon", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Yellow Essence", quantity: 12 }, { item: "Pink Essence", quantity: 15 }, { item: "Red Essence", quantity: 12 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 100000 } ],
-            evolutionData: {
-                newName: "Sakura (Angra Mainyu)",
-                newImage: "./images/evolve/Sakura (Angra Mainyu).webp",
-                basePowerIncrease: 950,
-            }
-        },
-        {
-            name: "Esdeath",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "./images/perso/esdeath.webp",
-            power: 1520,
-            level: 1,
-            evolutionRequirements: [ { item: "Demon Chalice", quantity: 1 }, { coins: 100000 } ],
-            evolutionData: {
-                newName: "Esdeath (Romantic)",
-                newImage: "./images/evolve/Esdeath (Romantic).webp",
-                basePowerIncrease: 800,
-            }
-        },
-        {
-            name: "Yhwach",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "./images/perso/yhwach.webp",
-            power: 1530, 
-            level: 1,
-            evolutionRequirements: [ { item: "Essence of the Spirit King", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 12 }, { item: "Purple Essence", quantity: 15 }, { item: "Red Essence", quantity: 12 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 30000 } ],
-            evolutionData: {
-                newName: "Yhwach (Almighty)",
-                newImage: "./images/evolve/Yhwach (Almighty).webp",
-                basePowerIncrease: 790,
-            }
-        },
-        {
-            name: "Frieren",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "./images/perso/frieren.webp",
-            power: 1520,
-            level: 1,
-            evolutionRequirements: [ { item: "Ring of Friendship", quantity: 1 }, { coins: 10000 } ],
-            evolutionData: {
-                newName: "Frieren (Teacher)",
-                newImage: "./images/evolve/Frieren (Teacher).webp",
-                basePowerIncrease: 780,
-            }
-        },
-        {
-            name: "Choi Jong-In",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "./images/perso/choi jong-in.png",
-            power: 1550, 
-            level: 1,
-            evolutionRequirements: [ { item: "Red Jewel", quantity: 5 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 12 }, { item: "Purple Essence", quantity: 12 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 100000 } ],
-            evolutionData: {
-                newName: "Choi Jong-In (Guild Leader)", 
-                newImage: "./images/evolve/Choi Jong-In (Guild Leader).webp",
-                basePowerIncrease: 800,
-            }
-        },
-        {
-            name: "Boo",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "./images/perso/boo.png  ",
-            power: 1550,
-            level: 1,
-            evolutionRequirements: [ { item: "Majan Essence", quantity: 12 }, { item: "Green Essence", quantity: 40 }, { item: "Red Essence", quantity: 12 }, { item: "Pink Essence", quantity: 20 }, { item: "Blue Essence", quantity: 12 }, { item: "Rainbow Essence", quantity: 2 }, { coins: 30000 } ],
-            evolutionData: {
-                newName: "Boo (Evil)",
-                newImage: "./images/evolve/Boo (Evil).webp",
-                basePowerIncrease: 830,
-            }
-        },
-        {
-            name: "Katakuri",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "./images/perso/katakuri.png",
-            power: 1750,
-            level: 1,
-            evolutionRequirements: [ { item: "Donut", quantity: 5 }, { coins: 100000 } ],
-            evolutionData: {
-                newName: "Katakuri (Mochi)",
-                newImage: "./images/evolve/Katakuri (Mochi).webp",
-                basePowerIncrease: 800,
-            }
-        },
-        {
-            name: "Cid Kagenou",
-            rarity: "Secret",
-            color: "text-secret",
-            image: "./images/perso/cid kagenou.png",
-            power: 1580,
-            level: 1,
-            evolutionRequirements: [ { item: "Atomic Essence", quantity: 1 }, { item: "Green Essence", quantity: 40 }, { item: "Red Essence", quantity: 30 }, { item: "Blue Essence", quantity: 30 }, { item: "Rainbow Essence", quantity: 3 }, { coins: 30000 } ],
-            evolutionData: {
-                newName: "Shadow", 
-                newImage: "./images/evolve/shadow.webp",
-                basePowerIncrease: 800,
-            }
-        },
-        {
-            name: "NotGoodGuy",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/notgoodguy.png",
-            power: 1260,
-            level: 1,
-            evolutionRequirements: [ { item: "Restricting Headband", quantity: 12 }, { item: "Green Essence", quantity: 30 }, { item: "Purple Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 1 }, { coins: 15000 } ],
-            evolutionData: {
-                newName: "NotGoodGuy (Free)",
-                newImage: "./images/evolve/NotGoodGuy (Free).webp",
-                basePowerIncrease: 650
-            }
-        },
-        {
-            name: "Kazzy",
-            rarity: "Mythic",
-            color: "rainbow-text",
-            image: "./images/perso/kazzy.webp",
-            power: 1300,
-            level: 1,
-            evolutionRequirements: [ { item: "Toil Ribbon", quantity: 12 }, { item: "Green Essence", quantity: 40 }, { item: "Blue Essence", quantity: 20 }, { item: "Red Essence", quantity: 30 }, { item: "Rainbow Essence", quantity: 3 }, { coins: 30000 } ],
-            evolutionData: {
-                newName: "Kazzy (Queen)",
-                newImage: "./images/evolve/Kazzy (Queen).webp",
-                basePowerIncrease: 600,
-            }
-        },
-      ];
+        }
+    },
+    {
+        name: "Gohan (Adult)",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/gohan (adult).webp",
+        power: 1300,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Z Blade", 12, 50000, {
+            essenceQuantities: { Green: 30, Red: 10, Purple: 5, Yellow: 5, Blue: 15, Rainbow: 1, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Gohan", "Ultimate", 700) // Base name simplifié
+    },
+    {
+        name: "Hercules",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/hercules.webp",
+        power: 1280,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Champ's Belt", 12, 50000, {
+            essenceQuantities: { Green: 30, Red: 15, Purple: 20, Blue: 5, Yellow: 15, Rainbow: 1, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Hercules", "and Mr Boo", 650)
+    },
+    {
+        name: "Delta",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/delta.webp",
+        power: 1250,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Dog Bone", 1, 50000, {
+            essenceQuantities: { Green: 30, Red: 20, Pink: 20, Rainbow: 1, Blue: 0, Yellow: 0, Purple: 0 }
+        }),
+        evolutionData: createEvolutionData("Delta", "Hunt", 600)
+    },
+    {
+        name: "Subaru Natsuki",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/subaru.webp",
+        power: 1500,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Tome of Wisdom", 1, 100000, { excludeEssences: ["Green", "Yellow", "Blue", "Purple", "Pink", "Red", "Rainbow"] }),
+        evolutionData: createEvolutionData("Subaru Natsuki", "Contract", 800)
+    },
+    {
+        name: "Artoria Pendragon (Alternate)",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/artoria pendragon (alternate).webp",
+        power: 1510,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Corrupted Visor", 1, 30000, {
+            essenceQuantities: { Green: 40, Blue: 12, Yellow: 12, Red: 15, Rainbow: 1, Pink: 0, Purple: 0 }
+        }),
+        evolutionData: createEvolutionData("Artoria Pendragon", "Black Tyrant", 900)
+    },
+    {
+        name: "Sakura Matou",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/sakura.webp",
+        power: 1550,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Tainted Ribbon", 1, 100000, {
+            essenceQuantities: { Green: 40, Yellow: 12, Pink: 15, Red: 12, Rainbow: 1, Blue: 0, Purple: 0 }
+        }),
+        evolutionData: createEvolutionData("Sakura", "Angra Mainyu", 950)
+    },
+    {
+        name: "Esdeath",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/esdeath.webp",
+        power: 1520,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Demon Chalice", 1, 100000, { excludeEssences: ["Green", "Yellow", "Blue", "Purple", "Pink", "Red", "Rainbow"] }),
+        evolutionData: createEvolutionData("Esdeath", "Romantic", 800)
+    },
+    {
+        name: "Yhwach",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/yhwach.webp",
+        power: 1530,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Essence of the Spirit King", 1, 30000, {
+            essenceQuantities: { Green: 40, Blue: 12, Purple: 15, Red: 12, Rainbow: 1, Yellow: 0, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Yhwach", "Almighty", 790)
+    },
+    {
+        name: "Frieren",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/frieren.webp",
+        power: 1520,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Ring of Friendship", 1, 10000, { excludeEssences: ["Green", "Yellow", "Blue", "Purple", "Pink", "Red", "Rainbow"] }),
+        evolutionData: createEvolutionData("Frieren", "Teacher", 780)
+    },
+    {
+        name: "Choi Jong-In",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/choi jong-in.png",
+        power: 1550,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Red Jewel", 5, 100000, {
+            essenceQuantities: { Green: 40, Blue: 12, Purple: 12, Red: 20, Rainbow: 1, Yellow: 0, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Choi Jong-In", "Guild Leader", 800)
+    },
+    {
+        name: "Boo",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/boo.png", // Espace en fin de nom de fichier retiré
+        power: 1550,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Majan Essence", 12, 30000, {
+            essenceQuantities: { Green: 40, Red: 12, Pink: 20, Blue: 12, Rainbow: 2, Yellow: 0, Purple: 0 }
+        }),
+        evolutionData: createEvolutionData("Boo", "Evil", 830)
+    },
+    {
+        name: "Katakuri",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/katakuri.png",
+        power: 1750,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Donut", 5, 100000, { excludeEssences: ["Green", "Yellow", "Blue", "Purple", "Pink", "Red", "Rainbow"] }),
+        evolutionData: createEvolutionData("Katakuri", "Mochi", 800)
+    },
+    {
+        name: "Cid Kagenou",
+        rarity: "Secret",
+        color: "text-secret",
+        image: "./images/perso/cid kagenou.png",
+        power: 1580,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Atomic Essence", 1, 30000, {
+            essenceQuantities: { Green: 40, Red: 30, Blue: 30, Rainbow: 3, Yellow: 0, Purple: 0, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Cid Kagenou", "Shadow", 800)
+    },
+    {
+        name: "NotGoodGuy",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/notgoodguy.png",
+        power: 1260,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Restricting Headband", 12, 15000, {
+            essenceQuantities: { Green: 30, Purple: 20, Red: 20, Rainbow: 1, Blue: 0, Yellow: 0, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("NotGoodGuy", "Free", 650)
+    },
+    {
+        name: "Kazzy",
+        rarity: "Mythic",
+        color: "rainbow-text",
+        image: "./images/perso/kazzy.webp",
+        power: 1300,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Toil Ribbon", 12, 30000, {
+            essenceQuantities: { Green: 40, Blue: 20, Red: 30, Rainbow: 3, Yellow: 0, Purple: 0, Pink: 0 }
+        }),
+        evolutionData: createEvolutionData("Kazzy", "Queen", 600)
+    },
+];
 
-    // --- MODIFICATION ICI ---
-    // Ajout de la propriété `chance` à chaque personnage
-        const specialCharacters = [
-        {
-          name: "Gogeta's Super Saiyan 4",
-          rarity: "Vanguard",
-          color: "text-vanguard",
-          image: "./images/perso/gogeta's super saiyan 4.png",
-          power: 1850,
-          level: 1,
-          passive: { teamSizeBonus: 2 },
-          chance: 0.00001 // 0.00001% de chance (1 sur 100,000)
-        },  
-        {
-            name: "Igris",
-            rarity: "Secret",
-            color: "text-yellow-400",
-            image: "./images/perso/igris.webp",
-            power: 1450,
-            level: 1,
-            evolutionRequirements: [ { item: "Blood-Red Armor", quantity: 5 }, { item: "Green Essence", quantity: 20 }, { item: "Blue Essence", quantity: 20 }, { item: "Red Essence", quantity: 20 }, { item: "Pink Essence", quantity: 20 }, { item: "Rainbow Essence", quantity: 10 }, { coins: 100000 } ],
-            evolutionData: {
-                newName: "Igris (Elite Knight)",
-                newImage: "./images/evolve/Igris (Elite Knight).webp",
-                basePowerIncrease: 800
-            },
-            chance: 0.0000125 // 0.00125% de chance (1 sur 80,000)
-        },
-        { name: "Majin Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/majin boo (evil).webp", power: 1550, level: 1, chance: 0.0000125 },
-        { name: "Buuhan (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/buuhan (evil).png", power: 1560, level: 1, chance: 0.0000125 },
-        { name: "Boockleo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/boockleo (evil).png", power: 1570, level: 1, chance: 0.0000125 },
-        { name: "Super Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/super boo (evil).webp", power: 1520, level: 1, chance: 0.0000125 },
-        { name: "Kid Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/kid boo (evil).webp", power: 1580, level: 1, chance: 0.0000125 },
-        { name: "Super Vegetto", rarity: "Secret", color: "text-secret", image: "./images/perso/super vegetto.webp", power: 1585, level: 1, chance: 0.0000125 },
-        { name: "Cid", rarity: "Secret", color: "text-secret", image: "./images/perso/cid.png", power: 1650, level: 1, chance: 0.0000125 },
-        { name: "Kaze-sensei", rarity: "Légendaire", color: "text-purple-400", image: "https://via.placeholder.com/150?text=Kaze", power: 800, level: 1 },
-        { name: "Mizu-chan", rarity: "Épique", color: "text-blue-400", image: "https://via.placeholder.com/150?text=Mizu", power: 500, level: 1 },
-        { name: "Tsuchi-kun", rarity: "Rare", color: "text-gray-400", image: "https://via.placeholder.com/150?text=Tsuchi", power: 360, level: 1 },
-        { name: "Sakura", rarity: "Légendaire", color: "text-pink-400", image: "https://via.placeholder.com/150?text=Sakura", power: 850, level: 1 }
-    ];
+// --- MODIFICATION ICI ---
+// Ajout de la propriété `chance` à chaque personnage
+const specialCharacters = [
+    {
+        name: "Gogeta's Super Saiyan 4",
+        rarity: "Vanguard",
+        color: "text-vanguard",
+        image: "./images/perso/gogeta's super saiyan 4.png",
+        power: 1850,
+        level: 1,
+        passive: { teamSizeBonus: 2 },
+        chance: 0.00001 // 0.00001% de chance (1 sur 100,000)
+    },
+    {
+        name: "Igris",
+        rarity: "Secret",
+        color: "text-yellow-400",
+        image: "./images/perso/igris.webp",
+        power: 1450,
+        level: 1,
+        evolutionRequirements: createEvolutionRequirements("Blood-Red Armor", 5, 100000),
+        evolutionData: createEvolutionData("Igris", "Elite Knight", 800),
+        chance: 0.0000125 // 0.00125% de chance (1 sur 80,000)
+    },
+    { name: "Majin Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/majin boo (evil).webp", power: 1550, level: 1, chance: 0.0000125 },
+    { name: "Buuhan (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/buuhan (evil).png", power: 1560, level: 1, chance: 0.0000125 },
+    { name: "Boockleo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/boockleo (evil).png", power: 1570, level: 1, chance: 0.0000125 },
+    { name: "Super Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/super boo (evil).webp", power: 1520, level: 1, chance: 0.0000125 },
+    { name: "Kid Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/kid boo (evil).webp", power: 1580, level: 1, chance: 0.0000125 },
+    { name: "Super Vegetto", rarity: "Secret", color: "text-secret", image: "./images/perso/super vegetto.webp", power: 1585, level: 1, chance: 0.0000125 },
+    { name: "Cid", rarity: "Secret", color: "text-secret", image: "./images/perso/cid.png", power: 1650, level: 1, chance: 0.0000125 },
+    { name: "Kaze-sensei", rarity: "Légendaire", color: "text-purple-400", image: "https://via.placeholder.com/150?text=Kaze", power: 800, level: 1 },
+    { name: "Mizu-chan", rarity: "Épique", color: "text-blue-400", image: "https://via.placeholder.com/150?text=Mizu", power: 500, level: 1 },
+    { name: "Tsuchi-kun", rarity: "Rare", color: "text-gray-400", image: "https://via.placeholder.com/150?text=Tsuchi", power: 360, level: 1 },
+    { name: "Sakura", rarity: "Légendaire", color: "text-pink-400", image: "https://via.placeholder.com/150?text=Sakura", power: 850, level: 1 }
+];
 
-    const allCharacters = [...standardCharacters, ...specialCharacters];
+const allCharacters = [...standardCharacters, ...specialCharacters];
 
     const shopItemPool = [
       { type: 'gems', amount: 500, cost: 50, currency: 'coins', description: "500 gemmes" }, { type: 'gems', amount: 1200, cost: 100, currency: 'coins', description: "1200 gemmes" }, { type: 'gems', amount: 3000, cost: 200, currency: 'coins', description: "3000 gemmes" }, { type: 'pull-ticket', amount: 1, cost: 80, currency: 'coins', description: "Ticket de Tirage x1" }, { type: 'pull-ticket', amount: 3, cost: 200, currency: 'coins', description: "Ticket de Tirage x3" }, { type: 'exp-boost', amount: 2, cost: 200, currency: 'coins', description: "Boost EXP x2 (30 min)" },
