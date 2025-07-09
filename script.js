@@ -3345,9 +3345,9 @@
       
       const specialMultiPullButtonElement = document.getElementById("special-multi-pull-button");
       if (specialMultiPullButtonElement) {
-        specialMultiPullButtonElement.disabled = gems < PULL_COST_SPECIAL_MULTI;
-        specialMultiPullButtonElement.classList.toggle("opacity-50", gems < PULL_COST_SPECIAL_MULTI);
-        specialMultiPullButtonElement.classList.toggle("cursor-not-allowed", gems < PULL_COST_SPECIAL_MULTI);
+        specialMultiPullButtonElement.disabled = gems < PULL_COST_SPECIAL_MULTI; // Utilise la constante
+        specialMultiPullButtonElement.classList.toggle("opacity-50", specialMultiPullButtonElement.disabled); // Basé sur l'état disabled
+        specialMultiPullButtonElement.classList.toggle("cursor-not-allowed", specialMultiPullButtonElement.disabled); // Basé sur l'état disabled
       }
 
       pullButton.classList.toggle("opacity-50", pullButton.disabled);
