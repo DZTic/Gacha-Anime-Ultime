@@ -18,6 +18,50 @@
     let currentUser = null;
     let isGameInitialized = false; // Pour s'assurer que le jeu n'est initialisé qu'une seule fois
 
+    // --- CONSTANTES DU JEU ---
+    const PULL_COST_STANDARD = 100;
+    const PULL_COST_MULTI = 1000;
+    const PULL_COST_SPECIAL = 150;
+    const PULL_COST_SPECIAL_MULTI = 1500;
+    const PITY_THRESHOLD_STANDARD = 10000;
+    const PITY_THRESHOLD_SPECIAL = 85000;
+    const SHOP_REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 heures
+    const EXP_BOOST_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+    const TRAIT_REMOVAL_COST_TOKENS = 5; // Commenté car la fonctionnalité est commentée
+    const TRAIT_APPLY_COST_TOKENS = 1;
+    const LIMIT_BREAK_COST_ORBS = 1;
+    const LIMIT_BREAK_LEVEL_INCREASE_AMOUNT = 5;
+    const MAX_LEVEL_CAP_OVERALL = 100;
+    const STAT_CHIP_CHANGE_COST = 1;
+    const EXP_PER_LEVEL_BASE = 50;
+    const MAX_GEMS = 1000000000;
+    const MAX_COINS = 10000000;
+    const AUTOSAVE_DELAY_MS = 2000;
+    const CLICK_THRESHOLD_AUTOCLICKER = 10;
+    const CLICK_TIMEFRAME_MS_AUTOCLICKER = 2000;
+    const MULTI_ACTION_REPETITION_MIN = 1;
+    const MULTI_ACTION_REPETITION_MAX = 1000; // Note: le HTML a max="10000", mais le JS dit 1000. Je prends 1000.
+    const DELAY_BETWEEN_MULTI_ACTIONS_MS = 50;
+
+
+    const FUSION_EXP_BY_RARITY = {
+        Rare: 25,
+        Épique: 50,
+        Légendaire: 100,
+        Mythic: 200,
+        Secret: 300
+    };
+
+    const SELL_REWARDS_BY_RARITY = {
+        Rare:       { gems: 10, coins: 5 },
+        Épique:     { gems: 50, coins: 15 },
+        Légendaire: { gems: 100, coins: 30 },
+        Mythic:     { gems: 500, coins: 100 },
+        Secret:     { gems: 1000, coins: 200 },
+        Default:    { gems: 1, coins: 1 } // Fallback
+    };
+
+
     // --- NOUVEAU: Références aux nouveaux éléments HTML ---
     const appContainer = document.getElementById("app-container");
     const authContainer = document.getElementById("auth-container");
@@ -89,11 +133,11 @@
     if (gemsRaw !== null) {
         gems = parseInt(gemsRaw, 10);
         if (isNaN(gems)) {
-            console.warn("[LocalStorage] Valeur de 'gems' invalide:", gemsRaw, ". Réinitialisation à 1000.");
-            gems = 1000; 
+            console.warn("[LocalStorage] Valeur de 'gems' invalide:", gemsRaw, ". Réinitialisation à ", PULL_COST_MULTI);
+            gems = PULL_COST_MULTI;
         }
     } else {
-        gems = 1000; 
+        gems = PULL_COST_MULTI;
     }
 
     let coins = parseInt(localStorage.getItem("coins") || "0", 10);
@@ -266,10 +310,10 @@
     let selectedCharacterIndices = new Set(); 
     let shopOffers = safeJsonParse("shopOffers", [], isValidShopOffersArray);
 
-    let shopRefreshTime = parseInt(localStorage.getItem("shopRefreshTime") || (Date.now() + TWO_HOURS_MS).toString(), 10);
+    let shopRefreshTime = parseInt(localStorage.getItem("shopRefreshTime") || (Date.now() + SHOP_REFRESH_INTERVAL_MS).toString(), 10);
     if (isNaN(shopRefreshTime)) { 
         console.warn("[LocalStorage] 'shopRefreshTime' invalide. Réinitialisation."); 
-        shopRefreshTime = Date.now() + TWO_HOURS_MS;
+        shopRefreshTime = Date.now() + SHOP_REFRESH_INTERVAL_MS;
     }
     let expBoostEndTime = parseInt(localStorage.getItem("expBoostEndTime") || "0", 10);
     if (isNaN(expBoostEndTime)) { console.warn("[LocalStorage] 'expBoostEndTime' invalide. Réinitialisation à 0."); expBoostEndTime = 0; }
@@ -675,8 +719,8 @@
     const statChangeConfirmNoButton = document.getElementById("stat-change-confirm-no-button");
     const statChangeElement = document.getElementById("stat-change"); // Pour le nouvel onglet principal
 
-    const TRAIT_REMOVAL_COST = 5; // Cost in Reroll Token to remove a trait
-    const APPLY_NEW_TRAIT_COST = 1;
+    // const TRAIT_REMOVAL_COST = 5; // Déplacé vers les constantes globales (TRAIT_REMOVAL_COST_TOKENS)
+    // const APPLY_NEW_TRAIT_COST = 1; // Déplacé vers les constantes globales (TRAIT_APPLY_COST_TOKENS)
     const tabTraitButton = document.getElementById("tab-trait"); // NOUVEAU
     const traitElement = document.getElementById("trait"); // NOUVEAU
     const traitEssenceCountElement = document.getElementById("trait-essence-count"); // NOUVEAU
@@ -701,11 +745,11 @@
     const applyLimitBreakButton = document.getElementById("apply-limit-break-button"); // AJOUT
     const traitActionConfirmYesButton = document.getElementById("trait-action-confirm-yes-button");
     const traitActionConfirmNoButton = document.getElementById("trait-action-confirm-no-button");
-    const LIMIT_BREAK_LEVEL_INCREASE = 5;
-    const MAX_POSSIBLE_LEVEL_CAP = 100; 
-    const LIMIT_BREAK_COST = 1;
-    const STANDARD_MYTHIC_PITY_THRESHOLD = 10000;
-    const SPECIAL_BANNER_PITY_THRESHOLD = 85000;
+    // const LIMIT_BREAK_LEVEL_INCREASE = 5; // Déplacé (LIMIT_BREAK_LEVEL_INCREASE_AMOUNT)
+    // const MAX_POSSIBLE_LEVEL_CAP = 100;  // Déplacé (MAX_LEVEL_CAP_OVERALL)
+    // const LIMIT_BREAK_COST = 1; // Déplacé (LIMIT_BREAK_COST_ORBS)
+    // const STANDARD_MYTHIC_PITY_THRESHOLD = 10000; // Déplacé (PITY_THRESHOLD_STANDARD)
+    // const SPECIAL_BANNER_PITY_THRESHOLD = 85000; // Déplacé (PITY_THRESHOLD_SPECIAL)
     const miniGameModal = document.getElementById('mini-game-modal');
     const miniGameStartScreen = document.getElementById('mini-game-start-screen');
     const miniGameMainScreen = document.getElementById('mini-game-main-screen');
@@ -723,8 +767,8 @@
         pull: [],
         level: [],
     };
-    const CLICK_THRESHOLD = 10; // Clics pour déclencher
-    const CLICK_TIMEFRAME_MS = 2000; // Fenêtre de temps en ms (2 secondes)
+    // const CLICK_THRESHOLD = 10; // Déplacé (CLICK_THRESHOLD_AUTOCLICKER)
+    // const CLICK_TIMEFRAME_MS = 2000; // Déplacé (CLICK_TIMEFRAME_MS_AUTOCLICKER)
     const multiActionButton = document.getElementById("multi-action-button");
     const multiActionModal = document.getElementById("multi-action-modal");
     const maTabButtons = document.querySelectorAll(".ma-tab-button");
@@ -962,7 +1006,7 @@
             
             // Variables de base du joueur
             characterIdCounter = 0;
-            gems = 1000;
+            gems = PULL_COST_MULTI; // Utilise la constante pour la valeur initiale des gemmes
             coins = 0;
             pullCount = 0;
             ownedCharacters = [];
@@ -974,7 +1018,7 @@
             // Variables de progression et d'état
             missions = [];
             shopOffers = [];
-            shopRefreshTime = Date.now() + TWO_HOURS_MS;
+            shopRefreshTime = Date.now() + SHOP_REFRESH_INTERVAL_MS; // Utilise la constante
             expBoostEndTime = 0;
             storyProgress = allGameLevels.map(level => ({
                 id: level.id,
@@ -1020,7 +1064,7 @@
             console.log("Sauvegarde trouvée, chargement de la progression.");
             
             characterIdCounter = saveData.characterIdCounter || 0;
-            gems = saveData.gems || 1000;
+            gems = saveData.gems || PULL_COST_MULTI; // Utilise la constante
             coins = saveData.coins || 0;
             pullCount = saveData.pullCount || 0;
             ownedCharacters = saveData.ownedCharacters || [];
@@ -1030,7 +1074,7 @@
             pullTickets = saveData.pullTickets || 0;
             missions = saveData.missions || [];
             shopOffers = saveData.shopOffers || [];
-            shopRefreshTime = saveData.shopRefreshTime || (Date.now() + TWO_HOURS_MS);
+            shopRefreshTime = saveData.shopRefreshTime || (Date.now() + SHOP_REFRESH_INTERVAL_MS); // Utilise la constante
             expBoostEndTime = saveData.expBoostEndTime || 0;
             storyProgress = saveData.storyProgress || allGameLevels.map(level => ({
                 id: level.id,
@@ -1539,7 +1583,7 @@
     }
 
     function getExpNeededForCharacterLevel(level, rarity) {
-      const baseExp = 50 * level * level; 
+      const baseExp = EXP_PER_LEVEL_BASE * level * level; // Utilise la constante
       const multiplier = rarityExpMultipliers[rarity] || 1.0; 
       return Math.floor(baseExp * multiplier); 
     }
@@ -1562,18 +1606,12 @@
                 const progress = storyProgress.find(p => p.id === level.id);
                 const isDisabled = !progress.unlocked;
                 const buttonText = level.isInfinite ? `${level.name} (Gemmes/min: ${level.rewards.gemsPerMinute})` : `${level.name} ${progress.completed ? '(Terminé)' : ''}`;
-                // La modification est ici : on utilise data-attributes au lieu de onclick
                 return `<button class="level-start-button bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}" data-level-id="${level.id}" data-is-infinite="${level.isInfinite || false}" ${isDisabled ? 'disabled' : ''}>${buttonText}</button>`;
               }).join("") : '<p class="text-white">Monde verrouillé. Terminez le monde précédent pour déverrouiller.</p>'}
             </div>
           </div>`;
       }).join("");
-          const groupedLevels = storyProgress.reduce((acc, level) => {
-            const world = level.id <= 6 ? "Royaume des Ombres" : level.id <= 12 ? "Empire de Cristal" : level.id <= 18 ? "Profondeurs Abyssales" : level.id <= 24 ? "Pics Célestes" : level.id <= 30 ? "Déserts du Vide" : level.id <= 36 ? "Éclipse Éternelle" : "Abîme Infini";
-            acc[world] = acc[world] || [];
-            acc[world].push(level);
-            return acc;
-          }, {});
+          // Note: The 'groupedLevels' variable was defined but not used. It's safe to remove if not needed elsewhere.
     }
 
     function updateLegendeDisplay() {
@@ -1611,18 +1649,16 @@
                 const levelDiv = document.createElement('div');
                 levelDiv.className = 'mb-6';
                 
-                // --- MODIFICATION APPLIQUÉE ICI ---
                 levelDiv.innerHTML = `
                     <h3 class="text-xl text-white font-bold mb-2">${worldName} - Défi Légendaire</h3>
                     <div class="grid gap-4">
                         <button class="level-start-button bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-lg ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
-                                data-level-id="${legendaryLevelForWorld.id}" ${isDisabled ? 'disabled' : ''}>
+                                data-level-id="${legendaryLevelForWorld.id}" data-is-infinite="false" ${isDisabled ? 'disabled' : ''}>
                             ${buttonText}
                         </button>
                         ${isDisabled && !worldCompleted ? `<p class="text-sm text-gray-400">Terminez tous les niveaux du monde "${worldName}" pour débloquer ce défi.</p>` : ''}
                     </div>
                 `;
-                // --- FIN DE LA MODIFICATION ---
                 
                 legendeLevelListElement.appendChild(levelDiv);
                 foundLegendaryLevel = true;
@@ -1812,8 +1848,8 @@
         
         const repetitions = parseInt(maPullsRepetitionsInput.value, 10);
         // MODIFICATION ICI
-        if (isNaN(repetitions) || repetitions < 1 || repetitions > 1000) {
-            maPullsStatus.textContent = "Erreur: Nombre de répétitions invalide (doit être entre 1 et 1000).";
+        if (isNaN(repetitions) || repetitions < MULTI_ACTION_REPETITION_MIN || repetitions > MULTI_ACTION_REPETITION_MAX) {
+            maPullsStatus.textContent = `Erreur: Nombre de répétitions invalide (doit être entre ${MULTI_ACTION_REPETITION_MIN} et ${MULTI_ACTION_REPETITION_MAX}).`;
             return;
         }
         
@@ -1841,8 +1877,8 @@
 
         const repetitions = parseInt(maLevelsRepetitionsInput.value, 10);
         // MODIFICATION ICI
-        if (isNaN(repetitions) || repetitions < 1 || repetitions > 1000) {
-            maLevelsStatus.textContent = "Erreur: Nombre de répétitions invalide (doit être entre 1 et 1000).";
+        if (isNaN(repetitions) || repetitions < MULTI_ACTION_REPETITION_MIN || repetitions > MULTI_ACTION_REPETITION_MAX) {
+            maLevelsStatus.textContent = `Erreur: Nombre de répétitions invalide (doit être entre ${MULTI_ACTION_REPETITION_MIN} et ${MULTI_ACTION_REPETITION_MAX}).`;
             return;
         }
 
@@ -1862,7 +1898,7 @@
     // DANS script.js
 
     async function runMultiActionLoop() {
-        const DELAY_BETWEEN_ACTIONS = 50; 
+        // const DELAY_BETWEEN_ACTIONS = 50; // Déplacé (DELAY_BETWEEN_MULTI_ACTIONS_MS)
 
         for (let i = 1; i <= multiActionState.total; i++) {
             if (multiActionState.stopRequested) {
@@ -1903,7 +1939,7 @@
                 break;
             }
 
-            await new Promise(r => setTimeout(r, DELAY_BETWEEN_ACTIONS));
+            await new Promise(r => setTimeout(r, DELAY_BETWEEN_MULTI_ACTIONS_MS));
         }
         
         const statusElement = multiActionState.type === 'pulls' ? maPullsStatus : maLevelsStatus;
@@ -2017,9 +2053,9 @@
             closeModalHelper(autofuseModal);
             return;
         }
-        if (mainChar.level >= 100) {
+        if (mainChar.level >= MAX_LEVEL_CAP_OVERALL) {
             console.log("Personnage au niveau maximum");
-            resultElement.innerHTML = '<p class="text-red-400">Ce personnage est déjà au niveau maximum (100) !</p>';
+            resultElement.innerHTML = `<p class="text-red-400">Ce personnage est déjà au niveau maximum (${MAX_LEVEL_CAP_OVERALL}) !</p>`;
             closeModalHelper(autofuseModal);
             return;
         }
@@ -2029,13 +2065,7 @@
             return;
         }
 
-        const expByRarity = {
-            Rare: 25,
-            Épique: 50,
-            Légendaire: 100,
-            Mythic: 200,
-            Secret: 300
-        };
+        // const expByRarity = FUSION_EXP_BY_RARITY; // Utilisation directe de la constante globale
         let totalExpGained = 0;
         const fusionSummary = {};
 
@@ -2058,7 +2088,7 @@
         const characterIdsToFuse = charactersToFuse.map(c => c.id); // Obtenir les IDs avant de modifier ownedCharacters
 
         charactersToFuse.forEach(char => {
-            const expGained = expByRarity[char.rarity] || 25;
+            const expGained = FUSION_EXP_BY_RARITY[char.rarity] || FUSION_EXP_BY_RARITY.Rare; // Utilise la constante
             totalExpGained += expGained;
             fusionSummary[char.rarity] = (fusionSummary[char.rarity] || 0) + 1;
         });
@@ -2083,7 +2113,7 @@
         addExp(totalExpGained); // Ajouter l'EXP au joueur
 
         const summaryText = Object.entries(fusionSummary)
-            .map(([rarity, count]) => `${count} ${rarity} (+${count * expByRarity[rarity]} EXP)`)
+            .map(([rarity, count]) => `${count} ${rarity} (+${count * (FUSION_EXP_BY_RARITY[rarity] || FUSION_EXP_BY_RARITY.Rare)} EXP)`) // Utilise la constante
             .join(", ");
         resultElement.innerHTML = `
         <p class="text-green-400">Multifusion réussie pour ${mainChar.name} !</p>
@@ -2099,7 +2129,7 @@
     }
 
     function addGems(amount) {
-        gems = Math.min(gems + amount, 1000000000); // Limite à 10 000 gemmes
+        gems = Math.min(gems + amount, MAX_GEMS); // Utilise la constante
         updateUI(); // Met à jour l'affichage
         scheduleSave(); // Sauvegarde la progression
     }
@@ -2108,7 +2138,7 @@
       console.log("openPullMethodModal appelé avec pullType:", pullType);
       currentPullType = pullType;
       openModal(pullMethodModal);
-      pullWithGemsButton.disabled = (pullType === "standard" && gems < 100) || (pullType === "special" && gems < 150);
+      pullWithGemsButton.disabled = (pullType === "standard" && gems < PULL_COST_STANDARD) || (pullType === "special" && gems < PULL_COST_SPECIAL); // Utilise les constantes
       pullWithGemsButton.classList.toggle("opacity-50", pullWithGemsButton.disabled);
       pullWithGemsButton.classList.toggle("cursor-not-allowed", pullWithGemsButton.disabled);
       pullWithTicketButton.disabled = pullTickets === 0;
@@ -2350,11 +2380,12 @@
     };
 
     function autoSellCharacter(char) {
-      const gemValue = char.rarity === "Rare" ? 10 : char.rarity === "Épique" ? 50 : char.rarity === "Légendaire" ? 100 : char.rarity === "Mythic" ? 500 : 1000;
-      const coinValue = char.rarity === "Rare" ? 5 : char.rarity === "Épique" ? 15 : char.rarity === "Légendaire" ? 30 : char.rarity === "Mythic" ? 100 : 200;
+      const rewards = SELL_REWARDS_BY_RARITY[char.rarity] || SELL_REWARDS_BY_RARITY.Default;
+      const gemValue = rewards.gems;
+      const coinValue = rewards.coins;
       
       addGems(gemValue);
-      coins = Math.min(coins + coinValue, 10000000);
+      coins = Math.min(coins + coinValue, MAX_COINS); // Utilise la constante
       
       missions.forEach(mission => {
         if (!mission.completed) {
@@ -2474,7 +2505,7 @@
                 golderMessagePartInfinite = ` (dont +${golderBonusGemsInfinite} grâce au trait Golder)`;
             }
 
-            gems = Math.min(gems + totalGemsEarnedInfinite, 10000000);
+            addGems(totalGemsEarnedInfinite); // Utilise addGems qui gère le plafond MAX_GEMS
 
             const expEarned = Math.floor(timeSurvived / 10);
             addExp(expEarned);
@@ -2599,7 +2630,7 @@
                 let finalCoinsAwarded = actualCoinsToAward + golderBonusCoins;
 
                 addGems(finalGemsAwarded);
-                coins = Math.min(coins + finalCoinsAwarded, 10000000);
+                coins = Math.min(coins + finalCoinsAwarded, MAX_COINS); // Utilise la constante
                 addExp(actualExpToAward); // L'EXP du joueur est basée sur l'EXP (potentiellement réduite) du niveau
                 selectedCharsObjects.forEach(char => addCharacterExp(char, actualExpToAward)); // De même pour l'EXP des personnages
 
@@ -2769,12 +2800,11 @@
             const levelDiv = document.createElement('div');
             levelDiv.className = 'mb-6';
             
-            // --- MODIFICATION APPLIQUÉE ICI ---
             levelDiv.innerHTML = `
                 <h3 class="text-xl text-white font-bold mb-2">${level.world}</h3>
                 <div class="grid gap-2">
                     <button class="level-start-button ${buttonClass} text-white py-2 px-4 rounded-lg transition-colors duration-200 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
-                            data-level-id="${level.id}" ${isDisabled ? 'disabled' : ''}>
+                            data-level-id="${level.id}" data-is-infinite="false" ${isDisabled ? 'disabled' : ''}>
                         ${buttonText}
                     </button>
                     <div class="text-xs text-gray-300 px-2">
@@ -2784,7 +2814,6 @@
                     </div>
                 </div>
             `;
-            // --- FIN DE LA MODIFICATION ---
             
             challengeLevelListElement.appendChild(levelDiv);
         });
@@ -3007,12 +3036,12 @@
     function updateShopOffers() {
       shopOffers = [];
       const availableItems = [...shopItemPool];
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 3; i++) { // 3 pourrait être une constante NUM_SHOP_OFFERS
         if (availableItems.length === 0) break;
         const randomIndex = Math.floor(Math.random() * availableItems.length);
         shopOffers.push(availableItems.splice(randomIndex, 1)[0]);
       }
-      shopRefreshTime = Date.now() + 2 * 60 * 60 * 1000;
+      shopRefreshTime = Date.now() + SHOP_REFRESH_INTERVAL_MS; // Utilise la constante
       purchasedOffers = []; // Réinitialiser les offres achetées
       localStorage.setItem("shopOffers", JSON.stringify(shopOffers));
       localStorage.setItem("shopRefreshTime", shopRefreshTime);
@@ -3037,6 +3066,7 @@
           </div>
         `;
       }).join("");
+      // Le gestionnaire d'événements sera attaché après cette fonction.
     }
 
 
@@ -3091,7 +3121,7 @@
       const now = Date.now();
       let timeLeft = shopRefreshTime - now;
       if (timeLeft <= 0) {
-        shopRefreshTime = now + 2 * 60 * 60 * 1000;
+        shopRefreshTime = now + SHOP_REFRESH_INTERVAL_MS; // Utilise la constante
         localStorage.setItem("shopRefreshTime", shopRefreshTime);
         updateShopOffers();
         updateMissionPool();
@@ -3307,17 +3337,17 @@
       pullCountElement.textContent = pullCount;
       levelElement.textContent = level;
       expElement.textContent = exp;
-      expNeededElement.textContent = 50 * level * level;
+      expNeededElement.textContent = EXP_PER_LEVEL_BASE * level * level; // Utilise la constante
 
-      pullButton.disabled = gems < 100 && pullTickets === 0;
-      multiPullButton.disabled = gems < 1000; // CORRECTED: 1000
-      specialPullButton.disabled = gems < 150 && pullTickets === 0;
+      pullButton.disabled = gems < PULL_COST_STANDARD && pullTickets === 0;
+      multiPullButton.disabled = gems < PULL_COST_MULTI;
+      specialPullButton.disabled = gems < PULL_COST_SPECIAL && pullTickets === 0;
       
       const specialMultiPullButtonElement = document.getElementById("special-multi-pull-button");
-      if (specialMultiPullButtonElement) { // ADDED: Disable logic for special multi pull
-        specialMultiPullButtonElement.disabled = gems < 1500;
-        specialMultiPullButtonElement.classList.toggle("opacity-50", gems < 1500);
-        specialMultiPullButtonElement.classList.toggle("cursor-not-allowed", gems < 1500);
+      if (specialMultiPullButtonElement) {
+        specialMultiPullButtonElement.disabled = gems < PULL_COST_SPECIAL_MULTI;
+        specialMultiPullButtonElement.classList.toggle("opacity-50", gems < PULL_COST_SPECIAL_MULTI);
+        specialMultiPullButtonElement.classList.toggle("cursor-not-allowed", gems < PULL_COST_SPECIAL_MULTI);
       }
 
       pullButton.classList.toggle("opacity-50", pullButton.disabled);
@@ -3369,13 +3399,13 @@
         }
       });
       let leveledUp = false;
-      while (exp >= 50 * level * level) {
-        exp -= 50 * level * level;
+      while (exp >= (EXP_PER_LEVEL_BASE * level * level)) { // Utilise la constante
+        exp -= (EXP_PER_LEVEL_BASE * level * level); // Utilise la constante
         level++;
         leveledUp = true;
-        gems = Math.min(gems + 100, 1000000000); // Plafond harmonisé pour les gemmes
-        coins = Math.min(coins + 20, 10000000);   // Plafond harmonisé pour les pièces
-        resultElement.innerHTML = `<p class="text-green-400">Niveau ${level} atteint ! +100 gemmes, +20 pièces</p>`;
+        addGems(100); // Utilise addGems et une valeur (peut être une constante LEVEL_UP_GEM_REWARD)
+        coins = Math.min(coins + 20, MAX_COINS);   // Utilise MAX_COINS et une valeur (peut être LEVEL_UP_COIN_REWARD)
+        resultElement.innerHTML = `<p class="text-green-400">Niveau ${level} atteint ! +100 gemmes, +20 pièces</p>`; // Les valeurs affichées doivent correspondre
       }
       if (leveledUp) {
         missions.forEach(mission => {
@@ -3489,37 +3519,37 @@
     async function pullCharacter() {
         console.log("pullCharacter (standard banner) appelé pour un tirage direct");
         currentPullType = "standard";
-        const standardPullCost = 100;
+        // const standardPullCost = PULL_COST_STANDARD; // Utilise la constante
 
         if (pullTickets > 0) {
             // S'il y a des tickets, on les utilise en priorité
             executePull(true); // true signifie "utiliser un ticket"
-        } else if (gems >= standardPullCost) {
+        } else if (gems >= PULL_COST_STANDARD) { // Utilise la constante
             // Sinon, s'il y a assez de gemmes, on les utilise
             executePull(false); // false signifie "utiliser des gemmes"
         } else {
             // Sinon, on affiche une erreur car aucune ressource n'est disponible
-            resultElement.innerHTML = '<p class="text-red-400">Pas assez de tickets ou de gemmes (100 requis) !</p>';
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de tickets ou de gemmes (${PULL_COST_STANDARD} requis) !</p>`; // Utilise la constante
         }
     }
 
     async function multiPull(isAutoMode = false) {
         console.log("multiPull (standard banner) appelé, gemmes:", gems, "autosellSettings:", autosellSettings, "isAutoMode:", isAutoMode);
-        const cost = 1000;
-        const expectedPulls = 10;
-        const expGainForMulti = 100;
+        // const cost = PULL_COST_MULTI; // Utilise la constante
+        const expectedPulls = 10; // Ceci pourrait aussi être une constante PULLS_PER_MULTI
+        const expGainForMulti = 100; // EXP_GAIN_MULTI_PULL
 
-        if (gems < cost) {
-            resultElement.innerHTML = `<p class="text-red-400">Pas assez de gemmes (${cost} requis) !</p>`;
-            console.log("Échec du tirage multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", cost);
+        if (gems < PULL_COST_MULTI) { // Utilise la constante
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de gemmes (${PULL_COST_MULTI} requis) !</p>`; // Utilise la constante
+            console.log("Échec du tirage multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", PULL_COST_MULTI);
             return false;
         }
 
-        gems -= cost;
+        gems -= PULL_COST_MULTI; // Utilise la constante
 
         missions.forEach(mission => {
             if (mission.type === "spend_gems" && !mission.completed) {
-                mission.progress += cost;
+                mission.progress += PULL_COST_MULTI; // Utilise la constante
             }
         });
 
@@ -3572,7 +3602,7 @@
             }
             
             const newStatRank = getRandomStatRank(true); 
-            const characterWithId = {
+            const characterWithId = { //TODO: Vérifier si characterWithId est utilisé ailleurs avec cette structure exacte
                 ...char, 
                 id: `char_${characterIdCounter++}`,
                 level: 1,
@@ -3612,7 +3642,7 @@
         }
 
         checkMissions();
-        let message = `${cost} gemmes dépensées.`;
+        let message = `${PULL_COST_MULTI} gemmes dépensées.`; // Utilise la constante
         if (pityMessagePart) {
             message += pityMessagePart;
         }
@@ -3640,17 +3670,17 @@
     function specialPull() {
         console.log("specialPull appelé pour un tirage direct");
         currentPullType = "special";
-        const specialPullCost = 150;
+        // const specialPullCost = PULL_COST_SPECIAL; // Utilise la constante
 
         if (pullTickets > 0) {
             // Priorité aux tickets
             executePull(true);
-        } else if (gems >= specialPullCost) {
+        } else if (gems >= PULL_COST_SPECIAL) { // Utilise la constante
             // Sinon, on utilise les gemmes
             executePull(false);
         } else {
             // Sinon, erreur
-            resultElement.innerHTML = '<p class="text-red-400">Pas assez de tickets ou de gemmes (150 requis) !</p>';
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de tickets ou de gemmes (${PULL_COST_SPECIAL} requis) !</p>`; // Utilise la constante
         }
     }
 
@@ -3661,8 +3691,8 @@
         let autoSellRewards = { gems: 0, coins: 0 };
         
         let selectedCharacter;
-        let gemCost;
-        let expGain;
+        let gemCost; // Sera défini en fonction du type de tirage
+        let expGain; // Sera défini en fonction du type de tirage
 
         if (currentPullType === "standard") {
             selectedCharacter = getCharacterFromStandardBanner();
@@ -3673,12 +3703,12 @@
                     }
                 });
             }
-            gemCost = 100; 
-            expGain = 10;
+            gemCost = PULL_COST_STANDARD;
+            expGain = 10; // Peut devenir une constante EXP_GAIN_STANDARD_PULL
         } else if (currentPullType === "special") {
             selectedCharacter = getCharacterFromSpecialBanner(specialCharacters); 
-            gemCost = 150; 
-            expGain = 15;
+            gemCost = PULL_COST_SPECIAL;
+            expGain = 15; // Peut devenir une constante EXP_GAIN_SPECIAL_PULL
         } else {
             console.error("Type de tirage inconnu:", currentPullType);
             return false;
@@ -3716,7 +3746,7 @@
                 characterPulledIsPityTargetOrBetter = true;
             }
 
-            if (standardPityCount >= STANDARD_MYTHIC_PITY_THRESHOLD && !characterPulledIsPityTargetOrBetter) {
+            if (standardPityCount >= PITY_THRESHOLD_STANDARD && !characterPulledIsPityTargetOrBetter) { // Utilise la constante
                 let mythicsInStandard = standardCharacters.filter(c => c.rarity === "Mythic");
                 if (mythicsInStandard.length > 0) {
                     selectedCharacter = mythicsInStandard[Math.floor(Math.random() * mythicsInStandard.length)];
@@ -3737,7 +3767,7 @@
                 characterPulledIsPityTargetOrBetter = true;
             }
 
-            if (specialPityCount >= SPECIAL_BANNER_PITY_THRESHOLD && !characterPulledIsPityTargetOrBetter) {
+            if (specialPityCount >= PITY_THRESHOLD_SPECIAL && !characterPulledIsPityTargetOrBetter) { // Utilise la constante
                 let secretCharsInSpecial = specialCharacters.filter(c => c.rarity === "Secret");
                 if (secretCharsInSpecial.length > 0) {
                     selectedCharacter = secretCharsInSpecial[Math.floor(Math.random() * secretCharsInSpecial.length)];
@@ -3818,21 +3848,21 @@
 
     async function specialMultiPull(isAutoMode = false) {
         console.log("specialMultiPull appelé, gemmes:", gems, "autosellSettings:", autosellSettings, "isAutoMode:", isAutoMode);
-        const cost = 1500;
-        const expectedPulls = 10;
-        const expGain = 150;
+        // const cost = PULL_COST_SPECIAL_MULTI; // Utilise la constante
+        const expectedPulls = 10; // PULLS_PER_MULTI
+        const expGain = 150; // EXP_GAIN_SPECIAL_MULTI_PULL
 
-        if (gems < cost) {
-            resultElement.innerHTML = '<p class="text-red-400">Pas assez de gemmes (' + cost + ' requis) ! Vous avez ' + gems + '.</p>';
-            console.log("Échec du tirage spécial multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", cost);
+        if (gems < PULL_COST_SPECIAL_MULTI) { // Utilise la constante
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de gemmes (${PULL_COST_SPECIAL_MULTI} requis) ! Vous avez ${gems}.</p>`; // Utilise la constante
+            console.log("Échec du tirage spécial multiple: pas assez de gemmes. Gemmes actuelles:", gems, "Coût:", PULL_COST_SPECIAL_MULTI);
             return false;
         }
 
-        gems -= cost;
+        gems -= PULL_COST_SPECIAL_MULTI; // Utilise la constante
 
         missions.forEach(mission => {
             if (mission.type === "spend_gems" && !mission.completed) {
-                mission.progress += cost;
+                mission.progress += PULL_COST_SPECIAL_MULTI; // Utilise la constante
             }
         });
 
@@ -3849,7 +3879,7 @@
             specialPityCount++;
             let isSpecialBannerTargetPulledThisIteration = specialCharacters.some(sc => sc.name === char.name && (sc.rarity === "Secret" || sc.rarity === "Vanguard"));
 
-            if (specialPityCount >= SPECIAL_BANNER_PITY_THRESHOLD && !isSpecialBannerTargetPulledThisIteration) {
+            if (specialPityCount >= PITY_THRESHOLD_SPECIAL && !isSpecialBannerTargetPulledThisIteration) { // Utilise la constante
                 let secretCharsInSpecial = specialCharacters.filter(c => c.rarity === "Secret");
                 if (secretCharsInSpecial.length > 0) {
                     char = secretCharsInSpecial[Math.floor(Math.random() * secretCharsInSpecial.length)];
@@ -3915,7 +3945,7 @@
 
         checkMissions();
 
-        let message = `${cost} gemmes dépensées.`;
+        let message = `${PULL_COST_SPECIAL_MULTI} gemmes dépensées.`; // Utilise la constante
         if (pityMessagePart) { 
             message += pityMessagePart;
         }
@@ -4283,22 +4313,22 @@
 
       switch (offer.type) {
         case 'gems':
-            addGems(offer.amount); // Remplace gems += offer.amount
-            resultElement.innerHTML = `<p class="text-green-400">Achat réussi ! +${Math.min(offer.amount, 1000000000 - gems)} gemmes</p>`;
+            addGems(offer.amount);
+            resultElement.innerHTML = `<p class="text-green-400">Achat réussi ! +${Math.min(offer.amount, MAX_GEMS - gems)} gemmes</p>`; // Utilise MAX_GEMS
             break;
         case 'exp-boost':
           expMultiplier = offer.amount;
-          expBoostEndTime = Date.now() + 30 * 60 * 1000;
+          expBoostEndTime = Date.now() + EXP_BOOST_DURATION_MS; // Utilise la constante
           setTimeout(() => {
-            expMultiplier = 1;
+            expMultiplier = 1; // Peut devenir DEFAULT_EXP_MULTIPLIER
             expBoostEndTime = 0;
             localStorage.setItem("expMultiplier", expMultiplier);
             localStorage.setItem("expBoostEndTime", expBoostEndTime);
             resultElement.innerHTML = `<p class="text-yellow-400">Boost EXP x${offer.amount} terminé !</p>`;
             updateUI();
             updateItemDisplay();
-          }, 30 * 60 * 1000);
-          resultElement.innerHTML = `<p class="text-green-400">Boost EXP x${offer.amount} activé pour 30 minutes !</p>`;
+          }, EXP_BOOST_DURATION_MS); // Utilise la constante
+          resultElement.innerHTML = `<p class="text-green-400">Boost EXP x${offer.amount} activé pour ${EXP_BOOST_DURATION_MS / (60 * 1000)} minutes !</p>`; // Affiche en minutes
           break;
         case 'pull-ticket':
           pullTickets += offer.amount;
@@ -4804,7 +4834,7 @@
 
             // Vérifier l'âge de la bannière si elle est toujours considérée valide structurellement
             if (!shouldRegenerate && savedBanner.generatedAt) {
-                if (Date.now() - savedBanner.generatedAt > TWO_HOURS_MS) {
+                if (Date.now() - savedBanner.generatedAt > SHOP_REFRESH_INTERVAL_MS) { // Utilise la constante
                     console.log("La bannière Mythic sauvegardée a plus de 2 heures. Régénération.");
                     shouldRegenerate = true;
                 }
@@ -5670,8 +5700,8 @@
           else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
 
           return `
-          <div class="relative p-2 rounded-lg border ${getRarityBorderClass(char.rarity)} cursor-pointer" 
-              onclick="startEvolution('${char.id}')">
+          <div class="relative p-2 rounded-lg border ${getRarityBorderClass(char.rarity)} cursor-pointer evolution-candidate-card"
+              data-character-id="${char.id}">
               <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded" loading="lazy" decoding="async">
               <p class="text-center text-white font-semibold mt-2">${char.name}</p>
               <p class="text-center ${rarityTextColorClass}">${char.rarity}</p>
@@ -5681,6 +5711,7 @@
           </div>
           `;
       }).join("");
+      // Le gestionnaire d'événements sera attaché après cette fonction.
     }
 
     function toggleLockCharacter(id) {
@@ -6171,10 +6202,9 @@
 
                 const levelWrapper = document.createElement('div');
                 
-                // --- MODIFICATION APPLIQUÉE ICI ---
                 levelWrapper.innerHTML = `
                     <button class="level-start-button w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}"
-                            data-level-id="${level.id}" ${isDisabled ? 'disabled' : ''}>
+                            data-level-id="${level.id}" data-is-infinite="false" ${isDisabled ? 'disabled' : ''}>
                         ${buttonText}
                     </button>
                     <div class="text-xs text-gray-300 px-2 mt-1">
@@ -6182,7 +6212,6 @@
                         <p>Drop possible: ${itemDrops}</p>
                     </div>
                 `;
-                // --- FIN DE LA MODIFICATION ---
                 
                 buttonsContainer.appendChild(levelWrapper);
             });
@@ -7549,13 +7578,13 @@
       updatePresetSelectionDisplay();
     });
 
-    // --- DANS LE FICHIER script.js ---
+    // --- GESTIONNAIRES D'ÉVÉNEMENTS DÉLÉGUÉS ---
 
     function handleLevelStartClick(event) {
         const button = event.target.closest('.level-start-button');
-        if (!button) return;
+        if (!button || button.disabled) return;
 
-        const levelId = parseInt(button.dataset.levelId);
+        const levelId = parseInt(button.dataset.levelId, 10);
         
         if (isSelectingLevelForMultiAction) {
             const levelData = allGameLevels.find(l => l.id === levelId);
@@ -7564,13 +7593,12 @@
                 multiActionState.selectedLevelName = levelData.name;
                 isSelectingLevelForMultiAction = false;
                 
-                // Rouvrir la modale et mettre à jour son affichage
                 multiActionModal.classList.remove("hidden");
                 enableNoScroll();
                 maSelectedLevelDisplay.textContent = `Niveau sélectionné : ${levelData.name}`;
                 maSelectedLevelDisplay.classList.remove("text-red-500");
+                 resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`; // Nettoyer le message
             }
-            // Très important : on arrête l'exécution ici pour ne pas lancer un combat normal.
             return; 
         }
 
@@ -7583,12 +7611,40 @@
         }
     }
 
-    levelListElement.addEventListener('click', handleLevelStartClick);
-    document.getElementById("legende-level-list").addEventListener('click', handleLevelStartClick);
-    document.getElementById("challenge-level-list").addEventListener('click', handleLevelStartClick);
-    document.getElementById("materiaux-level-list").addEventListener('click', handleLevelStartClick);
+    // Attacher aux conteneurs parents pour la délégation
+    if (levelListElement) levelListElement.addEventListener('click', handleLevelStartClick);
+    const legendeLevelListEl = document.getElementById("legende-level-list");
+    if (legendeLevelListEl) legendeLevelListEl.addEventListener('click', handleLevelStartClick);
+    const challengeLevelListEl = document.getElementById("challenge-level-list");
+    if (challengeLevelListEl) challengeLevelListEl.addEventListener('click', handleLevelStartClick);
+    const materiauxLevelListEl = document.getElementById("materiaux-level-list");
+    if (materiauxLevelListEl) materiauxLevelListEl.addEventListener('click', handleLevelStartClick);
 
-    // NOUVEAU: Fermeture de la modale d'avertissement
+    if (shopItemsElement) {
+        shopItemsElement.addEventListener('click', function(event) {
+            const button = event.target.closest('.buy-shop-item-button');
+            if (button && !button.disabled) {
+                const itemIndex = parseInt(button.dataset.itemIndex, 10);
+                if (!isNaN(itemIndex)) {
+                    buyItem(itemIndex);
+                }
+            }
+        });
+    }
+
+    if (evolutionDisplay) {
+        evolutionDisplay.addEventListener('click', function(event) {
+            const card = event.target.closest('.evolution-candidate-card');
+            if (card) {
+                const charId = card.dataset.characterId;
+                if (charId) {
+                    startEvolution(charId);
+                }
+            }
+        });
+    }
+
+    // Fermeture de la modale d'avertissement
      const autoClickerModalCloseButton = document.getElementById('auto-clicker-modal-close-button');
     if (autoClickerModalCloseButton) {
         autoClickerModalCloseButton.addEventListener('click', () => {
