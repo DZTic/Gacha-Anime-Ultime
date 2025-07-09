@@ -1,3 +1,5 @@
+// --- START OF FILE data.js ---
+
 // Fonction d'aide pour générer les exigences d'évolution communes
 function createEvolutionRequirements(specificItemName, specificItemQuantity, coinsCost, options = {}) {
     const {
@@ -25,14 +27,21 @@ function createEvolutionRequirements(specificItemName, specificItemQuantity, coi
     return requirements;
 }
 
+// MODIFICATION ICI: La fonction est corrigée pour générer les bons noms de fichiers
 // Fonction d'aide pour générer les données d'évolution
 function createEvolutionData(baseName, evolutionName, powerIncrease, options = {}) {
     const { newRarity, newColor } = options;
-    // Simplification du nom de fichier image: minuscules, espaces -> underscores
-    const imageName = evolutionName.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '');
+
+    // Étape 1 : Construire le nom complet correct de l'évolution
+    const fullEvolvedName = `${baseName} (${evolutionName})`;
+
+    // Étape 2 : Utiliser ce nom complet pour générer le chemin de l'image, sans le modifier.
+    // Cela garantit que "Saber (King of Knights)" devient "Saber (King of Knights).webp".
+    const newImage = `./images/evolve/${fullEvolvedName}.webp`;
+
     const data = {
-        newName: `${baseName} (${evolutionName})`,
-        newImage: `./images/evolve/${imageName}.webp`, // Standardisation partielle
+        newName: fullEvolvedName,
+        newImage: newImage, // Utilisation du chemin corrigé
         basePowerIncrease: powerIncrease,
     };
     if (newRarity) data.newRarity = newRarity;
@@ -354,9 +363,9 @@ const standardCharacters = [
         power: 1290,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Blade of Death", 5, 50000),
-        evolutionData: { // Nom d'image personnalisé
+        evolutionData: { // Nom d'image personnalisé, on garde cette structure manuelle
             newName: "Cu Chulainn (Child of Light)",
-            newImage: "./images/evolve/Cu Chulainn (Child of Light).webp", // Gardé car le nom de fichier est différent
+            newImage: "./images/evolve/Cu Chulainn (Child of Light).webp",
             basePowerIncrease: 580
         }
     },
@@ -467,7 +476,7 @@ const standardCharacters = [
             additionalItems: [{ item: "Rotara Earring 1", quantity: 1 }],
             essenceQuantities: { Green: 40, Red: 30, Blue: 30, Rainbow: 3, Yellow: 0, Purple: 0, Pink: 0 }
         }),
-        evolutionData: { // Nom d'image et de perso un peu différent
+        evolutionData: { // Nom d'image et de perso un peu différent, on garde
             newName: "Roku (Super 3)", // Note: Roku au lieu de Goku
             newImage: "./images/evolve/Goku (Super 3).webp",
             basePowerIncrease: 850,
@@ -552,8 +561,9 @@ const standardCharacters = [
         image: "./images/perso/esdeath.png",
         power: 1520,
         level: 1,
-        evolutionRequirements: createEvolutionRequirements("Demon Chalice", 1, 100000, { excludeEssences: ["Green", "Yellow", "Blue", "Purple", "Pink", "Red", "Rainbow"] }),
-        evolutionData: createEvolutionData("Esdeath", "Romantic", 800)
+        evolutionRequirements: createEvolutionRequirements("Demon Chalice", 50, 100000, { essenceQuantities: { Green: 40, Blue: 40, Purple: 40, Red: 40, Rainbow: 10, Yellow: 0, Pink: 0 } }),
+        // CORRECTION: L'appel à createEvolutionData a été corrigé pour retirer les parenthèses en trop
+        evolutionData: createEvolutionData("Esdeath", "Romantic", 790)
     },
     {
         name: "Yhwach",
@@ -562,7 +572,7 @@ const standardCharacters = [
         image: "./images/perso/yhwach.webp",
         power: 1530,
         level: 1,
-        evolutionRequirements: createEvolutionRequirements("Essence of the Spirit King", 1, 30000, {
+        evolutionRequirements: createEvolutionRequirements("Essence of the Spirit King", 50, 30000, {
             essenceQuantities: { Green: 40, Blue: 12, Purple: 15, Red: 12, Rainbow: 1, Yellow: 0, Pink: 0 }
         }),
         evolutionData: createEvolutionData("Yhwach", "Almighty", 790)
@@ -574,7 +584,7 @@ const standardCharacters = [
         image: "./images/perso/frieren.png",
         power: 1520,
         level: 1,
-        evolutionRequirements: createEvolutionRequirements("Ring of Friendship", 1, 10000, { excludeEssences: ["Green", "Yellow", "Blue", "Purple", "Pink", "Red", "Rainbow"] }),
+        evolutionRequirements: createEvolutionRequirements("Ring of Friendship", 50, 10000, { essenceQuantities: { Green: 40, Blue: 40, Purple: 40, Red: 20, Rainbow: 10, Yellow: 0, Pink: 50 } }),
         evolutionData: createEvolutionData("Frieren", "Teacher", 780)
     },
     {
@@ -1007,7 +1017,7 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         enemy: { name: "Esprit du Forgeron", power: 8800 },
         rewards: {
           gems: 80, coins: 120, exp: 52,
-          itemChance: [{ item: "Demon Chalice", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Essence of the Spirit King", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
+          itemChance: [{ item: "Demon Chalice", probability: 0.00666666666, minQuantity: 1, maxQuantity: 1 }, { item: "Essence of the Spirit King", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
         unlocked: true,
@@ -1020,12 +1030,13 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         enemy: { name: "Champion Déchu", power: 9000 },
         rewards: {
           gems: 80, coins: 120, exp: 55,
-          itemChance: [ { item: "Ring of Friendship", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Red Jewel", probability: 0.02, minQuantity: 1, maxQuantity: 1 } ]
+          itemChance: [ { item: "Ring of Friendship", probability: 0.00666666666, minQuantity: 1, maxQuantity: 1 }, { item: "Red Jewel", probability: 0.00666666666, minQuantity: 1, maxQuantity: 1 } ]
         },
         type: 'material',
         unlocked: true,
         completed: false
       },
+      // 1/150 = 0.00666666666
       {
         id: 318,
         world: "Caveau du Gardien des Reliques",
@@ -1033,7 +1044,7 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         enemy: { name: "Gardien des Reliques Sombres", power: 9200 },
         rewards: {
           gems: 80, coins: 120, exp: 58,
-          itemChance: [ { item: "Majan Essence", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Donut", probability: 0.02, minQuantity: 1, maxQuantity: 1 } ]
+          itemChance: [ { item: "Majan Essence", probability: 0.00666666666, minQuantity: 1, maxQuantity: 1 }, { item: "Donut", probability: 0.00666666666, minQuantity: 1, maxQuantity: 1 } ]
         },
         type: 'material',
         unlocked: true,
@@ -1046,7 +1057,7 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         enemy: { name: "Spectre Royal", power: 9500 },
         rewards: {
           gems: 80, coins: 120, exp: 60,
-          itemChance: [{ item: "Atomic Essence", probability: 0.02, minQuantity: 1, maxQuantity: 1 }]
+          itemChance: [{ item: "Atomic Essence", probability: 0.00666666666, minQuantity: 1, maxQuantity: 1 }]
         },
         type: 'material',
         unlocked: true,
@@ -1059,7 +1070,7 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         enemy: { name: "Esprit du Sanctuaire", power: 6500 },
         rewards: {
           gems: 80, coins: 120, exp: 38,
-          itemChance: [{ item: "Energy Arrow", probability: 0.02, minQuantity: 1, maxQuantity: 1 }, { item: "Hair Ornament", probability: 0.02, minQuantity: 1, maxQuantity: 1 }] 
+          itemChance: [{ item: "Energy Arrow", probability: 0.00666666666, minQuantity: 1, maxQuantity: 1 }, { item: "Hair Ornament", probability: 0.00666666666, minQuantity: 1, maxQuantity: 1 }] 
         },
         type: 'material',
         unlocked: true,
@@ -1344,9 +1355,9 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         },
         "golder": {
             id: "golder",
-            name: "Golden", // "Golder" from image
-            image: "./images/traits/Golden.png", // Placeholder image
-            probability: 0.003, // Assigned probability
+            name: "Golden",
+            image: "./images/traits/Golden.png",
+            probability: 0.003,
             order: 6,
             grades: [
                 { grade: 1, description: "+40% Gemmes & Pièces (Tous modes)", gemBonusPercentageAllModes: 0.40, coinBonusPercentageAllModes: 0.40 }
@@ -1355,7 +1366,7 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         "monarch": {
             id: "monarch",
             name: "Monarque",
-            image: "./images/traits/Soverign.png", // Placeholder image
+            image: "./images/traits/Soverign.png",
             probability: 0.001, 
             order: 7,
             grades: [
