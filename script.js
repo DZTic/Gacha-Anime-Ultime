@@ -421,7 +421,7 @@
         "Champ's Belt": 0, "Dog Bone": 0, "Six Eyes": 0, "Tome of Wisdom": 0,
         "Corrupted Visor": 0, "Tainted Ribbon": 0, "Demon Chalice": 0, "Essence of the Spirit King": 0,
         "Ring of Friendship": 0, "Red Jewel": 0, "Majan Essence": 0, "Donut": 0, "Atomic Essence": 0,
-        "Plume Céleste": 0, "Sablier Ancien": 0, "Restricting Headband": 0, "Toil Ribbon": 0
+        "Plume Céleste": 0, "Sablier Ancien": 0, "Restricting Headband": 0, "Toil Ribbon": 0, "Red Essence": 0
     };
     let inventory = safeJsonParse("inventory", { ...defaultInventoryData }, (inv) => {
         if (typeof inv !== 'object' || inv === null) return false;
@@ -1008,7 +1008,7 @@
                 "Champ's Belt": 0, "Dog Bone": 0, "Six Eyes": 0, "Tome of Wisdom": 0,
                 "Corrupted Visor": 0, "Tainted Ribbon": 0, "Demon Chalice": 0, "Essence of the Spirit King": 0,
                 "Ring of Friendship": 0, "Red Jewel": 0, "Majan Essence": 0, "Donut": 0, "Atomic Essence": 0,
-                "Plume Céleste": 0, "Sablier Ancien": 0, "Restricting Headband": 0, "Toil Ribbon": 0
+                "Plume Céleste": 0, "Sablier Ancien": 0, "Restricting Headband": 0, "Toil Ribbon": 0, "Red Essence": 0,
             };
             
             // CORRECTION: Générer les missions et offres de boutique initiales pour une nouvelle partie

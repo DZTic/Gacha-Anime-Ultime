@@ -73,7 +73,7 @@ const standardCharacters = [
         name: "Satoru Gojo",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/gojo.webp",
+        image: "./images/perso/gojo.png",
         power: 1100,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Six Eyes", 5, 100000, {
@@ -272,7 +272,7 @@ const standardCharacters = [
         name: "Giro",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/giro.webp",
+        image: "./images/perso/giro.png",
         power: 1250,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Holy Corpse Eyes", 5, 50000, {
@@ -436,7 +436,7 @@ const standardCharacters = [
         name: "Giselle",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/giselle.webp",
+        image: "./images/perso/giselle.png",
         power: 1270,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Energy Bone", 1, 50000, {
@@ -479,7 +479,7 @@ const standardCharacters = [
         name: "Gohan (Adult)",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/gohan (adult).webp",
+        image: "./images/perso/gohan (adult).png",
         power: 1300,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Z Blade", 12, 50000, {
@@ -549,7 +549,7 @@ const standardCharacters = [
         name: "Esdeath",
         rarity: "Secret",
         color: "text-secret",
-        image: "./images/perso/esdeath.webp",
+        image: "./images/perso/esdeath.png",
         power: 1520,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Demon Chalice", 1, 100000, { excludeEssences: ["Green", "Yellow", "Blue", "Purple", "Pink", "Red", "Rainbow"] }),
@@ -571,7 +571,7 @@ const standardCharacters = [
         name: "Frieren",
         rarity: "Secret",
         color: "text-secret",
-        image: "./images/perso/frieren.webp",
+        image: "./images/perso/frieren.png",
         power: 1520,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Ring of Friendship", 1, 10000, { excludeEssences: ["Green", "Yellow", "Blue", "Purple", "Pink", "Red", "Rainbow"] }),
