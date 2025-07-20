@@ -1285,8 +1285,8 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
             probability: 0.48, // Adjusted probability
             order: 1,
             gradeProbabilities: [
-                { grade: 1, probability: 0.55 },
-                { grade: 2, probability: 0.33 },
+                { grade: 1, probability: 0.56 },
+                { grade: 2, probability: 0.33 }, // Ajusté pour que la somme soit 1
                 { grade: 3, probability: 0.11 }
             ],
             grades: [
@@ -1302,8 +1302,8 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
             probability: 0.48, // Adjusted probability
             order: 1,
             gradeProbabilities: [
-                { grade: 1, probability: 0.55 },
-                { grade: 2, probability: 0.33 },
+                { grade: 1, probability: 0.56 },
+                { grade: 2, probability: 0.33 }, // Ajusté pour que la somme soit 1
                 { grade: 3, probability: 0.11 }
             ],
             grades: [
