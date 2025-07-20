@@ -26,28 +26,6 @@
 
     // --- VARIABLES GLOBALES ENSUITE ---
 
-    // Fonction utilitaire pour parser le JSON de manière sécurisée depuis localStorage
-    function safeJsonParse(key, defaultValue, validator = null) {
-        const rawValue = localStorage.getItem(key);
-        if (rawValue === null) {
-            // console.log(`[LocalStorage] Clé "${key}" non trouvée. Utilisation de la valeur par défaut.`);
-            return defaultValue;
-        }
-        try {
-            const parsedValue = JSON.parse(rawValue);
-            if (validator && !validator(parsedValue)) {
-                console.warn(`[LocalStorage] Validation échouée pour la clé "${key}". Valeur parsée:`, parsedValue, `Utilisation de la valeur par défaut.`);
-                // localStorage.removeItem(key); // Optionnel: supprimer la clé corrompue
-                return defaultValue;
-            }
-            // console.log(`[LocalStorage] Clé "${key}" chargée avec succès.`);
-            return parsedValue;
-        } catch (error) {
-            console.warn(`[LocalStorage] Erreur de parsing JSON pour la clé "${key}". Valeur brute:`, rawValue, `Erreur:`, error, `Utilisation de la valeur par défaut.`);
-            // localStorage.removeItem(key); // Optionnel: supprimer la clé corrompue
-            return defaultValue;
-        }
-    }
 
     // Fonctions de validation spécifiques (exemples)
     const isValidMissionsArray = (arr) => Array.isArray(arr) && arr.every(m => 
@@ -916,21 +894,6 @@
     const winSound = new Audio('');
     const loseSound = new Audio('');
 
-    // Fonction générique pour encapsuler les gestionnaires d'événements avec try...catch
-    function safeEventListener(element, eventType, handlerFn) {
-        if (element) {
-            element.addEventListener(eventType, (...args) => {
-                try {
-                    handlerFn(...args);
-                } catch (error) {
-                    console.error(`[Erreur Inattendue] Événement "${eventType}" sur l'élément "${element.id || element.tagName}":`, error);
-                    resultElement.innerHTML = "<p class='text-red-500'>Une erreur inattendue est survenue. Veuillez essayer de rafraîchir la page ou vérifier la console pour plus de détails.</p>";
-                }
-            });
-        } else {
-            // console.warn(`safeEventListener: Élément non trouvé pour attacher l'événement ${eventType}.`);
-        }
-    }
 
 
     function setupAuthUI() {
@@ -1568,12 +1531,6 @@
             </div>
           </div>`;
       }).join("");
-          const groupedLevels = storyProgress.reduce((acc, level) => {
-            const world = level.id <= 6 ? "Royaume des Ombres" : level.id <= 12 ? "Empire de Cristal" : level.id <= 18 ? "Profondeurs Abyssales" : level.id <= 24 ? "Pics Célestes" : level.id <= 30 ? "Déserts du Vide" : level.id <= 36 ? "Éclipse Éternelle" : "Abîme Infini";
-            acc[world] = acc[world] || [];
-            acc[world].push(level);
-            return acc;
-          }, {});
     }
 
     function updateLegendeDisplay() {
@@ -1632,7 +1589,6 @@
         if (!foundLegendaryLevel) {
             legendeLevelListElement.innerHTML = "<p class='text-white'>Aucun défi légendaire disponible pour le moment. Terminez des mondes pour les déverrouiller !</p>";
         }
-        scheduleSave();
     }
 
     async function startLevel(id, useLastTeam = false) {
@@ -1940,7 +1896,7 @@
           mainCharIsMaxLevel = char.level >= (char.maxLevelCap || 60);
           autofuseMainCharacterElement.innerHTML = `
             <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${getRarityBorderClass(char.rarity)}">
-              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded mb-2" loading="lazy" decoding="async">
+              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2" loading="lazy" decoding="async">
               <p class="${char.color} font-semibold">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level}${mainCharIsMaxLevel ? ` (Max: ${char.maxLevelCap || 60})` : ` / ${char.maxLevelCap || 60}`})</p>
               <p class="text-white">Puissance: ${char.power}</p>
               ${mainCharIsMaxLevel ? '<p class="text-red-400 font-bold mt-2">Niveau maximum atteint ! Ne peut pas recevoir d\'EXP.</p>' : ''}
@@ -2333,7 +2289,7 @@
             const isDiscovered = discoveredCharacters.includes(char.name);
             return `
             <div class="relative p-2 rounded-lg border ${isDiscovered ? getRarityBorderClass(char.rarity) : 'unowned-character'}">
-                <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-cover rounded" loading="lazy" decoding="async">
+                <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded" loading="lazy" decoding="async">
                 <p class="text-center text-white font-semibold mt-2">${isDiscovered ? char.name : '???'}</p>
                 <p class="text-center ${isDiscovered ? (char.rarity === 'Mythic' ? 'rainbow-text' : char.color) : 'text-gray-400'}">${isDiscovered ? char.rarity : 'Inconnu'}</p>
             </div>
@@ -2789,7 +2745,6 @@
             challengeLevelListElement.appendChild(levelDiv);
         });
 
-        scheduleSave();
     }
 
     function addCharacterExp(character, amount) {
@@ -5603,85 +5558,6 @@
       scheduleSave();             // Sauvegarder toutes les modifications
     }
 
-    function updateEvolutionDisplay() {
-      const eligibleCharacters = ownedCharacters.filter(char => {
-          // Pour un personnage non évolué, char.name EST son nom de base.
-          // La recherche de baseChar devrait donc fonctionner avec char.name.
-          const baseChar = allCharacters.find(c => c.name === char.name);
-
-          if (!baseChar) {
-              // Si aucune définition de base n'est trouvée pour le nom actuel du personnage,
-              // il ne peut pas être considéré pour l'évolution (cela pourrait arriver pour des noms évolués
-              // ou des données incohérentes, mais !char.hasEvolved devrait déjà filtrer les noms évolués).
-              return false;
-          }
-
-          // Le personnage est éligible s'il a des conditions d'évolution
-          // ET si CETTE INSTANCE du personnage n'a PAS ENCORE évolué.
-          const hasRequirements = baseChar.evolutionRequirements && baseChar.evolutionRequirements.length > 0;
-          const notYetEvolved = !char.hasEvolved;
-
-          return hasRequirements && notYetEvolved;
-      });
-
-      if (!eligibleCharacters.length) {
-          evolutionDisplay.innerHTML = '<p class="text-white">Aucun personnage éligible pour l\'évolution pour le moment.</p>';
-          return;
-      }
-
-      // Trier les personnages éligibles (votre logique de tri existante)
-      const sortedCharacters = eligibleCharacters.sort((a, b) => {
-          if (sortCriteria === "power") {
-              return b.power - a.power;
-          } else if (sortCriteria === "rarity") {
-              return rarityOrder[b.rarity] - rarityOrder[a.rarity];
-          } else if (sortCriteria === "level") {
-              return b.level - a.level;
-          }
-          return 0;
-      });
-
-      evolutionDisplay.innerHTML = sortedCharacters.map(char => {
-          // Pour l'affichage, on utilise toujours char.name qui est le nom de base ici,
-          // car on a filtré pour n'avoir que les personnages non évolués.
-          const baseCharForDisplay = allCharacters.find(c => c.name === char.name);
-          const requirements = baseCharForDisplay.evolutionRequirements || []; // S'assurer que requirements existe
-
-          // Vérifier si toutes les exigences matérielles (items + pièces) sont satisfaites
-          // Cette vérification est pour l'affichage ("Évolution possible" / "Exigences non satisfaites")
-          // La vérification finale se fait dans startEvolution/confirmEvolution.
-          let canEvolveDisplayCheck = true; // Supposons que oui initialement
-          if (requirements.length > 0) {
-              canEvolveDisplayCheck = requirements.every(req => {
-                  if (req.item) {
-                      return (inventory[req.item] || 0) >= req.quantity;
-                  } else if (req.coins) {
-                      return coins >= req.coins;
-                  }
-                  return true; // Pour les exigences futures
-              });
-          } else {
-              canEvolveDisplayCheck = false; // S'il n'y a pas d'requirements, il ne peut pas évoluer par ce biais
-          }
-
-
-          let rarityTextColorClass = char.color;
-          if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
-          else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
-
-          return `
-          <div class="relative p-2 rounded-lg border ${getRarityBorderClass(char.rarity)} cursor-pointer" 
-              onclick="startEvolution('${char.id}')">
-              <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded" loading="lazy" decoding="async">
-              <p class="text-center text-white font-semibold mt-2">${char.name}</p>
-              <p class="text-center ${rarityTextColorClass}">${char.rarity}</p>
-              <p class="text-center text-white">Niveau: ${char.level}</p>
-              <p class="text-center text-white">Puissance: ${char.power}</p>
-              <p class="text-center text-sm ${canEvolveDisplayCheck ? 'text-green-400' : 'text-red-400'}">${canEvolveDisplayCheck ? 'Prêt à évoluer' : 'Matériaux manquants'}</p>
-          </div>
-          `;
-      }).join("");
-    }
 
     function toggleLockCharacter(id) {
         const charIndex = ownedCharacters.findIndex(c => c.id === id);
@@ -6190,7 +6066,7 @@
             worldColumnDiv.appendChild(buttonsContainer);
             materialLevelListElement.appendChild(worldColumnDiv);
         });
-        }
+    }
 
     function updateTraitTabDisplay() {
         traitEssenceCountElement.textContent = inventory["Reroll Token"] || 0;

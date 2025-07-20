@@ -88,7 +88,7 @@
     #autofuse-character-grid img, #curse-selected-character-display img, #curse-character-selection-grid img,
     #trait-selected-character-display img, #trait-character-selection-grid img, #trait-available-list img,
     #limit-break-selected-char-display img, #limit-break-char-selection-grid img { 
-      max-height: 150px; max-width: 100%; object-fit: contain; margin: 0 auto; display: block;
+      max-height: 180px; max-width: 100%; object-fit: contain; margin: 0 auto; display: block;
     }
 
     /* Common styling for character card divs within various displays and lists */
@@ -96,7 +96,7 @@
     #autofuse-character-grid > div, #curse-character-selection-grid > div, 
     #trait-character-selection-grid > div, #trait-available-list > div,
     #limit-break-char-selection-grid > div { 
-      padding: 10px; min-height: 150px; display: flex; flex-direction: column;
+      padding: 10px; min-height: 250px; display: flex; flex-direction: column;
       justify-content: space-between; align-items: center; box-sizing: border-box;
     }
     
