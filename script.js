@@ -3627,7 +3627,7 @@
         // --- FIN DE L'ANIMATION & NETTOYAGE (Commun aux deux modes) ---
         
         const clickToCloseIndicator = document.createElement('p');
-        clickToCloseIndicator.className = 'absolute bottom-4 sm:bottom-20 text-white text-sm animate-pulse z-50';
+        clickToCloseIndicator.className = 'absolute bottom-4 sm:bottom-20 left-0 right-0 text-center text-white/90 text-lg animate-pulse z-50 drop-shadow-lg';
         clickToCloseIndicator.textContent = 'Cliquez pour continuer';
         summonAnimationModal.appendChild(clickToCloseIndicator);
 
