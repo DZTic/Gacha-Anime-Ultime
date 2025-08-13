@@ -3524,128 +3524,103 @@
      * @param {string} summaryMessage - Message récapitulatif post-animation.
      */
     async function runSummonAnimation(pulledCharacters, summaryMessage = '') {
-        const isMultiPull = pulledCharacters.length > 1;
-        openModal(summonAnimationModal);
+        if (animationsEnabled) {
+            const isMultiPull = pulledCharacters.length > 1;
+            openModal(summonAnimationModal);
 
-        // --- INITIALISATION DE L'UI DE LA MODALE ---
-        summonResultsGrid.innerHTML = '';
-        // Cacher le conteneur du tirage unique si c'est un multi-tirage, et vice-versa.
-        summonCrystalContainer.classList.toggle('hidden', isMultiPull);
-        summonMultiGrid.classList.toggle('hidden', !isMultiPull);
-        summonRevealArea.innerHTML = ''; // Nettoyer la zone de la carte du tirage x1
+            // --- INITIALISATION DE L'UI DE LA MODALE ---
+            summonResultsGrid.innerHTML = '';
+            summonCrystalContainer.classList.toggle('hidden', isMultiPull);
+            summonMultiGrid.classList.toggle('hidden', !isMultiPull);
+            summonRevealArea.innerHTML = ''; // Nettoyer la zone de la carte du tirage x1
 
-        // =============================================
-        // --- CHEMIN POUR LE TIRAGE MULTIPLE (x10) ---
-        // =============================================
-        if (isMultiPull) {
-            // 1. Créer la grille de 10 cristaux avec les cartes personnages cachées derrière
-            summonMultiGrid.innerHTML = '';
-            pulledCharacters.forEach((char) => {
+            if (isMultiPull) {
+                summonMultiGrid.innerHTML = '';
+                pulledCharacters.forEach((char) => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'summon-grid-crystal-wrapper';
+                    const img = document.createElement('img');
+                    img.src = './images/items/Crystal.webp';
+                    img.className = 'summon-grid-crystal';
+                    wrapper.appendChild(img);
+                    const cardContainer = document.createElement('div');
+                    cardContainer.className = 'summon-grid-card';
+                    cardContainer.innerHTML = createSummonGridCardHTML(char);
+                    wrapper.appendChild(cardContainer);
+                    summonMultiGrid.appendChild(wrapper);
+                    const glowClass = rarityOrder[char.rarity] >= rarityOrder['Vanguard'] ? 'glow-vanguard'
+                                    : rarityOrder[char.rarity] >= rarityOrder['Secret'] ? 'glow-secret'
+                                    : rarityOrder[char.rarity] >= rarityOrder['Mythic'] ? 'glow-mythic'
+                                    : null;
+                    if (glowClass) {
+                        wrapper.classList.add(glowClass);
+                    }
+                });
+                await waitForClick();
+                const crystalWrappers = summonMultiGrid.querySelectorAll('.summon-grid-crystal-wrapper');
+                for (const wrapper of crystalWrappers) {
+                    if (soundEnabled) pullSound.play().catch(e => {});
+                    wrapper.classList.add('revealing');
+                    await delay(100);
+                }
+            } else if (pulledCharacters.length === 1) {
+                const char = pulledCharacters[0];
+                summonRevealArea.innerHTML = '';
+                summonCrystalContainer.innerHTML = '';
                 const wrapper = document.createElement('div');
-                // La classe 'summon-grid-crystal-wrapper' est la clé : elle gère l'effet 3D
                 wrapper.className = 'summon-grid-crystal-wrapper';
-                
                 const img = document.createElement('img');
                 img.src = './images/items/Crystal.webp';
                 img.className = 'summon-grid-crystal';
                 wrapper.appendChild(img);
-
                 const cardContainer = document.createElement('div');
                 cardContainer.className = 'summon-grid-card';
-                cardContainer.innerHTML = createSummonGridCardHTML(char); // Utilise la fonction pour créer la carte
+                cardContainer.innerHTML = createSummonGridCardHTML(char);
                 wrapper.appendChild(cardContainer);
-                
-                summonMultiGrid.appendChild(wrapper);
-
-                // Appliquer l'effet de lueur basé sur la rareté
                 const glowClass = rarityOrder[char.rarity] >= rarityOrder['Vanguard'] ? 'glow-vanguard'
-                                : rarityOrder[char.rarity] >= rarityOrder['Secret'] ? 'glow-secret'
-                                : rarityOrder[char.rarity] >= rarityOrder['Mythic'] ? 'glow-mythic'
-                                : null; // On ne met plus de lueur pour Légendaire et en dessous pour ne pas tout surcharger
-
-                if (glowClass) {
-                    wrapper.classList.add(glowClass); // La lueur est appliquée sur le conteneur 3D
-                }
-            });
-
-            // 2. Attendre un seul clic n'importe où pour tout déclencher
-            await waitForClick();
-
-            // 3. Révéler tous les cristaux en cascade pour un effet stylé
-            const crystalWrappers = summonMultiGrid.querySelectorAll('.summon-grid-crystal-wrapper');
-            for (const wrapper of crystalWrappers) {
-                if (soundEnabled) pullSound.play().catch(e => {});
-                // La classe 'revealing' déclenche le retournement pour cet élément
+                            : rarityOrder[char.rarity] >= rarityOrder['Secret'] ? 'glow-secret'
+                            : rarityOrder[char.rarity] >= rarityOrder['Mythic'] ? 'glow-mythic'
+                            : rarityOrder[char.rarity] >= rarityOrder['Légendaire'] ? 'glow-legendary'
+                            : rarityOrder[char.rarity] >= rarityOrder['Épique'] ? 'glow-epic'
+                            : 'glow-rare';
+                wrapper.classList.add(glowClass);
+                summonCrystalContainer.appendChild(wrapper);
+                await waitForClick();
+                if (soundEnabled) pullSound.play().catch(()=>{});
                 wrapper.classList.add('revealing');
-                await delay(100); // Délai de 100ms entre chaque retournement pour l'effet de cascade
+                await delay(600);
             }
 
-        } 
-        // ============================================
-        // --- CHEMIN POUR LE TIRAGE UNIQUE (x1) ---
-        // ============================================
-        else if (pulledCharacters.length === 1) {
-            const char = pulledCharacters[0];
+            const clickToCloseIndicator = document.createElement('p');
+            clickToCloseIndicator.className = 'absolute bottom-4 sm:bottom-20 left-0 right-0 text-center text-white/90 text-lg animate-pulse z-50 drop-shadow-lg';
+            clickToCloseIndicator.textContent = 'Cliquez pour continuer';
+            summonAnimationModal.appendChild(clickToCloseIndicator);
 
-            // Reset état visuel (garde si tu veux les classes de glow)
-            summonRevealArea.innerHTML = ''; // ne sera plus utilisé
-            // Construire un wrapper 3D comme en multi
-            summonCrystalContainer.innerHTML = ''; // vider le container
-            const wrapper = document.createElement('div');
-            wrapper.className = 'summon-grid-crystal-wrapper'; // même classe que le multi
-
-            const img = document.createElement('img');
-            img.src = './images/items/Crystal.webp';
-            img.className = 'summon-grid-crystal';
-            wrapper.appendChild(img);
-
-            // carte personnage derrière
-            const cardContainer = document.createElement('div');
-            cardContainer.className = 'summon-grid-card';
-            cardContainer.innerHTML = createSummonGridCardHTML(char); // réutilise la même fonction
-            wrapper.appendChild(cardContainer);
-
-            // lueur selon rareté
-            const glowClass = rarityOrder[char.rarity] >= rarityOrder['Vanguard'] ? 'glow-vanguard'
-                        : rarityOrder[char.rarity] >= rarityOrder['Secret'] ? 'glow-secret'
-                        : rarityOrder[char.rarity] >= rarityOrder['Mythic'] ? 'glow-mythic'
-                        : rarityOrder[char.rarity] >= rarityOrder['Légendaire'] ? 'glow-legendary'
-                        : rarityOrder[char.rarity] >= rarityOrder['Épique'] ? 'glow-epic'
-                        : 'glow-rare';
-            wrapper.classList.add(glowClass);
-
-            // injecter dans le container du cristal (même position)
-            summonCrystalContainer.appendChild(wrapper);
-
-            // Attendre clic puis flip
             await waitForClick();
-            if (soundEnabled) pullSound.play().catch(()=>{});
-            wrapper.classList.add('revealing'); // déclenche l’animation 3D
-            await delay(600); // temps du flip
+
+            clickToCloseIndicator.remove();
+            closeModalHelper(summonAnimationModal);
+
+            summonCrystalContainer.classList.remove('hidden');
+            summonMultiGrid.classList.add('hidden');
+
+            resultElement.innerHTML = `<p class="text-green-400">${summaryMessage || 'Tirage terminé !'}</p>`;
+            setTimeout(() => {
+                if (resultElement.innerHTML.includes(summaryMessage) || resultElement.innerHTML.includes('Tirage terminé !')) {
+                    resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+                }
+            }, 5000);
+        } else {
+            // Quand les animations sont désactivées, on met juste à jour le message de résultat principal.
+            resultElement.innerHTML = `<p class="text-green-400">${summaryMessage || 'Tirage terminé !'}</p>`;
+
+            // Nettoyer le message de résultat après un délai
+            setTimeout(() => {
+                if (resultElement.innerHTML.includes(summaryMessage) || resultElement.innerHTML.includes('Tirage terminé !')) {
+                    resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+                }
+            }, 5000);
         }
-
-        // --- FIN DE L'ANIMATION & NETTOYAGE (Commun aux deux modes) ---
-        
-        const clickToCloseIndicator = document.createElement('p');
-        clickToCloseIndicator.className = 'absolute bottom-4 sm:bottom-20 left-0 right-0 text-center text-white/90 text-lg animate-pulse z-50 drop-shadow-lg';
-        clickToCloseIndicator.textContent = 'Cliquez pour continuer';
-        summonAnimationModal.appendChild(clickToCloseIndicator);
-
-        await waitForClick();
-
-        clickToCloseIndicator.remove();
-        closeModalHelper(summonAnimationModal);
-        
-        // Réinitialiser l'état visuel pour la prochaine invocation
-        summonCrystalContainer.classList.remove('hidden');
-        summonMultiGrid.classList.add('hidden');
-        
-        resultElement.innerHTML = `<p class="text-green-400">${summaryMessage || 'Tirage terminé !'}</p>`;
-        setTimeout(() => {
-            if (resultElement.innerHTML.includes(summaryMessage) || resultElement.innerHTML.includes('Tirage terminé !')) {
-                resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
-            }
-        }, 5000);
     }
 
     async function pullCharacter() {
