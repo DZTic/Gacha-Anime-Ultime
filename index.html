@@ -908,6 +908,34 @@
         </div>
       </div>
     </div>
+
+    <div id="summon-animation-modal" class="fixed inset-0 bg-black bg-opacity-80 flex-col items-center justify-center hidden z-[9999]">
+      
+    <!-- Conteneur principal de l'animation -->
+    <div id="summon-animation-container" class="relative w-full h-full flex items-center justify-center">
+        
+        <!-- L'objet à animer (le cristal UNIQUE pour le tirage x1) -->
+        <div id="summon-crystal-container" class="absolute z-10">
+          <img id="summon-crystal" src="./images/items/Crystal.webp" alt="Cristal d'invocation" class="w-48 h-48 sm:w-64 sm:h-64 transition-transform duration-300">
+        </div>
+        
+        <!-- Grille pour le multi-tirage (x10) -->
+        <div id="summon-multi-grid" class="absolute z-10 hidden w-full max-w-2xl">
+          <!-- Les 10 cristaux/cartes seront injectés ici par JavaScript -->
+        </div>
+
+        <!-- Zone où la carte du personnage est révélée (pour le tirage x1) -->
+        <div id="summon-reveal-area" class="absolute z-20 opacity-0 w-full max-w-sm p-4">
+          <!-- Le contenu sera injecté ici -->
+        </div>
+      </div>
+
+      <!-- Grille pour afficher les icônes des résultats en bas (utilisé par le skip) -->
+      <div id="summon-results-grid" class="absolute bottom-4 left-4 right-4 z-30 flex flex-wrap justify-center gap-2 max-h-24 overflow-y-auto p-2 bg-black bg-opacity-50 rounded-lg">
+          <!-- Les icônes des personnages obtenus seront ajoutées ici -->
+      </div>
+
+    </div>
     
   <script type="text/javascript">
     var gk_isXlsx = false;

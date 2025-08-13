@@ -96,11 +96,11 @@
         gems = 1000; 
     }
 
-    let coins = parseInt(localStorage.getItem("coins") || "0", 10);
-    if (isNaN(coins)) {
-        console.warn("[LocalStorage] 'coins' invalide. Réinitialisation à 0.");
-        coins = 0;
+    function getNumberFromStorage(key, defaultValue) {
+        const val = parseInt(localStorage.getItem(key) || defaultValue, 10);
+        return isNaN(val) ? defaultValue : val;
     }
+
 
     let pullCount = parseInt(localStorage.getItem("pullCount") || "0", 10);
     if (isNaN(pullCount)) {
@@ -538,6 +538,8 @@
         isActive: false, bossMaxHealth: 0, bossCurrentHealth: 0, damagePerClick: 0,
         timer: 30, intervalId: null, levelData: null
     };
+    const CRITICAL_CHANCE = 0.1; // 10% chance de coup critique
+    const CRITICAL_MULTIPLIER = 2; // Multiplicateur de dégâts critiques
     let isSelectingLevelForMultiAction = false;
     let multiActionState = {
         isRunning: false, type: null, action: null, total: 0, current: 0,
@@ -743,6 +745,13 @@
     const maCloseButton = document.getElementById("ma-close");
     const disableAutoClickerWarningCheckbox = document.getElementById("disable-autoclicker-warning");
     const autoClickerWarningModal = document.getElementById('auto-clicker-warning-modal');
+    const summonAnimationModal = document.getElementById('summon-animation-modal');
+    const summonCrystalContainer = document.getElementById('summon-crystal-container');
+    const summonCrystal = document.getElementById('summon-crystal');
+    const summonMultiGrid = document.getElementById('summon-multi-grid');
+    const summonRevealArea = document.getElementById('summon-reveal-area');
+    const summonResultsGrid = document.getElementById('summon-results-grid');
+    const delay = ms => new Promise(res => setTimeout(res, ms));
 
     // Add hide-scrollbar to relevant list containers dynamically
     const listContainersToHideScrollbar = [
@@ -759,6 +768,34 @@
     });
     
     const pullSound = new Audio("https://freesound.org/data/previews/270/270333_5121236-lq.mp3");
+
+    /**
+     * Crée une promesse qui se résout au prochain clic sur la modale d'invocation.
+     * L'écouteur d'événement est nettoyé automatiquement.
+     * @returns {Promise<void>}
+     */
+    const waitForClick = () => {
+        return new Promise(resolve => {
+            const listener = () => {
+                summonAnimationModal.removeEventListener('click', listener);
+                resolve();
+            };
+            summonAnimationModal.addEventListener('click', listener);
+        });
+    };
+
+    /**
+     * Attend soit la fin d'une durée spécifiée, soit un clic de l'utilisateur, 
+     * selon ce qui arrive en premier.
+     * @param {number} duration - La durée maximale d'attente en millisecondes.
+     * @returns {Promise<void>}
+     */
+    const waitForClickOrDelay = (duration) => {
+        const delayPromise = new Promise(resolve => setTimeout(resolve, duration));
+        // Promise.race résout dès que la première promesse (le délai ou le clic) est résolue.
+        return Promise.race([delayPromise, waitForClick()]);
+    };
+
 
     function createCharacterCardHTML(char, originalIndex, context) {
         let cardClasses = ['relative', 'p-2', 'rounded-lg', 'border', 'cursor-pointer', 'flex', 'flex-col', 'justify-between', 'items-center', 'box-border']; // Classes de base
@@ -877,7 +914,7 @@
         }
 
         const cardDiv = document.createElement('div');
-        cardDiv.className = cardClasses.join(' ');
+        cardDiv.classList.add(...cardClasses);
         cardDiv.innerHTML = innerHTML;
         cardDiv.style.minHeight = cardMinHeightStyle; // Assurer la hauteur minimale pour tous les contextes
 
@@ -3462,28 +3499,153 @@
         return standardCharacters.find(c => c.rarity === "Rare") || standardCharacters[0];
     }
 
-    async function animatePull(characters, additionalMessage = '', isAutoMode = false) {
-        const delay = isAutoMode ? 50 : 1000; // 50ms en mode auto, 1s sinon
+    function createSummonGridCardHTML(char) {
+        let rarityTextColorClass = char.color;
+        if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
+        else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
+        else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
 
-        resultElement.innerHTML = `<p class="text-white">Tirage en cours...</p>`;
-        if (animationsEnabled && !isAutoMode) { // Ne pas pulser en mode auto
-            resultElement.classList.add("animate-pulse");
+        // Structure simple avec des classes uniques pour éviter les conflits
+        return `
+            <div class="summon-grid-card-inner ${getRarityBorderClass(char.rarity)}">
+                <img src="${char.image}" alt="${char.name}" class="summon-grid-card-img" loading="lazy" decoding="async">
+                <div class="summon-grid-card-text mt-auto">  <!-- AJOUT DE LA CLASSE "mt-auto" ICI -->
+                    <p class="summon-grid-card-name">${char.name}</p>
+                    <p class="summon-grid-card-rarity ${rarityTextColorClass}">${char.rarity}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Gère l'animation de tirage complète, interactive et adaptative (x1 ou x10).
+     * En multi-tirage, un seul clic révèle tous les cristaux qui se retournent pour afficher les personnages.
+     * @param {Array<Object>} pulledCharacters - Tableau des personnages obtenus.
+     * @param {string} summaryMessage - Message récapitulatif post-animation.
+     */
+    async function runSummonAnimation(pulledCharacters, summaryMessage = '') {
+        const isMultiPull = pulledCharacters.length > 1;
+        openModal(summonAnimationModal);
+
+        // --- INITIALISATION DE L'UI DE LA MODALE ---
+        summonResultsGrid.innerHTML = '';
+        // Cacher le conteneur du tirage unique si c'est un multi-tirage, et vice-versa.
+        summonCrystalContainer.classList.toggle('hidden', isMultiPull);
+        summonMultiGrid.classList.toggle('hidden', !isMultiPull);
+        summonRevealArea.innerHTML = ''; // Nettoyer la zone de la carte du tirage x1
+
+        // =============================================
+        // --- CHEMIN POUR LE TIRAGE MULTIPLE (x10) ---
+        // =============================================
+        if (isMultiPull) {
+            // 1. Créer la grille de 10 cristaux avec les cartes personnages cachées derrière
+            summonMultiGrid.innerHTML = '';
+            pulledCharacters.forEach((char) => {
+                const wrapper = document.createElement('div');
+                // La classe 'summon-grid-crystal-wrapper' est la clé : elle gère l'effet 3D
+                wrapper.className = 'summon-grid-crystal-wrapper';
+                
+                const img = document.createElement('img');
+                img.src = './images/items/Crystal.webp';
+                img.className = 'summon-grid-crystal';
+                wrapper.appendChild(img);
+
+                const cardContainer = document.createElement('div');
+                cardContainer.className = 'summon-grid-card';
+                cardContainer.innerHTML = createSummonGridCardHTML(char); // Utilise la fonction pour créer la carte
+                wrapper.appendChild(cardContainer);
+                
+                summonMultiGrid.appendChild(wrapper);
+
+                // Appliquer l'effet de lueur basé sur la rareté
+                const glowClass = rarityOrder[char.rarity] >= rarityOrder['Vanguard'] ? 'glow-vanguard'
+                                : rarityOrder[char.rarity] >= rarityOrder['Secret'] ? 'glow-secret'
+                                : rarityOrder[char.rarity] >= rarityOrder['Mythic'] ? 'glow-mythic'
+                                : null; // On ne met plus de lueur pour Légendaire et en dessous pour ne pas tout surcharger
+
+                if (glowClass) {
+                    wrapper.classList.add(glowClass); // La lueur est appliquée sur le conteneur 3D
+                }
+            });
+
+            // 2. Attendre un seul clic n'importe où pour tout déclencher
+            await waitForClick();
+
+            // 3. Révéler tous les cristaux en cascade pour un effet stylé
+            const crystalWrappers = summonMultiGrid.querySelectorAll('.summon-grid-crystal-wrapper');
+            for (const wrapper of crystalWrappers) {
+                if (soundEnabled) pullSound.play().catch(e => {});
+                // La classe 'revealing' déclenche le retournement pour cet élément
+                wrapper.classList.add('revealing');
+                await delay(100); // Délai de 100ms entre chaque retournement pour l'effet de cascade
+            }
+
+        } 
+        // ============================================
+        // --- CHEMIN POUR LE TIRAGE UNIQUE (x1) ---
+        // ============================================
+        else if (pulledCharacters.length === 1) {
+            const char = pulledCharacters[0];
+
+            // Reset état visuel (garde si tu veux les classes de glow)
+            summonRevealArea.innerHTML = ''; // ne sera plus utilisé
+            // Construire un wrapper 3D comme en multi
+            summonCrystalContainer.innerHTML = ''; // vider le container
+            const wrapper = document.createElement('div');
+            wrapper.className = 'summon-grid-crystal-wrapper'; // même classe que le multi
+
+            const img = document.createElement('img');
+            img.src = './images/items/Crystal.webp';
+            img.className = 'summon-grid-crystal';
+            wrapper.appendChild(img);
+
+            // carte personnage derrière
+            const cardContainer = document.createElement('div');
+            cardContainer.className = 'summon-grid-card';
+            cardContainer.innerHTML = createSummonGridCardHTML(char); // réutilise la même fonction
+            wrapper.appendChild(cardContainer);
+
+            // lueur selon rareté
+            const glowClass = rarityOrder[char.rarity] >= rarityOrder['Vanguard'] ? 'glow-vanguard'
+                        : rarityOrder[char.rarity] >= rarityOrder['Secret'] ? 'glow-secret'
+                        : rarityOrder[char.rarity] >= rarityOrder['Mythic'] ? 'glow-mythic'
+                        : rarityOrder[char.rarity] >= rarityOrder['Légendaire'] ? 'glow-legendary'
+                        : rarityOrder[char.rarity] >= rarityOrder['Épique'] ? 'glow-epic'
+                        : 'glow-rare';
+            wrapper.classList.add(glowClass);
+
+            // injecter dans le container du cristal (même position)
+            summonCrystalContainer.appendChild(wrapper);
+
+            // Attendre clic puis flip
+            await waitForClick();
+            if (soundEnabled) pullSound.play().catch(()=>{});
+            wrapper.classList.add('revealing'); // déclenche l’animation 3D
+            await delay(600); // temps du flip
         }
-        await new Promise(resolve => setTimeout(resolve, delay));
 
-        if (animationsEnabled && !isAutoMode) {
-            resultElement.classList.remove("animate-pulse");
-        }
-
-        resultElement.innerHTML = `<p class="text-green-400">${additionalMessage}</p>`;
+        // --- FIN DE L'ANIMATION & NETTOYAGE (Commun aux deux modes) ---
         
-        // En mode auto, on ne veut pas attendre pour voir le message "gemmes dépensées"
-        if (!isAutoMode) {
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
+        const clickToCloseIndicator = document.createElement('p');
+        clickToCloseIndicator.className = 'absolute bottom-4 sm:bottom-20 text-white text-sm animate-pulse z-50';
+        clickToCloseIndicator.textContent = 'Cliquez pour continuer';
+        summonAnimationModal.appendChild(clickToCloseIndicator);
+
+        await waitForClick();
+
+        clickToCloseIndicator.remove();
+        closeModalHelper(summonAnimationModal);
         
-        // Revenir au message initial (géré ailleurs pour ne pas écraser les messages importants)
-        // C'est mieux de laisser la fonction appelante gérer le nettoyage de `resultElement`
+        // Réinitialiser l'état visuel pour la prochaine invocation
+        summonCrystalContainer.classList.remove('hidden');
+        summonMultiGrid.classList.add('hidden');
+        
+        resultElement.innerHTML = `<p class="text-green-400">${summaryMessage || 'Tirage terminé !'}</p>`;
+        setTimeout(() => {
+            if (resultElement.innerHTML.includes(summaryMessage) || resultElement.innerHTML.includes('Tirage terminé !')) {
+                resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+            }
+        }, 5000);
     }
 
     async function pullCharacter() {
@@ -3622,7 +3784,7 @@
             message += ` ${autoSoldCharactersInfo.length} personnage(s) auto-vendu(s) pour +${totalAutoSellGems} gemmes, +${totalAutoSellCoins} pièces.`;
         }
 
-        await animatePull(pulledCharsForDisplay, message, isAutoMode); // MODIFIÉ: On passe isAutoMode
+        await runSummonAnimation(pulledCharsForDisplay, message); // MODIFIÉ: On passe isAutoMode
         if (pulledCharsForDisplay.some(c => (c.rarity === "Mythic" || c.rarity === "Secret" || c.rarity === "Vanguard")) && animationsEnabled) {
             confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
         }
@@ -3799,7 +3961,7 @@
             }
         });
 
-        await animatePull(autoSold ? [] : [characterWithId], message, isAutoMode); // MODIFIÉ: On passe isAutoMode
+        await runSummonAnimation(autoSold ? [] : [characterWithId], message); // MODIFIÉ: On passe isAutoMode
         if (!autoSold && animationsEnabled && (characterWithId.rarity === "Mythic" || characterWithId.rarity === "Secret" || characterWithId.rarity === "Vanguard")) {
             confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
         }
@@ -3922,7 +4084,7 @@
         if (autoSoldCharacters.length > 0) {
             message += ` ${autoSoldCharacters.length} personnage(s) auto-vendu(s) pour +${totalAutoSellGems} gemmes, +${totalAutoSellCoins} pièces.`;
         }
-        await animatePull(results, message, isAutoMode); // MODIFIÉ: On passe isAutoMode
+        await runSummonAnimation(results, message); // MODIFIÉ: On passe isAutoMode
 
         if (results.some(c => (c.rarity === "Mythic" || c.rarity === "Secret" || c.rarity === "Vanguard")) && animationsEnabled) {
             confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });

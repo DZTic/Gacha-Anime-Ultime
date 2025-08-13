@@ -51,26 +51,26 @@ function createEvolutionData(baseName, evolutionName, powerIncrease, options = {
 
 
 const standardCharacters = [
-    { name: "Goku", rarity: "Rare", color: "text-gray-400", image: "./images/perso/goku.webp", power: 350, level: 1 },
+    { name: "Goku", rarity: "Rare", color: "text-gray-400", image: "./images/perso/goku.png", power: 350, level: 1 },
     { name: "Naruto", rarity: "Rare", color: "text-gray-400", image: "./images/perso/naruto.png", power: 370, level: 1 },
-    { name: "Luffy", rarity: "Rare", color: "text-gray-400", image: "./images/perso/luffy.webp", power: 370, level: 1 },
-    { name: "Ichigo", rarity: "Rare", color: "text-gray-400", image: "./images/perso/ichigo.webp", power: 360, level: 1 },
-    { name: "Sanji", rarity: "Rare", color: "text-gray-400", image: "./images/perso/sanji.webp", power: 355, level: 1 },
+    { name: "Luffy", rarity: "Rare", color: "text-gray-400", image: "./images/perso/luffy.png", power: 370, level: 1 },
+    { name: "Ichigo", rarity: "Rare", color: "text-gray-400", image: "./images/perso/ichigo.png", power: 360, level: 1 },
+    { name: "Sanji", rarity: "Rare", color: "text-gray-400", image: "./images/perso/sanji.png", power: 355, level: 1 },
     { name: "Crocodile", rarity: "Épique", color: "text-purple-400", image: "./images/perso/crocodile.png", power: 550, level: 1 },
-    { name: "Killua", rarity: "Épique", color: "text-purple-400", image: "./images/perso/killua.webp", power: 550, level: 1 },
-    { name: "Picolo", rarity: "Épique", color: "text-purple-400", image: "./images/perso/picolo.webp", power: 560, level: 1 },
-    { name: "Zenitsu", rarity: "Épique", color: "text-purple-400", image: "./images/perso/zenitsu.webp", power: 570, level: 1 },
-    { name: "Goku Black", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/goku black.webp", power: 800, level: 1 },
-    { name: "Gon", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/gon.webp", power: 820, level: 1 },
-    { name: "Kizaru", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/kizaru.webp", power: 820, level: 1 },
-    { name: "Itachi", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/itachi.webp", power: 820, level: 1 },
-    { name: "Pain", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/pain.webp", power: 850, level: 1 },
-    { name: "Toge", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/toge.webp", power: 860, level: 1 },
+    { name: "Killua", rarity: "Épique", color: "text-purple-400", image: "./images/perso/killua.png", power: 550, level: 1 },
+    { name: "Picolo", rarity: "Épique", color: "text-purple-400", image: "./images/perso/picolo.png", power: 560, level: 1 },
+    { name: "Zenitsu", rarity: "Épique", color: "text-purple-400", image: "./images/perso/zenitsu.png", power: 570, level: 1 },
+    { name: "Goku Black", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/goku black.png", power: 800, level: 1 },
+    { name: "Gon", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/gon.png", power: 820, level: 1 },
+    { name: "Kizaru", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/kizaru.png", power: 820, level: 1 },
+    { name: "Itachi", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/itachi.png", power: 820, level: 1 },
+    { name: "Pain", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/pain.png", power: 850, level: 1 },
+    { name: "Toge", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/toge.png", power: 860, level: 1 },
     {
         name: "Sung Jin Wu",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/sung jin wu.webp",
+        image: "./images/perso/sung jin wu.png",
         power: 1250,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Shadow Tracer", 3, 50000, {
@@ -118,7 +118,7 @@ const standardCharacters = [
         name: "Kenpachi Zaraki",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/kenpachi.webp",
+        image: "./images/perso/kenpachi.png",
         power: 1150,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Chipped Blade", 5, 75000, {
@@ -140,7 +140,7 @@ const standardCharacters = [
         name: "Yuji Itadori",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/itadori.webp",
+        image: "./images/perso/itadori.png",
         power: 1220,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Cursed Finger", 5, 75000, {
@@ -152,7 +152,7 @@ const standardCharacters = [
         name: "Jogo",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/jogo.webp",
+        image: "./images/perso/jogo.png",
         power: 1240,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Magma Stone", 5, 50000, {
@@ -164,7 +164,7 @@ const standardCharacters = [
         name: "Aoi Todo",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/todo.webp",
+        image: "./images/perso/todo.png",
         power: 1120,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Broken Pendant", 5, 50000, {
@@ -188,7 +188,7 @@ const standardCharacters = [
         name: "Tengen Uzui",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/tengen.webp",
+        image: "./images/perso/tengen.png",
         power: 1230,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Nichirin Cleavers", 5, 50000, {
@@ -200,7 +200,7 @@ const standardCharacters = [
         name: "Naruto (Sage)",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/naruto (sage).webp",
+        image: "./images/perso/naruto (sage).png",
         power: 1270,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Blue Chakra", 5, 50000, {
@@ -213,7 +213,7 @@ const standardCharacters = [
         name: "Obito Uchiha",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/obito.webp",
+        image: "./images/perso/obito.png",
         power: 1240,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Skin Patch", 5, 50000, {
@@ -225,7 +225,7 @@ const standardCharacters = [
         name: "Sasuke (Hebi)",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/sasuke (hebi).webp",
+        image: "./images/perso/sasuke (hebi).png",
         power: 1250,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Snake Scale", 5, 50000, {
@@ -237,7 +237,7 @@ const standardCharacters = [
         name: "Vegeta (Super)",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/vegeta (super).webp",
+        image: "./images/perso/vegeta (super).png",
         power: 1290,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Senzu Bean", 5, 50000, {
@@ -259,7 +259,7 @@ const standardCharacters = [
         name: "Yamamoto",
         rarity: "Secret",
         color: "text-yellow-400",
-        image: "./images/perso/yamamoto.webp",
+        image: "./images/perso/yamamoto.png",
         power: 1500,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Head Captain's Coat", 5, 100000, {
@@ -271,7 +271,7 @@ const standardCharacters = [
         name: "Regnaw",
         rarity: "Secret",
         color: "text-yellow-400",
-        image: "./images/perso/regnaw.webp",
+        image: "./images/perso/regnaw.png",
         power: 1510,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Silverite Sword", 1, 100000),
@@ -293,7 +293,7 @@ const standardCharacters = [
         name: "Johnni",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/johnni.webp",
+        image: "./images/perso/johnni.png",
         power: 1260,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Holy Corpse Arms", 1, 50000, {
@@ -305,7 +305,7 @@ const standardCharacters = [
         name: "Valentine",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/valentine.webp",
+        image: "./images/perso/valentine.png",
         power: 1300,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Completed Holy Corpse", 5, 750000, { // Noté: coût élevé en pièces
@@ -317,7 +317,7 @@ const standardCharacters = [
         name: "Medusa",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/medusa.webp",
+        image: "./images/perso/medusa.png",
         power: 1280,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Gorgon's Blindfold", 5, 50000),
@@ -327,7 +327,7 @@ const standardCharacters = [
         name: "Medea",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/medea.webp",
+        image: "./images/perso/medea.png",
         power: 1290,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Caster's Headpiece", 5, 50000),
@@ -337,7 +337,7 @@ const standardCharacters = [
         name: "Saber",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/saber.webp",
+        image: "./images/perso/saber.png",
         power: 1300,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Avalon", 5, 50000),
@@ -347,7 +347,7 @@ const standardCharacters = [
         name: "Ishtar",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/ishtar.webp",
+        image: "./images/perso/ishtar.png",
         power: 1300,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Goddess' Sword", 5, 50000, {
@@ -373,7 +373,7 @@ const standardCharacters = [
         name: "Lilia",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/lilia.webp",
+        image: "./images/perso/lilia.png",
         power: 1310,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Berserker's Blade", 5, 50000, {
@@ -385,7 +385,7 @@ const standardCharacters = [
         name: "Yoruichi",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/yoruichi.webp",
+        image: "./images/perso/yoruichi.png",
         power: 1330,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Shunpo Spirit", 5, 50000, {
@@ -397,7 +397,7 @@ const standardCharacters = [
         name: "Uryu",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/uryu.webp",
+        image: "./images/perso/uryu.png",
         power: 1340,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Energy Arrow", 5, 50000, {
@@ -409,7 +409,7 @@ const standardCharacters = [
         name: "Orihime",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/orihime.webp",
+        image: "./images/perso/orihime.png",
         power: 1260,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Hair Ornament", 5, 50000, {
@@ -421,7 +421,7 @@ const standardCharacters = [
         name: "Kisuke",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/kisuke.webp",
+        image: "./images/perso/kisuke.png",
         power: 1280,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Bucket Hat", 5, 50000, {
@@ -433,7 +433,7 @@ const standardCharacters = [
         name: "Ichigo (True Release)",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/ichigo (true release).webp",
+        image: "./images/perso/ichigo (true release).png",
         power: 1350,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Horn of Salvation", 5, 50000, {
@@ -457,7 +457,7 @@ const standardCharacters = [
         name: "Aizen",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/aizen.webp",
+        image: "./images/perso/aizen.png",
         power: 1320,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Prison Chair", 1, 75000, {
@@ -469,7 +469,7 @@ const standardCharacters = [
         name: "Goku (Angel)",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/goku (angel).webp",
+        image: "./images/perso/goku (angel).png",
         power: 1300,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Rotara Earring 2", 1, 75000, {
@@ -478,7 +478,7 @@ const standardCharacters = [
         }),
         evolutionData: { // Nom d'image et de perso un peu différent, on garde
             newName: "Roku (Super 3)", // Note: Roku au lieu de Goku
-            newImage: "./images/evolve/Goku (Super 3).webp",
+            newImage: "./images/evolve/Goku (Super 3).png",
             basePowerIncrease: 850,
             newRarity: "Secret",
             newColor: "text-secret"
@@ -500,7 +500,7 @@ const standardCharacters = [
         name: "Hercules",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/hercules.webp",
+        image: "./images/perso/hercules.png",
         power: 1280,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Champ's Belt", 12, 50000, {
@@ -524,7 +524,7 @@ const standardCharacters = [
         name: "Subaru Natsuki",
         rarity: "Secret",
         color: "text-secret",
-        image: "./images/perso/subaru.webp",
+        image: "./images/perso/subaru.png",
         power: 1500,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Tome of Wisdom", 1, 100000, { excludeEssences: ["Green", "Yellow", "Blue", "Purple", "Pink", "Red", "Rainbow"] }),
@@ -534,7 +534,7 @@ const standardCharacters = [
         name: "Artoria Pendragon (Alternate)",
         rarity: "Secret",
         color: "text-secret",
-        image: "./images/perso/artoria pendragon (alternate).webp",
+        image: "./images/perso/artoria pendragon (alternate).png",
         power: 1510,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Corrupted Visor", 1, 30000, {
@@ -546,7 +546,7 @@ const standardCharacters = [
         name: "Sakura Matou",
         rarity: "Secret",
         color: "text-secret",
-        image: "./images/perso/sakura.webp",
+        image: "./images/perso/sakura.png",
         power: 1550,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Tainted Ribbon", 1, 100000, {
@@ -569,7 +569,7 @@ const standardCharacters = [
         name: "Yhwach",
         rarity: "Secret",
         color: "text-secret",
-        image: "./images/perso/yhwach.webp",
+        image: "./images/perso/yhwach.png",
         power: 1530,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Essence of the Spirit King", 50, 30000, {
@@ -603,7 +603,7 @@ const standardCharacters = [
         name: "Boo",
         rarity: "Secret",
         color: "text-secret",
-        image: "./images/perso/boo.png", // Espace en fin de nom de fichier retiré
+        image: "./images/perso/boo.png",
         power: 1550,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Majan Essence", 12, 30000, {
@@ -649,7 +649,7 @@ const standardCharacters = [
         name: "Kazzy",
         rarity: "Mythic",
         color: "rainbow-text",
-        image: "./images/perso/kazzy.webp",
+        image: "./images/perso/kazzy.png",
         power: 1300,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Toil Ribbon", 12, 30000, {
@@ -676,19 +676,19 @@ const specialCharacters = [
         name: "Igris",
         rarity: "Secret",
         color: "text-yellow-400",
-        image: "./images/perso/igris.webp",
+        image: "./images/perso/igris.png",
         power: 1450,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Blood-Red Armor", 5, 100000),
         evolutionData: createEvolutionData("Igris", "Elite Knight", 800),
         chance: 0.0000125 // 0.00125% de chance (1 sur 80,000)
     },
-    { name: "Majin Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/majin boo (evil).webp", power: 1550, level: 1, chance: 0.0000125 },
+    { name: "Majin Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/majin boo (evil).png", power: 1550, level: 1, chance: 0.0000125 },
     { name: "Buuhan (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/buuhan (evil).png", power: 1560, level: 1, chance: 0.0000125 },
     { name: "Boockleo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/boockleo (evil).png", power: 1570, level: 1, chance: 0.0000125 },
-    { name: "Super Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/super boo (evil).webp", power: 1520, level: 1, chance: 0.0000125 },
-    { name: "Kid Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/kid boo (evil).webp", power: 1580, level: 1, chance: 0.0000125 },
-    { name: "Super Vegetto", rarity: "Secret", color: "text-secret", image: "./images/perso/super vegetto.webp", power: 1585, level: 1, chance: 0.0000125 },
+    { name: "Super Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/super boo (evil).png", power: 1520, level: 1, chance: 0.0000125 },
+    { name: "Kid Boo (Evil)", rarity: "Secret", color: "text-secret", image: "./images/perso/kid boo (evil).png", power: 1580, level: 1, chance: 0.0000125 },
+    { name: "Super Vegetto", rarity: "Secret", color: "text-secret", image: "./images/perso/super vegetto.png", power: 1585, level: 1, chance: 0.0000125 },
     { name: "Cid", rarity: "Secret", color: "text-secret", image: "./images/perso/cid.png", power: 1650, level: 1, chance: 0.0000125 },
     { name: "Kaze-sensei", rarity: "Légendaire", color: "text-purple-400", image: "https://via.placeholder.com/150?text=Kaze", power: 800, level: 1 },
     { name: "Mizu-chan", rarity: "Épique", color: "text-blue-400", image: "https://via.placeholder.com/150?text=Mizu", power: 500, level: 1 },
@@ -895,7 +895,7 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         name: "Défi: Boss Tapper", 
         enemy: { 
           name: "Titan Tapper", 
-          power: 100000, 
+          power: 1000000, // Increased power for more challenge
           image: "./images/perso/titan-tapper.png"
         }, 
         rewards: { gems: 150, coins: 150, exp: 500, itemChance: { item: "Reroll Token", probability: 0.25, minQuantity: 1, maxQuantity: 1 } },
