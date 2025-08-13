@@ -296,6 +296,8 @@ body {
     gap: 1.25rem;
     padding: 1.25rem;
     perspective: 1000px; /* safe */
+    justify-content: center;
+    align-content: center;
 }
 
 /* Wrapper 3D: on flippe UNIQUEMENT le wrapper */
@@ -355,7 +357,8 @@ body {
     overflow: hidden; 
 }
 .summon-grid-card-img {
-    max-height: 75%; /* image perso plus grande */
+    height: 140px;
+    width: auto;
     max-width: 100%;
     object-fit: contain;
     margin-bottom: 4px;
