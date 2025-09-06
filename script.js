@@ -3291,6 +3291,7 @@
         
         // Créer un objet contenant toutes les données à sauvegarder
         const saveData = {
+            username: currentUser.email.split('@')[0], // Ajout du pseudo pour le classement
             characterIdCounter, gems, coins, pullCount, ownedCharacters, level, exp,
             pullTickets, missions, shopOffers, shopRefreshTime, storyProgress, inventory,
             characterPreset, presetConfirmed, standardPityCount, specialPityCount,
@@ -5929,6 +5930,8 @@
             updateTraitTabDisplay();
         } else if (tabId === "limit-break") {
             updateLimitBreakTabDisplay();
+        } else if (tabId === "leaderboard") {
+            updateLeaderboard();
         } else {
             if (isDeleteMode) {
                 isDeleteMode = false;
@@ -5937,6 +5940,72 @@
             }
         }
         updateUI();
+    }
+
+    async function updateLeaderboard() {
+        const leaderboardContent = document.getElementById("leaderboard-content");
+        leaderboardContent.innerHTML = '<p class="text-white text-center">Chargement du classement...</p>';
+
+        try {
+            // 1. Récupérer les 100 meilleurs joueurs depuis Firestore
+            const querySnapshot = await db.collection('playerSaves')
+                .orderBy('level', 'desc')
+                .orderBy('exp', 'desc')
+                .limit(100)
+                .get();
+
+            const players = [];
+            querySnapshot.forEach(doc => {
+                const data = doc.data();
+                // S'assurer que les données nécessaires sont présentes
+                if (data.username && typeof data.level === 'number' && typeof data.exp === 'number') {
+                    players.push({
+                        uid: doc.id,
+                        name: data.username,
+                        level: data.level,
+                        exp: data.exp
+                    });
+                }
+            });
+
+            if (players.length === 0) {
+                leaderboardContent.innerHTML = '<p class="text-white text-center">Le classement est vide pour le moment.</p>';
+                return;
+            }
+
+            // 2. Construire le tableau HTML
+            leaderboardContent.innerHTML = `
+                <table class="w-full text-white">
+                    <thead>
+                        <tr class="text-left">
+                            <th class="p-2">Rang</th>
+                            <th class="p-2">Nom</th>
+                            <th class="p-2">Niveau</th>
+                            <th class="p-2">EXP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${players.map((p, index) => `
+                            <tr class="${p.uid === currentUser?.uid ? 'bg-yellow-500 text-black' : ''}">
+                                <td class="p-2">${index + 1}</td>
+                                <td class="p-2">${p.name}</td>
+                                <td class="p-2">${p.level}</td>
+                                <td class="p-2">${p.exp.toLocaleString()}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            `;
+
+        } catch (error) {
+            console.error("Erreur lors du chargement du classement:", error);
+            leaderboardContent.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement. Veuillez réessayer plus tard.</p>';
+            // Il est possible que l'index composé (level, exp) ne soit pas créé sur Firestore.
+            // Firestore fournit généralement un lien dans le message d'erreur de la console pour le créer.
+            if (error.code === 'failed-precondition') {
+                leaderboardContent.innerHTML += '<p class="text-yellow-400 text-center text-sm mt-2">Note: Un index Firestore est peut-être requis. Vérifiez la console du navigateur pour un lien de création d\'index.</p>';
+            }
+        }
     }
 
 
