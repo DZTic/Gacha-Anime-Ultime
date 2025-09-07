@@ -418,3 +418,29 @@ body {
   .summon-grid-card-name { font-size: 0.8rem; }
   .summon-grid-card-rarity { font-size: 0.75rem; }
 }
+
+/* --- Guild Styles --- */
+.guild-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+@media (min-width: 1024px) {
+    .guild-grid {
+        grid-template-columns: 2fr 1fr; /* Main content and sidebar */
+    }
+}
+.guild-chat-messages {
+    height: 250px;
+    overflow-y: auto;
+    background-color: rgba(0,0,0,0.2);
+    border: 1px solid #4a5568;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column-reverse; /* New messages at the bottom */
+}
+.guild-member-list, .guild-perks-list {
+    max-height: 300px;
+    overflow-y: auto;
+}

@@ -729,8 +729,13 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
     { id: 22, description: "Appliquer 3 malédictions", type: "curse_char", goal: 3, reward: { gems: 200 } },
     { id: 23, description: "Appliquer 3 traits à des personnages", type: "apply_trait", goal: 3, reward: { gems: 200 } },
     { id: 24, description: "Terminer 1 niveau du mode Challenge", type: "complete_challenge_levels", goal: 1, reward: { gems: 150 } },
-    { id: 25, description: "Dépenser 10 000 pièces", type: "spend_coins", goal: 10000, reward: { gems: 150 } }
-  ];
+    { id: 25, description: "Dépenser 10 000 pièces", type: "spend_coins", goal: 10000, reward: { gems: 150 } },
+    // NOUVELLES MISSIONS DE GUILDE
+    { id: 26, description: "Rejoindre ou créer une guilde", type: "join_guild", goal: 1, reward: { gems: 200 } },
+    { id: 27, description: "Contribuer 10,000 pièces à sa guilde", type: "contribute_to_guild", goal: 10000, reward: { gems: 250 } },
+    { id: 28, description: "Gagner 3 combats en Arène PvP", type: "pvp_wins", goal: 3, reward: { gems: 300 } },
+    { id: 29, description: "Participer à 10 combats en Arène PvP", type: "pvp_fights", goal: 10, reward: { gems: 150 } }
+];
 
     const baseStoryLevels = [
       // Monde 1
@@ -1187,7 +1192,24 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
       }
     ];
 
-    const allGameLevels = [...baseStoryLevels, ...legendaryStoryLevels, ...challengeLevels, ...materialFarmLevels];
+    const dailyDungeons = [
+      // Lundi: Essences Bleues & Violettes
+      { id: 401, dayOfWeek: 1, name: "Donjon du Lundi: Abysse Aqueux", enemy: { name: "Gardien Aqueux", power: 6000 }, rewards: { gems: 50, coins: 150, exp: 50, itemChance: [{ item: "Blue Essence", probability: 0.8, minQuantity: 2, maxQuantity: 5 }, { item: "Purple Essence", probability: 0.4, minQuantity: 1, maxQuantity: 3 }] }, type: 'daily', unlocked: true, completed: false },
+      // Mardi: Pièces & Essences Vertes
+      { id: 402, dayOfWeek: 2, name: "Donjon du Mardi: Caverne Dorée", enemy: { name: "Golem Doré", power: 6000 }, rewards: { gems: 20, coins: 1000, exp: 50, itemChance: [{ item: "Green Essence", probability: 0.6, minQuantity: 2, maxQuantity: 5 }] }, type: 'daily', unlocked: true, completed: false },
+      // Mercredi: Essences Rouges & Roses
+      { id: 403, dayOfWeek: 3, name: "Donjon du Mercredi: Forge Ardente", enemy: { name: "Spectre Ardent", power: 6000 }, rewards: { gems: 50, coins: 150, exp: 50, itemChance: [{ item: "Red Essence", probability: 0.8, minQuantity: 2, maxQuantity: 5 }, { item: "Pink Essence", probability: 0.4, minQuantity: 1, maxQuantity: 3 }] }, type: 'daily', unlocked: true, completed: false },
+      // Jeudi: Essences Jaunes & Essences Arc-en-ciel (rare)
+      { id: 404, dayOfWeek: 4, name: "Donjon du Jeudi: Pic Céleste", enemy: { name: "Griffon Céleste", power: 7000 }, rewards: { gems: 50, coins: 150, exp: 50, itemChance: [{ item: "Yellow Essence", probability: 0.8, minQuantity: 2, maxQuantity: 5 }, { item: "Rainbow Essence", probability: 0.1, minQuantity: 1, maxQuantity: 1 }] }, type: 'daily', unlocked: true, completed: false },
+      // Vendredi: Objets d'EXP
+      { id: 405, dayOfWeek: 5, name: "Donjon du Vendredi: Bibliothèque Savante", enemy: { name: "Archiviste Ancien", power: 6000 }, rewards: { gems: 50, coins: 150, exp: 50, itemChance: [{ item: "Haricots", probability: 0.5, minQuantity: 5, maxQuantity: 10 }, { item: "Fluide mystérieux", probability: 0.3, minQuantity: 3, maxQuantity: 6 }] }, type: 'daily', unlocked: true, completed: false },
+      // Samedi: Tokens (Stat Chip, Reroll, Cursed)
+      { id: 406, dayOfWeek: 6, name: "Donjon du Samedi: Arène du Destin", enemy: { name: "Maître du Hasard", power: 8000 }, rewards: { gems: 50, coins: 150, exp: 50, itemChance: [{ item: "Stat Chip", probability: 0.1, minQuantity: 1, maxQuantity: 1 }, { item: "Reroll Token", probability: 0.1, minQuantity: 1, maxQuantity: 1 }, { item: "Cursed Token", probability: 0.1, minQuantity: 1, maxQuantity: 1 }] }, type: 'daily', unlocked: true, completed: false },
+      // Dimanche: Toutes Essences
+      { id: 407, dayOfWeek: 0, name: "Donjon du Dimanche: Panthéon Prismatique", enemy: { name: "Gardien Prismatique", power: 9000 }, rewards: { gems: 50, coins: 150, exp: 50, itemChance: [{ item: "Green Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Blue Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Red Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Yellow Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Pink Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Purple Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Rainbow Essence", probability: 0.05, minQuantity: 1, maxQuantity: 1 }] }, type: 'daily', unlocked: true, completed: false },
+    ];
+
+    const allGameLevels = [...baseStoryLevels, ...legendaryStoryLevels, ...challengeLevels, ...materialFarmLevels, ...dailyDungeons];
 
     const worldRewards = [
       { world: 1, item: "Haricots", minQuantity: 2, maxQuantity: 4 },
@@ -1229,6 +1251,47 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
       "Sablier Ancien": { exp: 1000 },
     };
 
+    const TOWER_CONFIG = {
+        baseEnemyPower: 1000,
+        powerIncreasePerFloor: 1.15, // 15% increase per floor
+        rewards: {
+            perFloor: { gems: 10, coins: 20, exp: 10 },
+            milestoneFloors: 5, // Milestone every 5 floors
+            milestoneRewards: {
+                gems: 100,
+                itemChance: [
+                    { item: "Stat Chip", probability: 0.2, minQuantity: 1, maxQuantity: 1 },
+                    { item: "Reroll Token", probability: 0.1, minQuantity: 1, maxQuantity: 1 }
+                ]
+            }
+        }
+    };
+
+    const PVP_RANKS = [
+        { name: "Non classé", minPoints: 0, color: "text-gray-400" },
+        { name: "Combattant", minPoints: 100, color: "text-white" },
+        { name: "Guerrier d'Élite", minPoints: 500, color: "text-green-400" },
+        { name: "Maître", minPoints: 1000, color: "text-blue-400" },
+        { name: "Grand Maître", minPoints: 2500, color: "text-purple-400" },
+        { name: "Légende", minPoints: 5000, color: "text-yellow-400" },
+        { name: "Mythe Vivant", minPoints: 10000, color: "rainbow-text" }
+    ];
+
+    const raidBosses = [
+        {
+            id: "raid_boss_1",
+            name: "Titan des Abysses Primordial",
+            image: "./images/perso/titan-tapper.png", // Placeholder
+            totalHealth: 500000000, // 500 Million HP
+            durationDays: 7,
+            rewards: [
+                { rank: 1, gems: 10000, coins: 50000, items: [{ item: "Divin Wish", quantity: 1 }] },
+                { rank: 10, gems: 5000, coins: 25000, items: [{ item: "Rainbow Essence", quantity: 10 }] }, // Top 10
+                { rank: -1, gems: 1000, coins: 5000, items: [{ item: "Rainbow Essence", quantity: 2 }] } // All other participants
+            ]
+        }
+    ];
+
     const BANNER_CONFIG = {
         Secret:     { overallChance: 0.000025 }, // 0.0025% (inchangé)
         Mythic:     { overallChance: 0.00005,  numFeatured: 3, featuredPoolRatio: 0.85, featuredRelativeWeights: [0.33 / 1.16, 0.33 / 1.16, 0.50 / 1.16] },
@@ -1250,12 +1313,12 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
     };
     
     const statRankProbabilities = [
-        { rank: "C",   probability: 0.40 }, // 40 / 100
-        { rank: "B",   probability: 0.30 }, // 30 / 100
-        { rank: "A",   probability: 0.20 }, // 20 / 100
-        { rank: "S",   probability: 0.09 }, //  9 / 100
-        { rank: "SS",  probability: 0.009 }, // 0.9 / 100
-        { rank: "SSS", probability: 0.001 }  //  0.1 / 100
+        { rank: "C",   probability: 0.70 },   // 70%
+        { rank: "B",   probability: 0.15 },   // 15%
+        { rank: "A",   probability: 0.10 },   // 10%
+        { rank: "S",   probability: 0.045 },  // 4.5%
+        { rank: "SS",  probability: 0.0045 }, // 0.45%
+        { rank: "SSS", probability: 0.0005 }  // 0.05%
     ];
     
     const rarityOrder = {
@@ -1346,7 +1409,7 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         "looter": {
             id: "looter",
             name: "Looter",
-            image: "https://cdn.icon-icons.com/icons2/1465/PNG/512/558lootbox_100983.png", // Placeholder image
+            image: "./images/traits/Looter.png",
             probability: 0.006,
             order: 5,
             grades: [
@@ -1373,4 +1436,31 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
                 { grade: 1, description: "+40% Puissance (Tous modes)", powerMultiplier: 0.40 }
             ]
         }
+    };
+
+    // NOUVEAU: Définitions des bonus de guilde
+    const GUILD_PERKS = {
+        1: { description: "Débloque le chat de guilde." },
+        2: { description: "+2% EXP de joueur gagnée", playerExpBonus: 0.02 },
+        3: { description: "+2% Pièces gagnées", coinBonus: 0.02 },
+        4: { description: "+3% EXP de joueur gagnée", playerExpBonus: 0.03 },
+        5: { description: "+3% Pièces gagnées", coinBonus: 0.03 },
+        6: { description: "+1% Gemmes des niveaux Histoire", storyGemBonus: 0.01 },
+        7: { description: "+4% EXP de joueur gagnée", playerExpBonus: 0.04 },
+        8: { description: "+4% Pièces gagnées", coinBonus: 0.04 },
+        9: { description: "+2% Gemmes des niveaux Histoire", storyGemBonus: 0.02 },
+        10: { description: "+5% EXP & Pièces gagnées", playerExpBonus: 0.05, coinBonus: 0.05 }
+    };
+
+    const GUILD_LEVEL_THRESHOLDS = {
+        1: 0,
+        2: 50000,
+        3: 150000,
+        4: 300000,
+        5: 500000,
+        6: 750000,
+        7: 1000000,
+        8: 1500000,
+        9: 2000000,
+        10: 3000000
     };

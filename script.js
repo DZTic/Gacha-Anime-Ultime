@@ -458,14 +458,23 @@
     let purchasedOffers = safeJsonParse("purchasedOffers", [], isValidNumberArray);
     let characterPreset = safeJsonParse("characterPreset", [], isValidStringArray);
     let presetConfirmed = localStorage.getItem("presetConfirmed") === "true"; 
+    let defenseTeamIds = safeJsonParse("defenseTeamIds", [], isValidStringArray);
+    let playerPvpPoints = getNumberFromStorage("playerPvpPoints", 0);
+    let pvpLogs = [];
 
-    let selectedPresetCharacters = new Set(); 
-    let presetSortCriteria = localStorage.getItem("presetSortCriteria") || "power";
-    if (!validSortCriteria.includes(presetSortCriteria)) {
-        console.warn("[LocalStorage] 'presetSortCriteria' invalide. Réinitialisation à 'power'.");
-        presetSortCriteria = "power";
+    let selectedTeamCharacters = new Set();
+    let currentTeamSelectionMode = null; // 'preset' or 'defense'
+    let teamSortCriteria = localStorage.getItem("teamSortCriteria") || "power";
+    if (!validSortCriteria.includes(teamSortCriteria)) {
+        console.warn("[LocalStorage] 'teamSortCriteria' invalide. Réinitialisation à 'power'.");
+        teamSortCriteria = "power";
     }
+    let teamSearchName = localStorage.getItem("teamSearchName") || "";
+    let teamFilterRarity = localStorage.getItem("teamFilterRarity") || "all";
 
+    let towerFloor = getNumberFromStorage("towerFloor", 1);
+    let currentPvpOpponent = null;
+    let pvpResultsListener = null;
     let currentAutofuseCharacterId = null;
     let autofuseSelectedRarities = new Set(); // Sera peuplé par l'UI si sauvegardé, ou vide
     let discoveredCharacters = safeJsonParse("discoveredCharacters", [], isValidStringArray);
@@ -486,6 +495,7 @@
     let traitKeepBetterToggleState = false; // Initialisé par l'UI
     let traitConfirmationCallback = null;
     let infoMsgTraitTimeoutId = null;
+    let guildActionConfirmationCallback = null;
     let currentLimitBreakCharacterId = null;
     let bannerTimerIntervalId = null;
     let currentMaxTeamSize = 3; // Recalculé dynamiquement
@@ -496,12 +506,6 @@
     if (!validRarities.includes(battleFilterRarity)) {
         console.warn("[LocalStorage] 'battleFilterRarity' invalide. Réinitialisation à 'all'.");
         battleFilterRarity = "all";
-    }
-    let presetSearchName = localStorage.getItem("presetSearchName") || "";
-    let presetFilterRarity = localStorage.getItem("presetFilterRarity") || "all";
-     if (!validRarities.includes(presetFilterRarity)) {
-        console.warn("[LocalStorage] 'presetFilterRarity' invalide. Réinitialisation à 'all'.");
-        presetFilterRarity = "all";
     }
     let fusionSearchName = localStorage.getItem("fusionSearchName") || "";
     let fusionFilterRarity = localStorage.getItem("fusionFilterRarity") || "all";
@@ -534,6 +538,11 @@
     let saveTimeoutId = null;
     const SAVE_DELAY_MS = 2000;
     
+    // NOUVEAU: Listeners pour les classements en temps réel
+    let leaderboardListener = null;
+    let pvpLeaderboardListener = null;
+    let towerLeaderboardListener = null;
+
     let miniGameState = {
         isActive: false, bossMaxHealth: 0, bossCurrentHealth: 0, damagePerClick: 0,
         timer: 30, intervalId: null, levelData: null
@@ -546,6 +555,13 @@
         stopRequested: false, selectedLevelId: null, selectedLevelName: ''
     };
     let disableAutoClickerWarning = localStorage.getItem("disableAutoClickerWarning") === "true";
+
+    // NOUVEAU: Variables de Guilde
+    let playerGuildId = null;
+    let playerGuildData = null;
+    let guildDataListener = null; // Pour les données de la guilde
+    let guildChatListener = null; // Pour le chat
+    const GUILD_MEMBER_LIMIT = 20;
 
     // Existing DOM elements
     const gemsElement = document.getElementById("gems");
@@ -636,12 +652,24 @@
       Mythic: document.getElementById("autofuse-mythic"),
       Secret: document.getElementById("autofuse-secret")
     };
-    const presetSelectionModal = document.getElementById("preset-selection-modal");
-    const presetSelectionList = document.getElementById("preset-selection-list");
-    const presetSelectedCountDisplayElement = document.getElementById("preset-selected-count-display");
-    const confirmPresetButton = document.getElementById("confirm-preset");
-    const cancelPresetButton = document.getElementById("cancel-preset");
+    const teamSelectionModal = document.getElementById("team-selection-modal");
+    const teamSelectionList = document.getElementById("team-selection-list");
+    const teamSelectedCountDisplayElement = document.getElementById("team-selected-count-display");
+    const confirmTeamSelectionButton = document.getElementById("confirm-team-selection");
+    const cancelTeamSelectionButton = document.getElementById("cancel-team-selection");
     const pullMethodModal = document.getElementById("pull-method-modal");
+    const pvpTab = document.getElementById('pvp');
+    const findOpponentButton = document.getElementById('find-opponent-button');
+    const setDefenseTeamButton = document.getElementById('set-defense-team-button');
+    const pvpRankDisplay = document.getElementById('pvp-rank-display');
+    const pvpPointsDisplay = document.getElementById('pvp-points-display');
+    const pvpLeaderboard = document.getElementById('pvp-leaderboard');
+    const viewPvpLogsButton = document.getElementById('view-pvp-logs-button');
+    const pvpLogsModal = document.getElementById('pvp-logs-modal');
+    const pvpLogsListContainer = document.getElementById('pvp-logs-list-container');
+    const closePvpLogsButton = document.getElementById('close-pvp-logs-button');
+    const pvpLogsBadge = document.getElementById('pvp-logs-badge');
+
     const pullWithGemsButton = document.getElementById("pull-with-gems");
     const pullWithTicketButton = document.getElementById("pull-with-ticket");
     const cancelPullMethodButton = document.getElementById("cancel-pull-method");
@@ -753,6 +781,23 @@
     const summonResultsGrid = document.getElementById('summon-results-grid');
     const delay = ms => new Promise(res => setTimeout(res, ms));
 
+    // NOUVEAU: Éléments DOM pour la Guilde
+    const guildTab = document.getElementById('guild');
+    const guildJoinCreateView = document.getElementById('guild-join-create-view');
+    const guildMainView = document.getElementById('guild-main-view');
+    const guildSearchInput = document.getElementById('guild-search-input');
+    const guildSearchButton = document.getElementById('guild-search-button');
+    const guildSearchResults = document.getElementById('guild-search-results');
+    const openCreateGuildModalButton = document.getElementById('open-create-guild-modal-button');
+    const createGuildModal = document.getElementById('create-guild-modal');
+    const createGuildNameInput = document.getElementById('create-guild-name-input');
+    const confirmCreateGuildButton = document.getElementById('confirm-create-guild-button');
+    const cancelCreateGuildButton = document.getElementById('cancel-create-guild-button');
+    const guildActionConfirmModal = document.getElementById('guild-action-confirm-modal');
+    const guildActionConfirmMessageElement = document.getElementById('guild-action-confirm-message');
+    const guildConfirmYesButton = document.getElementById('guild-confirm-yes-button');
+    const guildConfirmNoButton = document.getElementById('guild-confirm-no-button');
+
     // Add hide-scrollbar to relevant list containers dynamically
     const listContainersToHideScrollbar = [
         "character-selection-list", "fusion-selection-list", "item-selection-list",
@@ -834,13 +879,13 @@
                 innerHTML = `<div style="${cardMinHeightStyle}">${lockedOverlay}${baseImageHTML}<div class="mt-auto">${baseNameHTML}${baseRarityHTML}${baseLevelHTML}${statRankHTML}${basePowerHTML}</div></div>`;
                 break;
             case 'battleSelection':
-            case 'presetSelection': 
-                let isSelectedBattle = context === 'battleSelection' ? selectedBattleCharacters.has(originalIndex) : selectedPresetCharacters.has(originalIndex);
+            case 'teamSelection': 
+                let isSelectedBattle = context === 'battleSelection' ? selectedBattleCharacters.has(originalIndex) : selectedTeamCharacters.has(originalIndex);
                 let selectedNamesSet = context === 'battleSelection' ? 
                     new Set(Array.from(selectedBattleCharacters).map(idx => ownedCharacters[idx]?.name)) :
-                    new Set(Array.from(selectedPresetCharacters).map(idx => ownedCharacters[idx]?.name));
-                let currentSelectionSize = context === 'battleSelection' ? selectedBattleCharacters.size : selectedPresetCharacters.size;
-                let maxTeamSize = context === 'battleSelection' ? calculateMaxTeamSize() : calculateMaxPresetTeamSize();
+                    new Set(Array.from(selectedTeamCharacters).map(idx => ownedCharacters[idx]?.name));
+                let currentSelectionSize = context === 'battleSelection' ? selectedBattleCharacters.size : selectedTeamCharacters.size;
+                let maxTeamSize = context === 'battleSelection' ? calculateMaxTeamSize() : calculateMaxTeamSizeForMode();
                 
                 cardClasses.push(getRarityBorderClass(char.rarity));
                 if (isSelectedBattle) cardClasses.push('selected-for-battle');
@@ -928,9 +973,9 @@
             if (!cardDiv.classList.contains('opacity-50') && !cardDiv.classList.contains('non-selectable-for-battle')) {
                 cardDiv.addEventListener("click", () => selectBattleCharacter(originalIndex));
             }
-        } else if (context === 'presetSelection') {
+        } else if (context === 'teamSelection') {
              if (!cardDiv.classList.contains('opacity-50') && !cardDiv.classList.contains('non-selectable-for-battle')) {
-                cardDiv.addEventListener("click", () => selectPresetCharacter(originalIndex));
+                cardDiv.addEventListener("click", () => selectTeamCharacter(originalIndex));
             }
         } else if (context === 'fusionSelection') {
             cardDiv.addEventListener("click", () => selectFusionCharacter(char.id));
@@ -1015,15 +1060,20 @@
             expBoostEndTime = 0;
             storyProgress = allGameLevels.map(level => ({
                 id: level.id,
-                unlocked: level.type === 'challenge' ? true : (level.type === 'material' ? true : (level.type === 'story' && level.id === 1)),
+                unlocked: level.type === 'challenge' ? true : (level.type === 'material' ? true : (level.type === 'daily' ? true : (level.type === 'story' && level.id === 1))),
                 completed: false
             }));
             discoveredCharacters = [];
             characterPreset = [];
             presetConfirmed = false;
+            defenseTeamIds = [];
+            playerPvpPoints = 0;
+            pvpLogs = [];
             standardPityCount = 0;
             specialPityCount = 0;
             lastUsedBattleTeamIds = [];
+            playerGuildId = null; // NOUVEAU
+            towerFloor = 1;
             autosellSettings = { Rare: false, Épique: false, Légendaire: false, Mythic: false, Secret: false };
 
             // Inventaire par défaut (tous les objets à 0)
@@ -1071,16 +1121,21 @@
             expBoostEndTime = saveData.expBoostEndTime || 0;
             storyProgress = saveData.storyProgress || allGameLevels.map(level => ({
                 id: level.id,
-                unlocked: level.type === 'challenge' ? true : (level.type === 'material' ? true : (level.type === 'story' && level.id === 1)),
+                unlocked: level.type === 'challenge' ? true : (level.type === 'material' ? true : (level.type === 'daily' ? true : (level.type === 'story' && level.id === 1))),
                 completed: false
             }));
             inventory = saveData.inventory || {};
             discoveredCharacters = saveData.discoveredCharacters || [];
             characterPreset = saveData.characterPreset || [];
             presetConfirmed = saveData.presetConfirmed || false;
+            defenseTeamIds = saveData.defenseTeamIds || [];
+            playerPvpPoints = saveData.playerPvpPoints || 0;
+            pvpLogs = saveData.pvpLogs || [];
             standardPityCount = saveData.standardPityCount || 0;
             specialPityCount = saveData.specialPityCount || 0;
             lastUsedBattleTeamIds = saveData.lastUsedBattleTeamIds || [];
+            playerGuildId = saveData.playerGuildId || null; // NOUVEAU
+            towerFloor = saveData.towerFloor || 1;
             autosellSettings = saveData.autosellSettings || { Rare: false, Épique: false, Légendaire: false, Mythic: false, Secret: false };
             
             // CORRECTION: S'assurer que les missions et la boutique ne sont pas vides (utile pour les anciennes sauvegardes)
@@ -1113,6 +1168,10 @@
         updateTraitTabDisplay();
         updateLimitBreakTabDisplay();
         updateLevelDisplay();
+        updateDailyDungeonDisplay();
+        updatePvpDisplay();
+        updateTowerDisplay();
+        updatePvpLogsNotification();
         showTab("play");
         
         isGameInitialized = true;
@@ -1179,6 +1238,13 @@
             return;
         }
 
+        // NOUVEAU: Vérification des pseudos interdits
+        const lowerCaseUsername = username.toLowerCase();
+        if (typeof forbiddenNames !== 'undefined' && forbiddenNames.some(forbidden => lowerCaseUsername.includes(forbidden))) {
+            document.getElementById('auth-error').textContent = "Ce pseudo contient des mots non autorisés.";
+            return;
+        }
+
         try {
             // 1. Vérifier si le pseudo est déjà pris dans Firestore (en minuscules pour être insensible à la casse)
             const usernameDocRef = db.collection('usernames').doc(username.toLowerCase());
@@ -1216,7 +1282,30 @@
 
     async function handleLogout() {
         console.log("[LOGOUT] Sauvegarde immédiate avant déconnexion.");
-        await _performSave(); // Attend que la sauvegarde soit terminée
+        await _performSave();
+        
+        // Nettoyer les listeners de guilde
+        if (guildDataListener) guildDataListener();
+        if (guildChatListener) guildChatListener();
+        guildDataListener = null;
+        guildChatListener = null;
+        playerGuildId = null;
+        playerGuildData = null;
+
+        // MODIFICATION : Désactiver notre "espion" PvP
+        if (pvpResultsListener) {
+            pvpResultsListener(); // Ceci arrête l'écoute
+            pvpResultsListener = null;
+            console.log("[LOGOUT] Listener PvP détaché.");
+        }
+
+        if (leaderboardListener) leaderboardListener();
+        if (pvpLeaderboardListener) pvpLeaderboardListener();
+        if (towerLeaderboardListener) towerLeaderboardListener();
+        leaderboardListener = null;
+        pvpLeaderboardListener = null;
+        towerLeaderboardListener = null;
+
         auth.signOut();
     }
 
@@ -1680,7 +1769,7 @@
         return;
       }
       
-      if (levelData.type !== 'challenge' && levelData.type !== 'minigame' && !storyProgress.find(sp => sp.id === id)?.unlocked) {
+      if (levelData.type !== 'challenge' && levelData.type !== 'minigame' && levelData.type !== 'daily' && !storyProgress.find(sp => sp.id === id)?.unlocked) {
           console.log("Niveau non déverrouillé, id:", id);
           return;
       }
@@ -1706,6 +1795,7 @@
       let teamReady = false;
       let loadedTeam = [];
 
+      if (currentLevelId === 'pvp_battle') { /* PvP logic will handle team selection separately */ } else {
       if (useLastTeam && lastUsedBattleTeamIds && lastUsedBattleTeamIds.length > 0) {
         const validLastTeam = lastUsedBattleTeamIds.every(charId => ownedCharacters.find(c => c.id === charId));
         if (validLastTeam) {
@@ -1751,6 +1841,7 @@
           localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
           localStorage.setItem("presetConfirmed", presetConfirmed.toString());
         }
+      }
       }
 
       // AJOUT : Vérification du type de niveau pour router le gameplay
@@ -2172,137 +2263,101 @@
       openModal(characterSelectionModal); // Corrected: was characterSelectionModal.classList.remove("hidden");
     }
 
-    function openPresetSelectionModal() {
-      console.log("openPresetSelectionModal appelé");
-      selectedPresetCharacters.clear();
-      openModal(presetSelectionModal); // Corrected: was presetSelectionModal.classList.remove("hidden"); enableNoScroll();
-      updatePresetSelectionDisplay();
+    function openTeamSelectionModal(mode) {
+      currentTeamSelectionMode = mode; // 'preset' or 'defense'
+      selectedTeamCharacters.clear();
+      openModal(teamSelectionModal);
+      updateTeamSelectionDisplay();
     }
 
-    function updatePresetSelectionDisplay() {
-        presetSelectionList.innerHTML = ""; // Clear existing content
-        const currentFunctionalMaxPresetTeamSize = calculateMaxPresetTeamSize();
+    function updateTeamSelectionDisplay() {
+        teamSelectionList.innerHTML = ""; // Use new element ID
 
-        const presetModalTitle = document.getElementById("preset-selection-modal-title");
-        if (presetModalTitle) {
-            presetModalTitle.textContent = `Sélectionner ${currentFunctionalMaxPresetTeamSize} Personnage(s) pour le Preset`;
+        const maxTeamSize = 3; // For both preset and defense, it's 3.
+
+        const teamModalTitle = document.getElementById("team-selection-modal-title");
+        if (teamModalTitle) {
+            if (currentTeamSelectionMode === 'preset') {
+                teamModalTitle.textContent = `Sélectionner ${maxTeamSize} Personnages pour le Preset`;
+            } else if (currentTeamSelectionMode === 'defense') {
+                teamModalTitle.textContent = `Sélectionner ${maxTeamSize} Personnages pour l'Équipe de Défense`;
+            } else {
+                teamModalTitle.textContent = `Sélectionner une Équipe de ${maxTeamSize}`;
+            }
         }
 
-        const searchNameInputPreset = document.getElementById("preset-search-name");
-        const filterRaritySelectPreset = document.getElementById("preset-filter-rarity");
-        if (searchNameInputPreset) searchNameInputPreset.value = presetSearchName;
-        if (filterRaritySelectPreset) filterRaritySelectPreset.value = presetFilterRarity;
+        const searchNameInput = document.getElementById("team-search-name");
+        const filterRaritySelect = document.getElementById("team-filter-rarity");
+        if (searchNameInput) searchNameInput.value = teamSearchName;
+        if (filterRaritySelect) filterRaritySelect.value = teamFilterRarity;
 
-        let charactersToDisplayForPreset = [...ownedCharacters];
+        let charactersToDisplay = [...ownedCharacters];
 
-        if (presetSearchName) {
-            charactersToDisplayForPreset = charactersToDisplayForPreset.filter(char => (char.name || "").toLowerCase().includes(presetSearchName));
+        if (teamSearchName) {
+            charactersToDisplay = charactersToDisplay.filter(char => (char.name || "").toLowerCase().includes(teamSearchName));
         }
-        if (presetFilterRarity !== "all") {
-            charactersToDisplayForPreset = charactersToDisplayForPreset.filter(char => char.rarity === presetFilterRarity);
+        if (teamFilterRarity !== "all") {
+            charactersToDisplay = charactersToDisplay.filter(char => char.rarity === teamFilterRarity);
         }
 
-        const sortedCharacters = charactersToDisplayForPreset.sort((a, b) => {
-            if (presetSortCriteria === "power") return (b.power || 0) - (a.power || 0);
-            if (presetSortCriteria === "rarity") return (rarityOrder[b.rarity] ?? -1) - (rarityOrder[a.rarity] ?? -1);
-            if (presetSortCriteria === "level") return (b.level || 0) - (a.level || 0);
-            if (presetSortCriteria === "name") return (a.name || "").localeCompare(b.name || "");
+        const sortedCharacters = charactersToDisplay.sort((a, b) => {
+            if (teamSortCriteria === "power") return (b.power || 0) - (a.power || 0);
+            if (teamSortCriteria === "rarity") return (rarityOrder[b.rarity] ?? -1) - (rarityOrder[a.rarity] ?? -1);
+            if (teamSortCriteria === "level") return (b.level || 0) - (a.level || 0);
+            if (teamSortCriteria === "name") return (a.name || "").localeCompare(b.name || "");
             return 0;
-        });
-
-        const selectedPresetCharacterNames = new Set();
-        selectedPresetCharacters.forEach(idx => {
-            if (ownedCharacters[idx]) selectedPresetCharacterNames.add(ownedCharacters[idx].name);
         });
         
         if (sortedCharacters.length === 0) {
-            presetSelectionList.innerHTML = `<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>`;
+            teamSelectionList.innerHTML = `<p class="text-white col-span-full text-center">Aucun personnage ne correspond à vos filtres.</p>`;
         } else {
             const fragment = document.createDocumentFragment();
             sortedCharacters.forEach((char) => {
                 const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
                 if (originalIndex === -1) return; 
 
-                const cardElement = createCharacterCardHTML(char, originalIndex, 'presetSelection');
+                const cardElement = createCharacterCardHTML(char, originalIndex, 'teamSelection');
                 fragment.appendChild(cardElement);
             });
-            presetSelectionList.appendChild(fragment);
+            teamSelectionList.appendChild(fragment);
         }
         
-        if (presetSelectedCountDisplayElement) {
-            presetSelectedCountDisplayElement.textContent = `${selectedPresetCharacters.size}/${currentFunctionalMaxPresetTeamSize}`;
+        if (teamSelectedCountDisplayElement) {
+            teamSelectedCountDisplayElement.textContent = `${selectedTeamCharacters.size}/${maxTeamSize}`;
         }
         
-        confirmPresetButton.disabled = selectedPresetCharacters.size !== currentFunctionalMaxPresetTeamSize;
-        confirmPresetButton.classList.toggle("opacity-50", confirmPresetButton.disabled);
-        confirmPresetButton.classList.toggle("cursor-not-allowed", confirmPresetButton.disabled);
-        document.getElementById("preset-sort-criteria").value = presetSortCriteria;
+        confirmTeamSelectionButton.disabled = selectedTeamCharacters.size !== maxTeamSize;
+        confirmTeamSelectionButton.classList.toggle("opacity-50", confirmTeamSelectionButton.disabled);
+        confirmTeamSelectionButton.classList.toggle("cursor-not-allowed", confirmTeamSelectionButton.disabled);
+        document.getElementById("team-sort-criteria").value = teamSortCriteria;
     }
 
-    function selectPresetCharacter(index) {
-      const characterToAdd = ownedCharacters[index];
+    function selectTeamCharacter(index) {
+        const characterToAdd = ownedCharacters[index];
+        const maxTeamSize = 3; // Always 3 for preset and defense
 
-      if (selectedPresetCharacters.has(index)) {
-          selectedPresetCharacters.delete(index);
-      } else {
-          // Recalculer la taille max *potentielle* si ce personnage était ajouté (pour le preset)
-          let potentialSelectedForPreset = new Set(selectedPresetCharacters);
-          potentialSelectedForPreset.add(index);
-          let potentialMaxTeamSizeForPreset = 3;
-          let potentialBonusForPreset = 0;
-          potentialSelectedForPreset.forEach(idx => {
-              const char = ownedCharacters[idx];
-              if (char && char.passive && typeof char.passive.teamSizeBonus === 'number') {
-                  potentialBonusForPreset = Math.max(potentialBonusForPreset, char.passive.teamSizeBonus);
-              }
-          });
-          potentialMaxTeamSizeForPreset += potentialBonusForPreset;
-
-          if (selectedPresetCharacters.size < potentialMaxTeamSizeForPreset) { // MODIFIÉ: Utilise la taille potentielle
-              let alreadySelectedSameNameInPreset = false;
-              for (const selectedIndex of selectedPresetCharacters) {
-                  if (ownedCharacters[selectedIndex].name === characterToAdd.name) {
-                      alreadySelectedSameNameInPreset = true;
-                      break;
-                  }
-              }
-              if (!alreadySelectedSameNameInPreset) {
-                  selectedPresetCharacters.add(index);
-              } else {
-                  console.log(`Preset: Personnage ${characterToAdd.name} (ou un autre du même nom) déjà sélectionné pour ce preset.`);
-              }
-          }
-      }
-      updatePresetSelectionDisplay(); // Ceci va recalculer et réafficher avec la bonne taille max
+        if (selectedTeamCharacters.has(index)) {
+            selectedTeamCharacters.delete(index);
+        } else {
+            if (selectedTeamCharacters.size < maxTeamSize) {
+                let alreadySelectedSameName = false;
+                for (const selectedIndex of selectedTeamCharacters) {
+                    if (ownedCharacters[selectedIndex].name === characterToAdd.name) {
+                        alreadySelectedSameName = true;
+                        break;
+                    }
+                }
+                if (!alreadySelectedSameName) {
+                    selectedTeamCharacters.add(index);
+                } else {
+                    console.log(`Team Selection: Character ${characterToAdd.name} (or another with the same name) is already selected.`);
+                }
+            }
+        }
+        updateTeamSelectionDisplay();
     }
 
-    function confirmPreset() {
-      console.log("confirmPreset appelé");
-      const currentMaxPresetTeamSize = calculateMaxPresetTeamSize(); // MODIFIÉ: Utilise la taille dynamique
-
-      if (selectedPresetCharacters.size !== currentMaxPresetTeamSize) { // MODIFIÉ: Utilise la taille dynamique
-        resultElement.innerHTML = `<p class="text-red-400">Veuillez sélectionner exactement ${currentMaxPresetTeamSize} personnage(s) !</p>`;
-        return;
-      }
-      characterPreset = Array.from(selectedPresetCharacters).map(index => ownedCharacters[index].id);
-      presetConfirmed = true;
-      localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
-      localStorage.setItem("presetConfirmed", presetConfirmed);
-      resultElement.innerHTML = '<p class="text-green-400">Preset enregistré avec succès !</p>';
-      selectedPresetCharacters.clear();
-      closeModalHelper(presetSelectionModal);
-      updateCharacterDisplay();
-    }
-
-
-    function cancelPreset() {
-      console.log("cancelPreset appelé");
-      selectedPresetCharacters.clear();
-      closeModalHelper(presetSelectionModal);
-      updateCharacterDisplay();
-    }
-
-    function loadPreset() {
+    function loadPreset() { // This function is for loading the preset into the BATTLE selection
       console.log("loadPreset appelé, characterPreset:", characterPreset);
       if (characterPreset.length !== 3) {
         resultElement.innerHTML = '<p class="text-red-400">Aucun preset valide enregistré ou le preset n\'est pas complet !</p>';
@@ -2378,6 +2433,23 @@
         }).join("");
     }
 
+    function getPvpRank(points) {
+        // Itérer à partir du rang le plus élevé pour trouver le premier pour lequel le joueur se qualifie.
+        for (let i = PVP_RANKS.length - 1; i >= 0; i--) {
+            if (points >= PVP_RANKS[i].minPoints) {
+                return PVP_RANKS[i];
+            }
+        }
+        return PVP_RANKS[0]; // Retourner le rang le plus bas par défaut
+    }
+
+    function updatePvpDisplay() {
+        const rank = getPvpRank(playerPvpPoints);
+        pvpRankDisplay.textContent = rank.name;
+        pvpRankDisplay.className = `text-4xl font-bold my-4 ${rank.color}`;
+        pvpPointsDisplay.textContent = `Points: ${playerPvpPoints}`;
+    }
+
     let autosellSettings = JSON.parse(localStorage.getItem("autosellSettings")) || {
       Rare: false,
       Épique: false,
@@ -2404,7 +2476,22 @@
     }
 
     async function confirmSelection() {
-        const currentMaxTeamSize = calculateMaxTeamSize();
+        let levelData;
+        if (typeof currentLevelId === 'string' && currentLevelId.startsWith('tower_')) {
+            levelData = window.currentTowerLevelData;
+        } else if (currentLevelId === 'pvp_battle') {
+            // Create a dummy levelData for PvP
+            levelData = { id: 'pvp_battle', name: 'Arène PvP', enemy: { name: `l'équipe de ${currentPvpOpponent.name}`, power: currentPvpOpponent.teamPower }, type: 'pvp' };
+        } else {
+            levelData = allGameLevels.find(l => l.id === currentLevelId);
+        }
+
+        let teamForSelection = selectedBattleCharacters;
+        // For tower, we might use a different selection set if we implement that later
+        // For now, it's the same.
+
+        const currentMaxTeamSize = calculateMaxTeamSize(); // Based on selectedBattleCharacters
+
         if (selectedBattleCharacters.size !== currentMaxTeamSize) {
             console.warn("Tentative de confirmation avec une sélection invalide. Taille attendue:", currentMaxTeamSize, "Taille actuelle:", selectedBattleCharacters.size);
             if (!characterSelectionModal.classList.contains("hidden")) {
@@ -2424,7 +2511,6 @@
         }
 
         const selectedCharsObjects = Array.from(selectedBattleCharacters).map(index => ownedCharacters[index]);
-        const levelData = allGameLevels.find(l => l.id === currentLevelId);
         
         // AJOUT : Aiguillage vers le mini-jeu si le type de niveau correspond
         if (levelData && levelData.type === 'minigame') {
@@ -2432,10 +2518,17 @@
             return; // Important : arrête l'exécution pour ne pas lancer le combat automatique
         }
 
-        let progress = storyProgress.find(p => p.id === currentLevelId);
-        if (!progress && levelData && levelData.type === 'challenge') {
-            progress = { id: currentLevelId, unlocked: true, completed: false };
-            storyProgress.push(progress);
+        let progress;
+        if (levelData && (levelData.type === 'tower' || levelData.type === 'pvp')) {
+            // Pour les niveaux de la tour et pvp, la progression n'est pas dans storyProgress.
+            // On crée un objet factice pour passer la vérification.
+            progress = { unlocked: true, completed: false };
+        } else {
+            progress = storyProgress.find(p => p.id === currentLevelId);
+            if (!progress && levelData && (levelData.type === 'challenge' || levelData.type === 'daily')) {
+                progress = { id: currentLevelId, unlocked: true, completed: false };
+                storyProgress.push(progress);
+            }
         }
 
         if (!levelData || !progress) {
@@ -2484,7 +2577,15 @@
             playerPower += Math.floor(battlePower);
         });
 
-        const enemyPower = levelData.enemy.power;
+        let enemyPower;
+        let enemyName;
+        if (currentLevelId === 'pvp_battle' && currentPvpOpponent) {
+            enemyPower = currentPvpOpponent.teamPower;
+            enemyName = `l'équipe de ${currentPvpOpponent.name}`;
+        } else {
+            enemyPower = levelData.enemy.power;
+            enemyName = levelData.enemy.name;
+        }
         const playerScore = playerPower * (1 + (Math.random() * 0.1));
         const enemyScore = enemyPower * (1 + (Math.random() * 0.1));
 
@@ -2526,223 +2627,257 @@
             infiniteLevelStartTime = null;
 
         } else {
-            // Logique pour les niveaux normaux... (inchangée)
-            if (playerScore > enemyScore) { 
-                // Logique de VICTOIRE (inchangée)
-                 let itemRewardText = '';
+            if (levelData.type === 'tower') {
+                // VICTOIRE DANS LA TOUR
+                const floorReward = TOWER_CONFIG.rewards.perFloor;
+                addGems(floorReward.gems);
+                coins += floorReward.coins;
+                addExp(floorReward.exp);
+                let rewardMessage = `<p>Étage ${towerFloor} terminé ! +${floorReward.gems}G, +${floorReward.coins}P, +${floorReward.exp}EXP.</p>`;
 
-                if (levelData.type === "story" && !levelData.isInfinite) {
-                    const storyWorldNames = [...new Set(baseStoryLevels.filter(l => l.type === 'story' && !l.isInfinite).map(l => ({world: l.world, firstId: Math.min(...baseStoryLevels.filter(sl => sl.world === l.world && sl.type === 'story' && !sl.isInfinite).map(sl => sl.id))})).sort((a, b) => a.firstId - b.firstId).map(w => w.world))];
-                    const worldArrayIndex = storyWorldNames.indexOf(levelData.world);
-                    const worldNumberForReward = worldArrayIndex !== -1 ? worldArrayIndex + 1 : null;
-
-                    if (worldNumberForReward) {
-                        const worldRewardDef = worldRewards.find(wr => wr.world === worldNumberForReward);
-                        if (worldRewardDef && worldRewardDef.item) {
-                            const itemQuantityStory = Math.floor(Math.random() * (worldRewardDef.maxQuantity - worldRewardDef.minQuantity + 1)) + worldRewardDef.minQuantity;
-                            inventory[worldRewardDef.item] = (inventory[worldRewardDef.item] || 0) + itemQuantityStory;
-                            itemRewardText += `${itemRewardText ? ', ' : ''}+${itemQuantityStory} ${worldRewardDef.item}`;
-                        }
-                    }
-                }
-                
-                if ((levelData.type === "legendary" || levelData.type === "challenge" || levelData.type === "material") && levelData.rewards.itemChance) {
-                    const chancesArray = Array.isArray(levelData.rewards.itemChance) ? levelData.rewards.itemChance : [levelData.rewards.itemChance];
-                    chancesArray.forEach(chanceDef => {
-                        if (chanceDef.item && typeof chanceDef.minQuantity === 'number' && typeof chanceDef.maxQuantity === 'number' && typeof chanceDef.probability === 'number') {
-                            let finalDropProbability = chanceDef.probability;
-                            let looterEffectAppliedToProbThisItem = false;
-                            selectedCharsObjects.forEach(char => {
-                                if (char.trait && char.trait.id === 'looter' && char.trait.grade > 0) {
-                                    const traitDefLooter = TRAIT_DEFINITIONS['looter'];
-                                    if (traitDefLooter) {
-                                        const gradeDefLooter = traitDefLooter.grades.find(g => g.grade === char.trait.grade);
-                                        if (gradeDefLooter && typeof gradeDefLooter.itemDropRateStoryBonusPercentage === 'number') {
-                                            if (chanceDef.probability < 1.0) {
-                                                const increasedProbability = chanceDef.probability * (1 + gradeDefLooter.itemDropRateStoryBonusPercentage);
-                                                if (increasedProbability > finalDropProbability) {
-                                                    finalDropProbability = Math.min(increasedProbability, 1.0);
-                                                }
-                                                if (finalDropProbability > chanceDef.probability) looterEffectAppliedToProbThisItem = true;
-                                            }
-                                        }
-                                    }
-                                }
-                            });
-                            if (Math.random() < finalDropProbability) {
-                                const itemQuantity = Math.floor(Math.random() * (chanceDef.maxQuantity - chanceDef.minQuantity + 1)) + chanceDef.minQuantity;
-                                inventory[chanceDef.item] = (inventory[chanceDef.item] || 0) + itemQuantity;
-                                itemRewardText += `${itemRewardText ? ', ' : ''}+${itemQuantity} ${chanceDef.item}`;
-                                if (looterEffectAppliedToProbThisItem) itemRewardText += ` (Looter actif)`;
-                            }
+                // Milestone rewards
+                if (towerFloor > 0 && towerFloor % TOWER_CONFIG.rewards.milestoneFloors === 0) {
+                    const milestoneReward = TOWER_CONFIG.rewards.milestoneRewards;
+                    addGems(milestoneReward.gems);
+                    rewardMessage += `<p class="text-yellow-300">Palier atteint ! +${milestoneReward.gems} Gemmes bonus !</p>`;
+                    milestoneReward.itemChance.forEach(chance => {
+                        if (Math.random() < chance.probability) {
+                            const quantity = Math.floor(Math.random() * (chance.maxQuantity - chance.minQuantity + 1)) + chance.minQuantity;
+                            inventory[chance.item] = (inventory[chance.item] || 0) + quantity;
+                            rewardMessage += `<p class="text-green-400">Vous avez trouvé x${quantity} ${chance.item} !</p>`;
                         }
                     });
                 }
 
-                let baseGemsRewardForLevel = levelData.rewards.gems;
-                let baseCoinsRewardForLevel = levelData.rewards.coins;
-                let baseExpRewardForLevel = levelData.rewards.exp; // Renommé pour clarté
+                battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire !</p>${rewardMessage}`;
+                towerFloor++; // Advance to the next floor
+            } else {
+            // Logique pour les niveaux normaux et PvP...
+                if (currentLevelId === 'pvp_battle') {
+                    if (playerScore > enemyScore) { // VICTOIRE PvP
+                        const pointsGained = 10;
+                        playerPvpPoints += pointsGained;
+                        battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire PvP !</p><p class="text-white">Vous avez vaincu ${enemyName} !</p><p class="text-white">Récompenses: +${pointsGained} Points PvP</p>`;
+                        missions.forEach(m => { if (m.type === "pvp_wins" && !m.completed) m.progress++; if (m.type === "pvp_fights" && !m.completed) m.progress++; });
 
-                let actualGemsToAward = baseGemsRewardForLevel;
-                let actualExpToAward = baseExpRewardForLevel;
-                let actualCoinsToAward = baseCoinsRewardForLevel; // Pour l'instant, les pièces ne sont pas réduites
+                        pvpLogs.unshift({ id: `log_${Date.now()}_${Math.random()}`, type: 'attack', opponentName: currentPvpOpponent.name, outcome: 'victory', pointsChange: pointsGained, timestamp: Date.now(), read: true });
+                        
+                        const defenderInboxRef = db.collection('playerSaves').doc(currentPvpOpponent.id).collection('pendingPvpResults');
+                            defenderInboxRef.add({
+                                attackerId: currentUser.uid,
+                                attackerName: currentUser.email.split('@')[0],
+                                outcome: 'defeat', // Le défenseur a perdu
+                                pointsChange: -3,
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                            }).catch(e => console.error("Erreur dépôt résultat PvP (défaite défenseur):", e));
 
-                let isRewardReduced = false;
-                const affectedTypesForReduction = ['legendary', 'challenge', 'material'];
+                    } else { // DÉFAITE PvP
+                        const pointsLost = -5; // Points are negative
+                        playerPvpPoints = Math.max(0, playerPvpPoints + pointsLost); // Add negative value
+                        battleOutcomeMessage = `<p class="text-red-400 text-2xl font-bold mb-2">Défaite PvP !</p><p class="text-white">Vous avez été vaincu par ${enemyName} !</p><p class="text-white">Récompenses: ${pointsLost} Points PvP</p>`;
+                        missions.forEach(m => { if (m.type === "pvp_fights" && !m.completed) m.progress++; });
 
-                // Réduction pour les niveaux histoire déjà complétés
-                if (levelData.type === 'story' && !levelData.isInfinite && progress.completed) {
-                    actualGemsToAward = Math.floor(baseGemsRewardForLevel * 0.5);
-                    actualCoinsToAward = Math.floor(baseCoinsRewardForLevel * 0.5);
-                    // L'EXP n'est pas réduite pour les niveaux histoire répétées selon la demande initiale implicite.
-                    // Si l'EXP doit aussi être réduite pour les niveaux histoire, ajoutez:
-                    // actualExpToAward = Math.floor(baseExpRewardForLevel * 0.5);
-                    isRewardReduced = true; // Marquer qu'une réduction a eu lieu (utile pour l'affichage du message)
-                } 
-                // Réduction pour les autres types de niveaux déjà complétés
-                else if (affectedTypesForReduction.includes(levelData.type) && progress.completed) {
-                    actualGemsToAward = Math.floor(baseGemsRewardForLevel * 0.5);
-                    actualExpToAward = Math.floor(baseExpRewardForLevel * 0.5);
-                    // actualCoinsToAward = Math.floor(baseCoinsRewardForLevel * 0.5); // Les pièces ne sont pas réduites pour ces types actuellement
-                    isRewardReduced = true;
-                }
+                        pvpLogs.unshift({ id: `log_${Date.now()}_${Math.random()}`, type: 'attack', opponentName: currentPvpOpponent.name, outcome: 'defeat', pointsChange: pointsLost, timestamp: Date.now(), read: true });
 
-                // La logique pour les traits (Fortune, Golder) doit s'appliquer aux récompenses DE BASE, avant la réduction pour complétion répétée.
-                let fortuneBonusGems = 0, golderBonusGems = 0, golderBonusCoins = 0;
-                selectedCharsObjects.forEach(char => {
-                    if (char.trait && char.trait.id && char.trait.grade > 0) {
-                        const traitDef = TRAIT_DEFINITIONS[char.trait.id];
-                        const gradeDef = traitDef.grades.find(g => g.grade === char.trait.grade);
-                        if (gradeDef) {
-                            // Le bonus de Fortune s'applique UNIQUEMENT aux niveaux d'histoire, donc pas affecté par la nouvelle logique de réduction.
-                            if (levelData.type === 'story' && char.trait.id === 'fortune' && typeof gradeDef.gemBonusPercentage === 'number') {
-                                fortuneBonusGems += Math.floor(baseGemsRewardForLevel * gradeDef.gemBonusPercentage);
-                            }
-                            // Le bonus Golder s'applique à tous les modes, sur les récompenses de base.
-                            if (char.trait.id === 'golder') {
-                                if (typeof gradeDef.gemBonusPercentageAllModes === 'number') {
-                                    golderBonusGems += Math.floor(baseGemsRewardForLevel * gradeDef.gemBonusPercentageAllModes);
-                                }
-                                if (typeof gradeDef.coinBonusPercentageAllModes === 'number') {
-                                    golderBonusCoins += Math.floor(baseCoinsRewardForLevel * gradeDef.coinBonusPercentageAllModes);
+                        const defenderInboxRef = db.collection('playerSaves').doc(currentPvpOpponent.id).collection('pendingPvpResults');
+                        defenderInboxRef.add({
+                            attackerId: currentUser.uid,
+                            attackerName: currentUser.email.split('@')[0],
+                            outcome: 'victory', // Le défenseur a gagné
+                            pointsChange: 3,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        }).catch(e => console.error("Erreur dépôt résultat PvP (victoire défenseur):", e));
+                    }
+                } else { // COMBAT PvE
+                    if (playerScore > enemyScore) { // VICTOIRE PvE
+                        let itemRewardText = '';
+
+                        if (levelData.type === "story" && !levelData.isInfinite) {
+                            const storyWorldNames = [...new Set(baseStoryLevels.filter(l => l.type === 'story' && !l.isInfinite).map(l => ({world: l.world, firstId: Math.min(...baseStoryLevels.filter(sl => sl.world === l.world && sl.type === 'story' && !sl.isInfinite).map(sl => sl.id))})).sort((a, b) => a.firstId - b.firstId).map(w => w.world))];
+                            const worldArrayIndex = storyWorldNames.indexOf(levelData.world);
+                            const worldNumberForReward = worldArrayIndex !== -1 ? worldArrayIndex + 1 : null;
+
+                            if (worldNumberForReward) {
+                                const worldRewardDef = worldRewards.find(wr => wr.world === worldNumberForReward);
+                                if (worldRewardDef && worldRewardDef.item) {
+                                    const itemQuantityStory = Math.floor(Math.random() * (worldRewardDef.maxQuantity - worldRewardDef.minQuantity + 1)) + worldRewardDef.minQuantity;
+                                    inventory[worldRewardDef.item] = (inventory[worldRewardDef.item] || 0) + itemQuantityStory;
+                                    itemRewardText += `${itemRewardText ? ', ' : ''}+${itemQuantityStory} ${worldRewardDef.item}`;
                                 }
                             }
                         }
-                    }
-                });
-                
-                // Les bonus des traits sont ajoutés aux récompenses *potentiellement réduites*
-                let finalGemsAwarded = actualGemsToAward + fortuneBonusGems + golderBonusGems;
-                let finalCoinsAwarded = actualCoinsToAward + golderBonusCoins;
-
-                addGems(finalGemsAwarded);
-                coins = Math.min(coins + finalCoinsAwarded, 10000000);
-                addExp(actualExpToAward); // L'EXP du joueur est basée sur l'EXP (potentiellement réduite) du niveau
-                selectedCharsObjects.forEach(char => addCharacterExp(char, actualExpToAward)); // De même pour l'EXP des personnages
-
-                let rewardMessageParts = [];
-                // Gems
-                rewardMessageParts.push(`+${finalGemsAwarded} gemmes`);
-                if (isRewardReduced && (levelData.type === 'story' || affectedTypesForReduction.includes(levelData.type))) {
-                    rewardMessageParts.push('(réduit)');
-                }
-                if (fortuneBonusGems > 0) rewardMessageParts.push(`(+${fortuneBonusGems} Fortune)`);
-                if (golderBonusGems > 0) rewardMessageParts.push(`(+${golderBonusGems} Golder)`);
-                
-                // Coins
-                rewardMessageParts.push(`, +${finalCoinsAwarded} pièces`);
-                if (isRewardReduced && levelData.type === 'story') { // Reduction de pièces s'applique seulement aux niveaux histoire pour l'instant
-                    rewardMessageParts.push('(réduit)');
-                }
-                if (golderBonusCoins > 0) rewardMessageParts.push(`(+${golderBonusCoins} Golder)`);
-
-                // EXP
-                rewardMessageParts.push(`, +${actualExpToAward} EXP`);
-                // La réduction d'EXP pour 'story' n'est pas faite, donc on vérifie seulement affectedTypesForReduction
-                if (isRewardReduced && affectedTypesForReduction.includes(levelData.type)) {
-                    rewardMessageParts.push('(réduit)');
-                }
-
-                if (itemRewardText) rewardMessageParts.push(`, ${itemRewardText}`);
-
-                battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire !</p><p class="text-white">Victoire contre ${levelData.enemy.name} !</p><p class="text-white">Récompenses: ${rewardMessageParts.join(' ')}</p>`;
-
-                // La logique de progression des missions et de déblocage des niveaux reste après.
-                // L'état `progress.completed` sera mis à jour APRÈS cette attribution.
-                missions.forEach(mission => {
-                    if (!mission.completed) {
-                        if (levelData.type === 'story' && mission.type === 'complete_story_levels') mission.progress++;
-                        else if (levelData.type === 'legendary' && mission.type === 'complete_legendary_levels') mission.progress++;
-                        else if (levelData.type === 'challenge' && mission.type === 'complete_challenge_levels') mission.progress++;
-                        // Ajouter ici une condition pour les missions de type 'material' si elles existent
-                    }
-                });
-                
-                // IMPORTANT: Mettre à jour progress.completed APRÈS avoir déterminé les récompenses
-                // pour que la PREMIÈRE complétion donne les récompenses complètes.
-                if (!progress.completed) {
-                    progress.completed = true;
-                }
-
-                if (levelData.type === 'story' && !levelData.isInfinite) {
-                    const nextSequentialLevelId = levelData.id + 1;
-                    const nextSequentialLevelData = allGameLevels.find(l => l.id === nextSequentialLevelId);
-                    if (nextSequentialLevelData) {
-                        const nextSequentialLevelProgress = storyProgress.find(p => p.id === nextSequentialLevelId);
-                        if (nextSequentialLevelProgress && nextSequentialLevelData.type === 'story' && !nextSequentialLevelData.isInfinite && nextSequentialLevelData.world === levelData.world && !nextSequentialLevelProgress.unlocked) {
-                            nextSequentialLevelProgress.unlocked = true;
-                            battleOutcomeMessage += `<p class="text-white mt-1">${nextSequentialLevelData.name} déverrouillé !</p>`;
+                        
+                        if ((levelData.type === "legendary" || levelData.type === "challenge" || levelData.type === "material") && levelData.rewards.itemChance) {
+                            const chancesArray = Array.isArray(levelData.rewards.itemChance) ? levelData.rewards.itemChance : [levelData.rewards.itemChance];
+                            chancesArray.forEach(chanceDef => {
+                                if (chanceDef.item && typeof chanceDef.minQuantity === 'number' && typeof chanceDef.maxQuantity === 'number' && typeof chanceDef.probability === 'number') {
+                                    let finalDropProbability = chanceDef.probability;
+                                    let looterEffectAppliedToProbThisItem = false;
+                                    selectedCharsObjects.forEach(char => {
+                                        if (char.trait && char.trait.id === 'looter' && char.trait.grade > 0) {
+                                            const traitDefLooter = TRAIT_DEFINITIONS['looter'];
+                                            if (traitDefLooter) {
+                                                const gradeDefLooter = traitDefLooter.grades.find(g => g.grade === char.trait.grade);
+                                                if (gradeDefLooter && typeof gradeDefLooter.itemDropRateStoryBonusPercentage === 'number') {
+                                                    if (chanceDef.probability < 1.0) {
+                                                        const increasedProbability = chanceDef.probability * (1 + gradeDefLooter.itemDropRateStoryBonusPercentage);
+                                                        if (increasedProbability > finalDropProbability) {
+                                                            finalDropProbability = Math.min(increasedProbability, 1.0);
+                                                        }
+                                                        if (finalDropProbability > chanceDef.probability) looterEffectAppliedToProbThisItem = true;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    });
+                                    if (Math.random() < finalDropProbability) {
+                                        const itemQuantity = Math.floor(Math.random() * (chanceDef.maxQuantity - chanceDef.minQuantity + 1)) + chanceDef.minQuantity;
+                                        inventory[chanceDef.item] = (inventory[chanceDef.item] || 0) + itemQuantity;
+                                        itemRewardText += `${itemRewardText ? ', ' : ''}+${itemQuantity} ${chanceDef.item}`;
+                                        if (looterEffectAppliedToProbThisItem) itemRewardText += ` (Looter actif)`;
+                                    }
+                                }
+                            });
                         }
-                    }
-                    const currentWorldStoryLevels = baseStoryLevels.filter(l => l.world === levelData.world && l.type === 'story' && !l.isInfinite);
-                    if (currentWorldStoryLevels.length > 0) {
-                        const maxIdInCurrentWorld = Math.max(...currentWorldStoryLevels.map(l => l.id));
-                        if (levelData.id === maxIdInCurrentWorld) {
-                            const storyWorldNames = [...new Set(baseStoryLevels.filter(l => l.type === 'story' && !l.isInfinite).map(l => ({ world: l.world, firstId: Math.min(...baseStoryLevels.filter(sl => sl.world === l.world && sl.type === 'story' && !sl.isInfinite).map(sl => sl.id)) })).sort((a, b) => a.firstId - b.firstId).map(w => w.world))];
-                            const currentWorldIndexInList = storyWorldNames.indexOf(levelData.world);
-                            if (currentWorldIndexInList !== -1 && currentWorldIndexInList < storyWorldNames.length - 1) {
-                                const nextWorldNameInList = storyWorldNames[currentWorldIndexInList + 1];
-                                const levelsInNextWorld = baseStoryLevels.filter(l => l.world === nextWorldNameInList && l.type === 'story' && !l.isInfinite);
-                                if (levelsInNextWorld.length > 0) {
-                                    const firstLevelOfNextWorldId = Math.min(...levelsInNextWorld.map(l => l.id));
-                                    const firstLevelOfNextWorldData = levelsInNextWorld.find(l => l.id === firstLevelOfNextWorldId);
-                                    if (firstLevelOfNextWorldData) {
-                                        const firstLevelOfNextWorldProgress = storyProgress.find(p => p.id === firstLevelOfNextWorldData.id);
-                                        if (firstLevelOfNextWorldProgress && !firstLevelOfNextWorldProgress.unlocked) {
-                                            firstLevelOfNextWorldProgress.unlocked = true;
-                                            battleOutcomeMessage += `<p class="text-white mt-1">Nouveau monde déverrouillé: ${firstLevelOfNextWorldData.name} !</p>`;
+
+                        let baseGemsRewardForLevel = levelData.rewards.gems;
+                        let baseCoinsRewardForLevel = levelData.rewards.coins;
+                        let baseExpRewardForLevel = levelData.rewards.exp;
+                        let actualGemsToAward = baseGemsRewardForLevel;
+                        let actualExpToAward = baseExpRewardForLevel;
+                        let actualCoinsToAward = baseCoinsRewardForLevel;
+                        let isRewardReduced = false;
+                        const affectedTypesForReduction = ['legendary', 'challenge', 'material'];
+
+                        if (levelData.type === 'story' && !levelData.isInfinite && progress.completed) {
+                            actualGemsToAward = Math.floor(baseGemsRewardForLevel * 0.5);
+                            actualCoinsToAward = Math.floor(baseCoinsRewardForLevel * 0.5);
+                            isRewardReduced = true;
+                        } else if (affectedTypesForReduction.includes(levelData.type) && progress.completed) {
+                            actualGemsToAward = Math.floor(baseGemsRewardForLevel * 0.5);
+                            actualExpToAward = Math.floor(baseExpRewardForLevel * 0.5);
+                            isRewardReduced = true;
+                        }
+
+                        let fortuneBonusGems = 0, golderBonusGems = 0, golderBonusCoins = 0;
+                        selectedCharsObjects.forEach(char => {
+                            if (char.trait && char.trait.id && char.trait.grade > 0) {
+                                const traitDef = TRAIT_DEFINITIONS[char.trait.id];
+                                const gradeDef = traitDef.grades.find(g => g.grade === char.trait.grade);
+                                if (gradeDef) {
+                                    if (levelData.type === 'story' && char.trait.id === 'fortune' && typeof gradeDef.gemBonusPercentage === 'number') {
+                                        fortuneBonusGems += Math.floor(baseGemsRewardForLevel * gradeDef.gemBonusPercentage);
+                                    }
+                                    if (char.trait.id === 'golder') {
+                                        if (typeof gradeDef.gemBonusPercentageAllModes === 'number') {
+                                            golderBonusGems += Math.floor(baseGemsRewardForLevel * gradeDef.gemBonusPercentageAllModes);
+                                        }
+                                        if (typeof gradeDef.coinBonusPercentageAllModes === 'number') {
+                                            golderBonusCoins += Math.floor(baseCoinsRewardForLevel * gradeDef.coinBonusPercentageAllModes);
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
-                    const infiniteLevelIdToCheck = 49;
-                    const infiniteLvlProgress = storyProgress.find(p => p.id === infiniteLevelIdToCheck);
-                    const infiniteLvlDef = allGameLevels.find(l => l.id === infiniteLevelIdToCheck && l.isInfinite);
-                    if (infiniteLvlProgress && infiniteLvlDef && !infiniteLvlProgress.unlocked) {
-                        const allStandardStoryLevels = baseStoryLevels.filter(lvl => lvl.type === 'story' && !lvl.isInfinite);
-                        const allStandardStoryLevelsNowCompleted = allStandardStoryLevels.every(stdLvl => {
-                            const prog = storyProgress.find(p => p.id === stdLvl.id);
-                            return prog && prog.completed;
                         });
-                        if (allStandardStoryLevelsNowCompleted) {
-                            infiniteLvlProgress.unlocked = true;
-                            battleOutcomeMessage += `<p class="text-white mt-1 font-bold text-yellow-300">${infiniteLvlDef.name} déverrouillé ! Tous les mondes d'histoire ont été conquis !</p>`;
-                            if (animationsEnabled) setTimeout(() => confetti({ particleCount: 200, spread: 120, origin: { y: 0.4 }, angle: 90, scalar: 1.5, colors: ['#FFD700', '#FF8C00', '#FFA500'] }), 500);
+                        
+                        let finalGemsAwarded = actualGemsToAward + fortuneBonusGems + golderBonusGems;
+                        let finalCoinsAwarded = actualCoinsToAward + golderBonusCoins;
+
+                        addGems(finalGemsAwarded);
+                        coins = Math.min(coins + finalCoinsAwarded, 10000000);
+                        addExp(actualExpToAward);
+                        selectedCharsObjects.forEach(char => addCharacterExp(char, actualExpToAward));
+
+                        let rewardMessageParts = [];
+                        rewardMessageParts.push(`+${finalGemsAwarded} gemmes`);
+                        if (isRewardReduced && (levelData.type === 'story' || affectedTypesForReduction.includes(levelData.type))) {
+                            rewardMessageParts.push('(réduit)');
                         }
+                        if (fortuneBonusGems > 0) rewardMessageParts.push(`(+${fortuneBonusGems} Fortune)`);
+                        if (golderBonusGems > 0) rewardMessageParts.push(`(+${golderBonusGems} Golder)`);
+                        rewardMessageParts.push(`, +${finalCoinsAwarded} pièces`);
+                        if (isRewardReduced && levelData.type === 'story') {
+                            rewardMessageParts.push('(réduit)');
+                        }
+                        if (golderBonusCoins > 0) rewardMessageParts.push(`(+${golderBonusCoins} Golder)`);
+                        rewardMessageParts.push(`, +${actualExpToAward} EXP`);
+                        if (isRewardReduced && affectedTypesForReduction.includes(levelData.type)) {
+                            rewardMessageParts.push('(réduit)');
+                        }
+                        if (itemRewardText) rewardMessageParts.push(`, ${itemRewardText}`);
+
+                        battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire !</p><p class="text-white">Victoire contre ${levelData.enemy.name} !</p><p class="text-white">Récompenses: ${rewardMessageParts.join(' ')}</p>`;
+
+                        missions.forEach(mission => {
+                            if (!mission.completed) {
+                                if (levelData.type === 'story' && mission.type === 'complete_story_levels') mission.progress++;
+                                else if (levelData.type === 'legendary' && mission.type === 'complete_legendary_levels') mission.progress++;
+                                else if (levelData.type === 'challenge' && mission.type === 'complete_challenge_levels') mission.progress++;
+                            }
+                        });
+                        
+                        if (!progress.completed) {
+                            progress.completed = true;
+                        }
+
+                        if (levelData.type === 'story' && !levelData.isInfinite) {
+                            const nextSequentialLevelId = levelData.id + 1;
+                            const nextSequentialLevelData = allGameLevels.find(l => l.id === nextSequentialLevelId);
+                            if (nextSequentialLevelData) {
+                                const nextSequentialLevelProgress = storyProgress.find(p => p.id === nextSequentialLevelId);
+                                if (nextSequentialLevelProgress && nextSequentialLevelData.type === 'story' && !nextSequentialLevelData.isInfinite && nextSequentialLevelData.world === levelData.world && !nextSequentialLevelProgress.unlocked) {
+                                    nextSequentialLevelProgress.unlocked = true;
+                                    battleOutcomeMessage += `<p class="text-white mt-1">${nextSequentialLevelData.name} déverrouillé !</p>`;
+                                }
+                            }
+                            const currentWorldStoryLevels = baseStoryLevels.filter(l => l.world === levelData.world && l.type === 'story' && !l.isInfinite);
+                            if (currentWorldStoryLevels.length > 0) {
+                                const maxIdInCurrentWorld = Math.max(...currentWorldStoryLevels.map(l => l.id));
+                                if (levelData.id === maxIdInCurrentWorld) {
+                                    const storyWorldNames = [...new Set(baseStoryLevels.filter(l => l.type === 'story' && !l.isInfinite).map(l => ({ world: l.world, firstId: Math.min(...baseStoryLevels.filter(sl => sl.world === l.world && sl.type === 'story' && !sl.isInfinite).map(sl => sl.id)) })).sort((a, b) => a.firstId - b.firstId).map(w => w.world))];
+                                    const currentWorldIndexInList = storyWorldNames.indexOf(levelData.world);
+                                    if (currentWorldIndexInList !== -1 && currentWorldIndexInList < storyWorldNames.length - 1) {
+                                        const nextWorldNameInList = storyWorldNames[currentWorldIndexInList + 1];
+                                        const levelsInNextWorld = baseStoryLevels.filter(l => l.world === nextWorldNameInList && l.type === 'story' && !l.isInfinite);
+                                        if (levelsInNextWorld.length > 0) {
+                                            const firstLevelOfNextWorldId = Math.min(...levelsInNextWorld.map(l => l.id));
+                                            const firstLevelOfNextWorldData = levelsInNextWorld.find(l => l.id === firstLevelOfNextWorldId);
+                                            if (firstLevelOfNextWorldData) {
+                                                const firstLevelOfNextWorldProgress = storyProgress.find(p => p.id === firstLevelOfNextWorldData.id);
+                                                if (firstLevelOfNextWorldProgress && !firstLevelOfNextWorldProgress.unlocked) {
+                                                    firstLevelOfNextWorldProgress.unlocked = true;
+                                                    battleOutcomeMessage += `<p class="text-white mt-1">Nouveau monde déverrouillé: ${firstLevelOfNextWorldData.name} !</p>`;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            const infiniteLevelIdToCheck = 49;
+                            const infiniteLvlProgress = storyProgress.find(p => p.id === infiniteLevelIdToCheck);
+                            const infiniteLvlDef = allGameLevels.find(l => l.id === infiniteLevelIdToCheck && l.isInfinite);
+                            if (infiniteLvlProgress && infiniteLvlDef && !infiniteLvlProgress.unlocked) {
+                                const allStandardStoryLevels = baseStoryLevels.filter(lvl => lvl.type === 'story' && !lvl.isInfinite);
+                                const allStandardStoryLevelsNowCompleted = allStandardStoryLevels.every(stdLvl => {
+                                    const prog = storyProgress.find(p => p.id === stdLvl.id);
+                                    return prog && prog.completed;
+                                });
+                                if (allStandardStoryLevelsNowCompleted) {
+                                    infiniteLvlProgress.unlocked = true;
+                                    battleOutcomeMessage += `<p class="text-white mt-1 font-bold text-yellow-300">${infiniteLvlDef.name} déverrouillé ! Tous les mondes d'histoire ont été conquis !</p>`;
+                                    if (animationsEnabled) setTimeout(() => confetti({ particleCount: 200, spread: 120, origin: { y: 0.4 }, angle: 90, scalar: 1.5, colors: ['#FFD700', '#FF8C00', '#FFA500'] }), 500);
+                                }
+                            }
+                        }
+                        if (animationsEnabled) confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+                        localStorage.setItem("inventory", JSON.stringify(inventory));
+                    } else { // DÉFAITE PvE
+                        battleOutcomeMessage = `<p class="text-red-400 text-2xl font-bold mb-2">Défaite !</p><p class="text-white">Défaite contre ${levelData.enemy.name} ! Votre puissance: ${playerPower.toFixed(0)} (Score: ${playerScore.toFixed(0)}), Ennemi: ${enemyPower.toFixed(0)} (Score: ${enemyScore.toFixed(0)})</p><p class="text-white">Mieux vous préparer et réessayez !</p>`;
+                        selectedCharsObjects.forEach(char => addCharacterExp(char, Math.floor(levelData.rewards.exp / 4)));
                     }
                 }
-                if (soundEnabled) winSound.play();
-                if (animationsEnabled) confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
-                localStorage.setItem("inventory", JSON.stringify(inventory));
-            } else { 
-                // Logique de DÉFAITE (inchangée)
-                battleOutcomeMessage = `<p class="text-red-400 text-2xl font-bold mb-2">Défaite !</p><p class="text-white">Défaite contre ${levelData.enemy.name} ! Votre puissance: ${playerPower.toFixed(0)} (Score: ${playerScore.toFixed(0)}), Ennemi: ${enemyPower.toFixed(0)} (Score: ${enemyScore.toFixed(0)})</p><p class="text-white">Mieux vous préparer et réessayez !</p>`;
-                selectedCharsObjects.forEach(char => addCharacterExp(char, Math.floor(levelData.rewards.exp / 4)));
-                if (soundEnabled) loseSound.play();
             }
-        }
+        } // Fin du else pour levelData.isInfinite
 
         resultElement.innerHTML = battleOutcomeMessage;
         setTimeout(() => {
@@ -2756,11 +2891,85 @@
         updateLevelDisplay();
         updateLegendeDisplay();
         updateChallengeDisplay();
+        updatePvpDisplay();
+        updateTowerDisplay();
         updateCharacterDisplay();
         updateIndexDisplay();
         updateUI();
         updateItemDisplay();
-        saveProgress();
+
+        if (currentLevelId === 'pvp_battle') {
+            findOpponentButton.disabled = false;
+        }
+
+        scheduleSave(); // CORRECTION: Appel de la bonne fonction de sauvegarde
+    } // Accolade fermante correcte pour confirmSelection
+
+    async function processPendingPvpResults() {
+        if (!currentUser) return; // S'assurer que l'utilisateur est connecté
+
+        const playerDocRef = db.collection('playerSaves').doc(currentUser.uid);
+        const resultsRef = playerDocRef.collection('pendingPvpResults').orderBy('timestamp', 'asc');
+
+        try {
+            const querySnapshot = await resultsRef.get();
+            if (querySnapshot.empty) {
+                return; // Pas de résultats à traiter, on arrête ici.
+            }
+
+            console.log(`[PvP] ${querySnapshot.size} résultat(s) en attente trouvé(s). Traitement en cours...`);
+            const pvpLogsBadge = document.getElementById('pvp-logs-badge');
+
+            const batch = db.batch(); // On utilise un "batch" pour regrouper les écritures, c'est plus efficace.
+            let pointsChangeTotal = 0;
+
+            querySnapshot.forEach(doc => {
+                const data = doc.data();
+                const logTimestamp = data.timestamp ? data.timestamp.toDate() : new Date();
+
+                // Créer le log pour l'historique local du joueur
+                const newLog = {
+                    id: `log_${logTimestamp.getTime()}_${Math.random()}`,
+                    type: 'defense',
+                    opponentName: data.attackerName || 'Un joueur',
+                    outcome: data.outcome, // 'victory' ou 'defeat'
+                    pointsChange: data.pointsChange,
+                    timestamp: logTimestamp.getTime(),
+                    read: false // Marqué comme non lu pour afficher la notification
+                };
+
+                pvpLogs.unshift(newLog); // Ajouter au début du tableau des logs
+                pointsChangeTotal += data.pointsChange;
+
+                // Préparer la suppression du document traité dans le batch
+                batch.delete(doc.ref);
+            });
+
+            // Mettre à jour les points et les logs du joueur dans la base de données
+            playerPvpPoints = Math.max(0, playerPvpPoints + pointsChangeTotal);
+            if (pvpLogs.length > 50) {
+                pvpLogs.length = 50; // Garder seulement les 50 derniers logs
+            }
+
+            // Préparer la mise à jour du document principal du joueur dans le batch
+            batch.update(playerDocRef, {
+                playerPvpPoints: playerPvpPoints,
+                pvpLogs: pvpLogs
+            });
+
+            // Exécuter toutes les opérations (mises à jour et suppressions) en une seule fois
+            await batch.commit();
+
+            console.log("[PvP] Traitement des résultats terminé. Mise à jour de l'UI.");
+            
+            // Mettre à jour l'interface utilisateur pour refléter les changements
+            updatePvpDisplay();
+            if (pvpLogsBadge) pvpLogsBadge.classList.remove('hidden'); // Afficher la petite notification "!"
+            updateUI(); // Mettre à jour les stats générales
+
+        } catch (error) {
+            console.error("Erreur lors du traitement des résultats PvP en attente:", error);
+        }
     }
 
     function updateChallengeDisplay() {
@@ -2827,6 +3036,62 @@
         });
 
         scheduleSave();
+    }
+
+    function updateDailyDungeonDisplay() {
+        const dailyDungeonListElement = document.getElementById("daily-dungeon-list");
+        if (!dailyDungeonListElement) return;
+
+        const now = new Date();
+        const currentDay = now.getDay(); // 0 for Sunday, 1 for Monday, etc.
+        const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+
+        const dailyDungeons = allGameLevels.filter(l => l.type === 'daily');
+
+        if (dailyDungeons.length === 0) {
+            dailyDungeonListElement.innerHTML = "<p class='text-white col-span-full text-center'>Aucun donjon quotidien disponible.</p>";
+            return;
+        }
+
+        dailyDungeonListElement.innerHTML = dailyDungeons.map(level => {
+            const isAvailableToday = level.dayOfWeek === currentDay;
+            const progress = storyProgress.find(p => p.id === level.id) || { unlocked: true, completed: false };
+            const isDisabled = !isAvailableToday;
+            
+            let buttonClass = 'bg-gray-600'; // Default for locked
+            if (isAvailableToday) {
+                buttonClass = 'bg-cyan-600 hover:bg-cyan-700';
+            }
+
+            const itemDrops = Array.isArray(level.rewards.itemChance) 
+                ? level.rewards.itemChance.map(ic => `${ic.item} (${(ic.probability * 100).toFixed(0)}%)`).join(', ') 
+                : (level.rewards.itemChance?.item || 'N/A');
+
+            return `
+                <div class="p-3 rounded-lg ${isAvailableToday ? 'bg-gray-700 border-2 border-cyan-500' : 'bg-gray-800 opacity-60'}">
+                    <h4 class="text-lg font-bold ${isAvailableToday ? 'text-cyan-300' : 'text-gray-400'}">${level.name}</h4>
+                    <p class="text-sm text-gray-400 mb-2">Disponible le: ${days[level.dayOfWeek]}</p>
+                    <div class="text-xs text-gray-300 mb-3">
+                        <p>Ennemi: ${level.enemy.name} (Puissance: ${level.enemy.power.toLocaleString()})</p>
+                        <p>Drops Principaux: ${itemDrops}</p>
+                    </div>
+                    <button class="level-start-button w-full ${buttonClass} text-white py-2 px-4 rounded-lg transition-colors duration-200 ${isDisabled ? 'cursor-not-allowed' : ''}"
+                            data-level-id="${level.id}" ${isDisabled ? 'disabled' : ''}>
+                        ${isAvailableToday ? 'Entrer' : 'Indisponible'}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function startTowerFloor() {
+        const enemyPower = Math.floor(TOWER_CONFIG.baseEnemyPower * Math.pow(TOWER_CONFIG.powerIncreasePerFloor, towerFloor - 1));
+        const towerLevelData = { id: `tower_${towerFloor}`, name: `Tour Infinie - Étage ${towerFloor}`, enemy: { name: `Gardien de l'Étage ${towerFloor}`, power: enemyPower }, type: 'tower' };
+        currentLevelId = towerLevelData.id;
+        window.currentTowerLevelData = towerLevelData;
+        selectedBattleCharacters.clear();
+        openModal(characterSelectionModal);
+        updateCharacterSelectionDisplay();
     }
 
     function addCharacterExp(character, amount) {
@@ -2963,6 +3228,15 @@
         // La confirmation se fera via le bouton de la modale
     }
 
+    // NOUVEAU: Fonction pour nettoyer les listeners de guilde
+    function cleanupGuildListeners() {
+        if (guildDataListener) guildDataListener();
+        if (guildChatListener) guildChatListener();
+        guildDataListener = null;
+        guildChatListener = null;
+        playerGuildData = null;
+    }
+
     // APRÈS
     async function confirmReset() {
         console.log("Réinitialisation de la partie pour l'utilisateur:", currentUser.uid);
@@ -2973,10 +3247,21 @@
         if (currentUser) {
             await db.collection('playerSaves').doc(currentUser.uid).delete();
         }
+
+        // NOUVEAU: Nettoyer les listeners de guilde
+        cleanupGuildListeners();
         
+        if (leaderboardListener) leaderboardListener();
+        if (pvpLeaderboardListener) pvpLeaderboardListener();
+        if (towerLeaderboardListener) towerLeaderboardListener();
+        leaderboardListener = null;
+        pvpLeaderboardListener = null;
+        towerLeaderboardListener = null;
+
         // --- NOUVEAU: Réinitialisation complète des paramètres ---
         // 1. Supprimer les clés de paramètres du localStorage
         localStorage.removeItem("soundEnabled");
+        localStorage.removeItem("towerFloor");
         localStorage.removeItem("animationsEnabled");
         localStorage.removeItem("theme");
         localStorage.removeItem("autosellSettings");
@@ -3284,20 +3569,19 @@
 
     async function _performSave() {
         if (!currentUser || !isGameInitialized) {
-            // Ne pas sauvegarder si l'utilisateur n'est pas connecté ou si le jeu n'est pas prêt
             return;
         }
         console.log(`%c[SAVE] Déclenchement de la sauvegarde sur Firestore... (Gemmes: ${gems})`, 'color: #7CFC00');
         
-        // Créer un objet contenant toutes les données à sauvegarder
         const saveData = {
-            username: currentUser.email.split('@')[0], // Ajout du pseudo pour le classement
+            username: currentUser.email.split('@')[0],
             characterIdCounter, gems, coins, pullCount, ownedCharacters, level, exp,
-            pullTickets, missions, shopOffers, shopRefreshTime, storyProgress, inventory,
-            characterPreset, presetConfirmed, standardPityCount, specialPityCount,
+            pullTickets, missions, shopOffers, shopRefreshTime, storyProgress, inventory, playerGuildId, towerFloor,
+            playerPvpPoints, // AJOUT: Sauvegarde des points PvP
+            characterPreset, presetConfirmed, pvpLogs, standardPityCount, specialPityCount,
             lastUsedBattleTeamIds, autosellSettings, expMultiplier, expBoostEndTime, discoveredCharacters,
             everOwnedCharacters,
-            // Ajoutez toutes les autres variables d'état ici
+            defenseTeamIds, // <-- AJOUTEZ CETTE LIGNE !
         };
 
         try {
@@ -3328,13 +3612,21 @@
             const doc = await docRef.get();
             if (doc.exists) {
                 initializeGameData(doc.data());
+                
+                // On traite les résultats qui attendaient depuis la dernière connexion
+                processPendingPvpResults(); 
+                
+                // MODIFICATION : On active l'écouteur pour les futurs combats
+                setupPvpResultsListener(userId);
+                
+                if (doc.data().playerGuildId) {
+                    loadAndDisplayGuildData(doc.data().playerGuildId);
+                }
             } else {
-                // C'est un nouvel utilisateur, il n'a pas de sauvegarde
                 initializeGameData(null);
             }
         } catch (error) {
             console.error("Erreur lors du chargement de la progression:", error);
-            // En cas d'erreur, on initialise une nouvelle partie pour éviter de bloquer le joueur
             initializeGameData(null);
         }
     }
@@ -3384,6 +3676,7 @@
       if (specialPityDisplay) specialPityDisplay.textContent = specialPityCount;
 
       updateShopDisplay(); 
+      updatePvpLogsNotification();
     }
 
     function getRarityBorderClass(rarity) {
@@ -4469,6 +4762,30 @@
       });
       updateMissions();
       updateUI();
+    }
+
+    function setupPvpResultsListener(userId) {
+        // Si un ancien écouteur est déjà actif, on le désactive pour éviter les doublons
+        if (pvpResultsListener) {
+            pvpResultsListener();
+        }
+
+        const resultsRef = db.collection('playerSaves').doc(userId).collection('pendingPvpResults');
+
+        // C'est ici la magie : .onSnapshot s'exécute à chaque changement
+        pvpResultsListener = resultsRef.onSnapshot(querySnapshot => {
+            // Si la collection n'est pas vide, ça veut dire qu'on a été attaqué
+            if (!querySnapshot.empty) {
+                console.log("[PvP Listener] Nouveau(x) résultat(s) de combat détecté(s) !");
+                const pvpLogsBadge = document.getElementById('pvp-logs-badge');
+                if (pvpLogsBadge) {
+                    // On affiche simplement la notification. Le traitement se fera plus tard.
+                    pvpLogsBadge.classList.remove('hidden');
+                }
+            }
+        }, error => {
+            console.error("[PvP Listener] Erreur d'écoute des résultats PvP:", error);
+        });
     }
 
     function canCharacterEvolve(char) {
@@ -5869,19 +6186,37 @@
         scheduleSave(); // Sauvegarde le nouvel état
     }
 
-        function showTab(tabId) {
+    function showTab(tabId) {
         // Si l'onglet demandé est déjà actif et visible, ne rien faire.
         // Exception: si on re-clique sur "play" ou "inventory", on veut s'assurer que le bon sous-onglet est visible.
         if (activeTabId === tabId && !document.getElementById(tabId)?.classList.contains("hidden")) {
             if (tabId === "play") {
-                // Si l'onglet "play" est déjà actif, s'assurer que le dernier sous-onglet actif (ou "story" par défaut) est affiché.
-                // Cela gère le cas où on clique sur "Play" alors qu'on est déjà dessus, pour forcer la réinitialisation du sous-onglet si besoin.
                 showSubTab(activePlaySubTabId || "story");
             } else if (tabId === "inventory") {
                 showSubTab(activeInventorySubTabId || "units");
             }
             return;
         }
+
+        // --- NOUVEAU: Détacher les listeners des classements en temps réel ---
+        // Si on quitte l'onglet "leaderboard"
+        if (activeTabId === 'leaderboard' && leaderboardListener) {
+            console.log("[Listener] Détachement du listener du classement général.");
+            leaderboardListener();
+            leaderboardListener = null;
+        }
+        // Si on quitte l'onglet "play" ET que le sous-onglet "pvp" était actif
+        if (activeTabId === 'play' && activePlaySubTabId === 'pvp' && pvpLeaderboardListener) {
+            console.log("[Listener] Détachement du listener du classement PvP (changement d'onglet principal).");
+            pvpLeaderboardListener();
+            pvpLeaderboardListener = null;
+        }
+        if (activeTabId === 'play' && activePlaySubTabId === 'tour' && towerLeaderboardListener) {
+            console.log("[Listener] Détachement du listener du classement Tour (changement d'onglet principal).");
+            towerLeaderboardListener();
+            towerLeaderboardListener = null;
+        }
+        // --- FIN NOUVEAU ---
 
         // Cacher l'ancien onglet actif s'il y en a un et qu'il n'est pas le même que le nouveau
         if (activeTabId && activeTabId !== tabId) {
@@ -5917,6 +6252,8 @@
             showSubTab(activePlaySubTabId || "story");
         } else if (tabId === "index") {
             updateIndexDisplay();
+        } else if (tabId === "pvp") { // MODIFICATION ICI
+            updatePvpDisplay();
         } else if (tabId === "evolution") {
             updateEvolutionDisplay();
         } else if (tabId === "stat-change") {
@@ -5932,6 +6269,8 @@
             updateLimitBreakTabDisplay();
         } else if (tabId === "leaderboard") {
             updateLeaderboard();
+        } else if (tabId === "guild") {
+            updateGuildDisplay();
         } else {
             if (isDeleteMode) {
                 isDeleteMode = false;
@@ -6008,6 +6347,788 @@
         }
     }
 
+function updatePvpLeaderboard() {
+    pvpLeaderboard.innerHTML = '<p class="text-white text-center">Chargement du classement PvP...</p>';
+
+    // --- MODIFIÉ: Utilisation de onSnapshot pour le temps réel ---
+    // Détacher l'ancien listener s'il existe, pour éviter les doublons
+    if (pvpLeaderboardListener) {
+        pvpLeaderboardListener();
+    }
+
+    const query = db.collection('playerSaves')
+            .orderBy('playerPvpPoints', 'desc')
+            .limit(100);
+
+    pvpLeaderboardListener = query.onSnapshot(querySnapshot => {
+        const players = [];
+        querySnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.username && typeof data.playerPvpPoints === 'number') {
+                players.push({
+                    uid: doc.id,
+                    name: data.username,
+                    points: data.playerPvpPoints
+                });
+            }
+        });
+
+        if (players.length === 0) {
+            pvpLeaderboard.innerHTML = '<p class="text-white text-center">Le classement PvP est vide.</p>';
+            return;
+        }
+
+        pvpLeaderboard.innerHTML = `
+            <table class="w-full text-white text-sm">
+                <thead>
+                    <tr class="text-left border-b border-gray-600">
+                        <th class="p-2">Rang</th>
+                        <th class="p-2">Nom</th>
+                        <th class="p-2">Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${players.map((p, index) => `
+                        <tr class="border-b border-gray-700 ${p.uid === currentUser?.uid ? 'bg-yellow-500 bg-opacity-30' : ''}">
+                            <td class="p-2">${index + 1}</td>
+                            <td class="p-2">${p.name}</td>
+                            <td class="p-2">${p.points.toLocaleString()}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        `;
+
+    }, error => {
+        console.error("Erreur lors du chargement du classement PvP:", error);
+        pvpLeaderboard.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement PvP.</p>';
+        if (error.code === 'failed-precondition') {
+            pvpLeaderboard.innerHTML += '<p class="text-yellow-400 text-center text-xs mt-2">Note: Un index Firestore pour \`playerPvpPoints\` est peut-être requis. Vérifiez la console du navigateur pour un lien de création d\'index.</p>';
+        }
+        // Arrêter l'écoute en cas d'erreur
+        if (pvpLeaderboardListener) {
+            pvpLeaderboardListener();
+            pvpLeaderboardListener = null;
+        }
+    });
+}
+
+function updateTowerLeaderboard() {
+    const towerLeaderboardEl = document.getElementById('tower-leaderboard');
+    if (!towerLeaderboardEl) return;
+
+    towerLeaderboardEl.innerHTML = '<p class="text-white text-center">Chargement du classement de la Tour...</p>';
+
+    // Détacher l'ancien listener s'il existe
+    if (towerLeaderboardListener) {
+        towerLeaderboardListener();
+    }
+
+    const query = db.collection('playerSaves')
+            .orderBy('towerFloor', 'desc')
+            .limit(100);
+
+    towerLeaderboardListener = query.onSnapshot(querySnapshot => {
+        const players = [];
+        querySnapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.username && typeof data.towerFloor === 'number') {
+                players.push({
+                    uid: doc.id,
+                    name: data.username,
+                    floor: data.towerFloor
+                });
+            }
+        });
+
+        if (players.length === 0) {
+            towerLeaderboardEl.innerHTML = '<p class="text-white text-center">Le classement de la Tour est vide.</p>';
+            return;
+        }
+
+        towerLeaderboardEl.innerHTML = `
+            <table class="w-full text-white text-sm">
+                <thead>
+                    <tr class="text-left border-b border-gray-600">
+                        <th class="p-2">Rang</th>
+                        <th class="p-2">Nom</th>
+                        <th class="p-2">Étage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${players.map((p, index) => `
+                        <tr class="border-b border-gray-700 ${p.uid === currentUser?.uid ? 'bg-yellow-500 bg-opacity-30' : ''}">
+                            <td class="p-2">${index + 1}</td>
+                            <td class="p-2">${p.name}</td>
+                            <td class="p-2">${p.floor.toLocaleString()}</td>
+                        </tr>
+                    `).join("")}
+                </tbody>
+            </table>
+        `;
+
+    }, error => {
+        console.error("Erreur lors du chargement du classement de la Tour:", error);
+        towerLeaderboardEl.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement de la Tour.</p>';
+        if (error.code === 'failed-precondition') {
+            towerLeaderboardEl.innerHTML += '<p class="text-yellow-400 text-center text-xs mt-2">Note: Un index Firestore pour `towerFloor` est peut-être requis. Vérifiez la console du navigateur pour un lien de création d\'index.</p>';
+        }
+        if (towerLeaderboardListener) {
+            towerLeaderboardListener();
+            towerLeaderboardListener = null;
+        }
+    });
+}
+
+    async function findOpponent() {
+        resultElement.innerHTML = `<p class="text-yellow-400">Recherche d'un adversaire...</p>`;
+        findOpponentButton.disabled = true;
+        console.log("[PvP] Lancement de la recherche d'adversaire...");
+
+        try {
+            // Pour l'instant, on prend un joueur au hasard qui n'est pas nous-même et qui a une équipe de défense.
+            // Une logique plus complexe pourrait filtrer par niveau/points PvP.
+            const querySnapshot = await db.collection('playerSaves').get();
+            const potentialOpponents = [];
+            console.log(`[PvP] ${querySnapshot.size} sauvegardes de joueurs trouvées dans la base de données.`);
+
+            querySnapshot.forEach(doc => {
+                const data = doc.data();
+                const username = data.username || doc.id;
+
+                if (doc.id === currentUser.uid) {
+                    // console.log(`[PvP] Ignoré: ${username} (c'est vous-même).`);
+                    return; // On s'ignore soi-même
+                }
+
+                if (data.defenseTeamIds && data.defenseTeamIds.length === 3) {
+                    potentialOpponents.push({ id: doc.id, ...data });
+                    console.log(`[PvP] Adversaire potentiel VALIDE trouvé: ${username}`);
+                } else {
+                    console.log(`[PvP] Ignoré: ${username} (équipe de défense invalide ou incomplète. Trouvé: ${JSON.stringify(data.defenseTeamIds)})`);
+                }
+            });
+
+            if (potentialOpponents.length === 0) {
+                resultElement.innerHTML = `<p class="text-gray-400">Aucun adversaire avec une équipe de défense valide n'a été trouvé. Réessayez plus tard.</p>`;
+                findOpponentButton.disabled = false;
+                return;
+            }
+
+            const opponentData = potentialOpponents[Math.floor(Math.random() * potentialOpponents.length)];
+            
+            // Construire les objets personnages de l'équipe de défense
+            const opponentTeam = opponentData.defenseTeamIds.map(charId => {
+                return opponentData.ownedCharacters.find(c => c.id === charId);
+            }).filter(Boolean); // Filtrer les persos non trouvés
+
+            if (opponentTeam.length !== 3) {
+                 resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la récupération de l'équipe de l'adversaire. Veuillez réessayer.</p>`;
+                 findOpponentButton.disabled = false;
+                 return;
+            }
+
+            // Recalculer la puissance de chaque personnage de l'adversaire pour être sûr
+            let opponentTeamPower = 0;
+            opponentTeam.forEach(char => {
+                recalculateCharacterPower(char);
+                opponentTeamPower += char.power;
+            });
+
+            currentPvpOpponent = {
+                id: opponentData.id,
+                name: opponentData.username,
+                team: opponentTeam,
+                teamPower: opponentTeamPower
+            };
+
+            resultElement.innerHTML = `<p class="text-green-400">Adversaire trouvé : ${currentPvpOpponent.name} (Puissance: ${currentPvpOpponent.teamPower})</p>`;
+            startPvpBattle();
+
+        } catch (error) {
+            console.error("Erreur lors de la recherche d'un adversaire PvP:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la recherche d'un adversaire. Vérifiez la console.</p>`;
+            findOpponentButton.disabled = false;
+        }
+    }
+
+    function startPvpBattle() {
+        if (!currentPvpOpponent) {
+            resultElement.innerHTML = `<p class="text-red-500">Erreur : Pas d'adversaire PvP sélectionné.</p>`;
+            return;
+        }
+        currentLevelId = 'pvp_battle';
+        selectedBattleCharacters.clear();
+        openModal(characterSelectionModal);
+        updateCharacterSelectionDisplay();
+    }
+
+    function openTeamSelectionModal(mode) {
+        currentTeamSelectionMode = mode; // 'preset' or 'defense'
+        selectedTeamCharacters.clear();
+        openModal(teamSelectionModal);
+        updateTeamSelectionDisplay();
+    }
+
+    function confirmTeamSelection() {
+        if (selectedTeamCharacters.size !== 3) {
+            resultElement.innerHTML = `<p class="text-red-400">Veuillez sélectionner exactement 3 personnages !</p>`;
+            return;
+        }
+
+        const selectedIds = Array.from(selectedTeamCharacters).map(index => ownedCharacters[index].id);
+
+        if (currentTeamSelectionMode === 'preset') {
+            characterPreset = selectedIds;
+            presetConfirmed = true;
+            resultElement.innerHTML = '<p class="text-green-400">Preset enregistré avec succès !</p>';
+        } else if (currentTeamSelectionMode === 'defense') {
+            defenseTeamIds = selectedIds;
+            resultElement.innerHTML = '<p class="text-green-400">Équipe de défense enregistrée avec succès !</p>';
+        }
+
+        closeModalHelper(teamSelectionModal);
+        scheduleSave();
+    }
+
+    function updatePvpLogsNotification() {
+        if (!pvpLogsBadge) return;
+        const hasUnread = pvpLogs.some(log => !log.read);
+        pvpLogsBadge.classList.toggle('hidden', !hasUnread);
+    }
+
+    function openPvpLogsModal() {
+        updatePvpLogsDisplay();
+        
+        let changed = false;
+        pvpLogs.forEach(log => {
+            if (!log.read) {
+                log.read = true;
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            updatePvpLogsNotification();
+            scheduleSave();
+        }
+
+        openModal(pvpLogsModal);
+    }
+
+    function updatePvpLogsDisplay() {
+        if (!pvpLogsListContainer) return;
+        if (pvpLogs.length === 0) {
+            pvpLogsListContainer.innerHTML = '<p class="text-gray-400 text-center">Aucun combat récent.</p>';
+            return;
+        }
+        const sortedLogs = [...pvpLogs].sort((a, b) => b.timestamp - a.timestamp);
+        pvpLogsListContainer.innerHTML = sortedLogs.map(log => {
+            const date = new Date(log.timestamp).toLocaleString('fr-FR');
+            const isVictory = log.outcome === 'victory';
+            const actionText = log.type === 'attack' ? `Vous avez attaqué <strong>${log.opponentName}</strong>` : `<strong>${log.opponentName}</strong> vous a attaqué`;
+            const outcomeText = isVictory ? 'Victoire' : 'Défaite';
+            const pointsText = `${log.pointsChange > 0 ? '+' : ''}${log.pointsChange} points`;
+            return `<div class="p-3 rounded-lg mb-2 ${log.read ? 'bg-gray-700 bg-opacity-40' : 'bg-blue-900 bg-opacity-50 border border-blue-500'}"><div class="flex justify-between items-center"><p class="font-bold ${isVictory ? 'text-green-400' : 'text-red-400'}">${outcomeText}</p><p class="text-xs text-gray-400">${date}</p></div><p class="text-white mt-1">${actionText}</p><p class="text-white text-sm">${pointsText}</p></div>`;
+        }).join('');
+    }
+
+    function renderRaidBossView(raidData) {
+        const raidBossView = document.getElementById('guild-raid-boss-view');
+        const bossDef = raidBosses.find(b => b.id === raidData.bossId);
+        if (!bossDef) {
+            raidBossView.innerHTML = `<p class="text-red-500">Erreur: Définition du boss de raid introuvable.</p>`;
+            return;
+        }
+        const healthPercentage = (raidData.currentHealth / bossDef.totalHealth) * 100;
+        const endTime = new Date(raidData.startTime.seconds * 1000 + bossDef.durationDays * 24 * 60 * 60 * 1000);
+        const timeLeftMs = endTime - Date.now();
+        raidBossView.innerHTML = ` <h3 class="text-2xl text-purple-300 font-bold text-center mb-2">${bossDef.name}</h3> <p class="text-center text-gray-400 mb-4">Temps restant: ${timeLeftMs > 0 ? formatTime(timeLeftMs) : 'Terminé'}</p> <img src="${bossDef.image}" alt="${bossDef.name}" class="mx-auto h-48 mb-4"> <div class="w-full bg-gray-900 rounded-full h-8 border-2 border-purple-400 mt-2 relative"> <div class="bg-red-600 h-full rounded-full transition-all duration-100 ease-linear" style="width: ${healthPercentage}%;"></div> <span class="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center text-white font-bold">${raidData.currentHealth.toLocaleString()} / ${bossDef.totalHealth.toLocaleString()}</span> </div> <div class="text-center mt-6"> <button id="attack-raid-boss-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition transform hover:scale-105"> Attaquer ! </button> </div> <div class="mt-6"> <h4 class="text-lg font-semibold text-white mb-2">Meilleurs contributeurs</h4> <ul id="raid-contributors-list" class="text-gray-300 space-y-1"> <li>1. PlayerOne - 1,234,567 Dégâts</li> <li>2. PlayerTwo - 987,654 Dégâts</li> </ul> </div> `;
+        document.getElementById('attack-raid-boss-button').addEventListener('click', attackRaidBoss);
+    }
+
+    function listenForGuildData(guildId) {
+        if (guildDataListener) guildDataListener(); // Detach old listener
+
+        const guildRef = db.collection('guilds').doc(guildId);
+        console.log(`[GUILD] Setting up listener for guild data: ${guildId}`);
+        guildDataListener = guildRef.onSnapshot(doc => {
+            if (doc.exists) {
+                console.log("[GUILD] Guild data updated:", doc.data());
+                playerGuildData = doc.data();
+                if (activeTabId === 'guild') {
+                    updateGuildDisplay();
+                }
+            } else {
+                console.warn("[GUILD] Guild data gone. Player might have been kicked or guild deleted.");
+                // Handle case where guild is deleted while player is in it
+                playerGuildId = null;
+                playerGuildData = null;
+                cleanupGuildListeners();
+                if (activeTabId === 'guild') {
+                    updateGuildDisplay();
+                }
+                // Also update player save data
+                if (currentUser) {
+                    db.collection('playerSaves').doc(currentUser.uid).update({ playerGuildId: null });
+                }
+            }
+        }, error => {
+            console.error("[GUILD] Error listening to guild data:", error);
+        });
+    }
+
+    function listenForGuildChat(guildId) {
+        if (guildChatListener) guildChatListener(); // Detach old listener
+
+        const chatRef = db.collection('guilds').doc(guildId).collection('chat').orderBy('timestamp', 'desc').limit(50);
+        console.log(`[GUILD] Setting up listener for guild chat: ${guildId}`);
+        guildChatListener = chatRef.onSnapshot(snapshot => {
+            const chatMessagesElement = document.getElementById('guild-chat-messages');
+            if (!chatMessagesElement) return; // View not rendered
+
+            if (snapshot.empty) {
+                chatMessagesElement.innerHTML = '<p class="text-gray-400 text-center">Aucun message. Soyez le premier !</p>';
+                return;
+            }
+
+            chatMessagesElement.innerHTML = snapshot.docs.map(doc => {
+                const msg = doc.data();
+                const date = msg.timestamp ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString() : '';
+                // Basic XSS protection
+                const sender = document.createElement('span');
+                sender.textContent = msg.senderName;
+                const message = document.createElement('span');
+                message.textContent = msg.message;
+
+                return `<div class="text-sm mb-1 break-words">
+                            <span class="text-gray-400 text-xs">[${date}]</span>
+                            <strong class="text-blue-300">${sender.innerHTML}:</strong>
+                            <span class="text-white">${message.innerHTML}</span>
+                        </div>`;
+            }).join('');
+
+        }, error => {
+            console.error("[GUILD] Error listening to guild chat:", error);
+            const chatMessagesElement = document.getElementById('guild-chat-messages');
+            if (chatMessagesElement) {
+                chatMessagesElement.innerHTML = '<p class="text-red-500 text-center">Erreur de chargement du chat.</p>';
+            }
+        });
+    }
+
+    async function sendGuildChatMessage() {
+        const input = document.getElementById('guild-chat-input');
+        if (!input) return;
+        const message = input.value.trim();
+        if (message.length === 0 || !playerGuildId) return;
+
+        input.disabled = true;
+        try {
+            await db.collection('guilds').doc(playerGuildId).collection('chat').add({
+                senderId: currentUser.uid,
+                senderName: currentUser.email.split('@')[0],
+                message: message,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            input.value = '';
+        } catch (error) {
+            console.error("Error sending chat message:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur d'envoi du message.</p>`;
+        } finally {
+            input.disabled = false;
+            input.focus();
+        }
+    }
+
+    async function contributeToGuild() {
+        const input = document.getElementById('guild-contribution-input');
+        if (!input) return;
+        const amount = parseInt(input.value, 10);
+
+        if (isNaN(amount) || amount <= 0) {
+            resultElement.innerHTML = `<p class="text-yellow-400">Veuillez entrer un montant valide.</p>`;
+            return;
+        }
+        if (coins < amount) {
+            resultElement.innerHTML = `<p class="text-red-400">Vous n'avez pas assez de pièces.</p>`;
+            return;
+        }
+
+        input.disabled = true;
+        const guildRef = db.collection('guilds').doc(playerGuildId);
+
+        try {
+            // Utiliser une transaction pour assurer la cohérence
+            await db.runTransaction(async (transaction) => {
+                const guildDoc = await transaction.get(guildRef);
+                if (!guildDoc.exists) throw new Error("La guilde n'existe plus.");
+                
+                // Mettre à jour les pièces du joueur (localement, sera sauvegardé)
+                coins -= amount;
+                // Mettre à jour l'EXP de la guilde dans la transaction
+                transaction.update(guildRef, {
+                    exp: firebase.firestore.FieldValue.increment(amount)
+                });
+            });
+
+            // Mettre à jour la mission de contribution
+            missions.forEach(mission => {
+                if (mission.type === "contribute_to_guild" && !mission.completed) {
+                    mission.progress += amount;
+                }
+            });
+            checkMissions();
+
+            resultElement.innerHTML = `<p class="text-green-400">Merci ! Vous avez contribué ${amount.toLocaleString()} pièces à la guilde.</p>`;
+            updateUI(); // Mettre à jour l'affichage des pièces
+            scheduleSave();
+            input.value = '';
+
+        } catch (error) {
+            console.error("Erreur de contribution:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la contribution: ${error.message}</p>`;
+        } finally {
+            input.disabled = false;
+        }
+    }
+
+    // --- NOUVEAU: Fonctions de Guilde ---
+
+    function getGuildLevelFromExp(exp) {
+        let level = 0;
+        const sortedLevels = Object.keys(GUILD_LEVEL_THRESHOLDS).map(Number).sort((a, b) => a - b);
+        for (const lvl of sortedLevels) {
+            if (exp >= GUILD_LEVEL_THRESHOLDS[lvl]) {
+                level = lvl;
+            } else {
+                break;
+            }
+        }
+        return level;
+    }
+
+    async function updateGuildDisplay() {
+        if (playerGuildId && playerGuildData) {
+            const isOwner = playerGuildData.ownerId === currentUser.uid;
+            const raidBossView = document.getElementById('guild-raid-boss-view');
+            const noRaidView = document.getElementById('guild-no-raid-view');
+            const startRaidButton = document.getElementById('start-raid-button');
+
+            guildJoinCreateView.classList.add('hidden');
+            guildMainView.classList.remove('hidden');
+            renderGuildView(playerGuildData);
+
+            if (playerGuildData.activeRaid) {
+                noRaidView.classList.add('hidden');
+                raidBossView.classList.remove('hidden');
+                renderRaidBossView(playerGuildData.activeRaid);
+            } else {
+                noRaidView.classList.remove('hidden');
+                raidBossView.classList.add('hidden');
+                startRaidButton.disabled = !isOwner;
+            }
+        } else {
+            guildJoinCreateView.classList.remove('hidden');
+            guildMainView.classList.add('hidden');
+        }
+    }
+
+    async function loadAndDisplayGuildData(guildId) {
+        playerGuildId = guildId;
+        listenForGuildData(guildId);
+        listenForGuildChat(guildId);
+    }
+
+    function renderGuildView(data) {
+        const guildContentGrid = document.getElementById('guild-content-grid');
+        const username = currentUser.email.split('@')[0];
+        const isOwner = data.ownerId === currentUser.uid;
+
+        document.getElementById('guild-name-display').textContent = data.name;
+        const currentLevel = getGuildLevelFromExp(data.exp);
+        const expForNextLevel = GUILD_LEVEL_THRESHOLDS[currentLevel + 1] || data.exp;
+        document.getElementById('guild-level-exp-display').innerHTML = `Niveau <span id="guild-level-display">${currentLevel}</span> (<span id="guild-exp-display">${data.exp.toLocaleString()}</span> / <span id="guild-exp-needed-display">${expForNextLevel.toLocaleString()}</span> EXP)`;
+
+        // Construction de l'interface principale de la guilde
+        guildContentGrid.innerHTML = `
+            <!-- Colonne principale (Chat & Contribution) -->
+            <div>
+                <div class="bg-gray-700 bg-opacity-50 p-4 rounded-lg mb-4">
+                    <h3 class="text-xl text-white font-bold mb-2">Chat de Guilde</h3>
+                    <div id="guild-chat-messages" class="guild-chat-messages mb-2">
+                        <p class="text-gray-400 text-center">Chargement des messages...</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="guild-chat-input" class="flex-grow p-2 bg-gray-900 text-white rounded border border-gray-600" placeholder="Votre message...">
+                        <button id="guild-send-chat-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Envoyer</button>
+                    </div>
+                </div>
+                <div class="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                    <h3 class="text-xl text-white font-bold mb-2">Contribuer à la Guilde</h3>
+                    <p class="text-sm text-gray-300 mb-2">Chaque pièce donnée ajoute 1 EXP à la guilde.</p>
+                    <div class="flex gap-2">
+                        <input type="number" id="guild-contribution-input" min="1" class="flex-grow p-2 bg-gray-900 text-white rounded border border-gray-600" placeholder="Montant en pièces...">
+                        <button id="guild-contribute-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">Contribuer</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colonne latérale (Membres & Bonus) -->
+            <div>
+                <div class="bg-gray-700 bg-opacity-50 p-4 rounded-lg mb-4">
+                    <h3 class="text-xl text-white font-bold mb-2">Membres (${Object.keys(data.members || {}).length} / ${GUILD_MEMBER_LIMIT})</h3>
+                    <ul id="guild-member-list" class="guild-member-list space-y-1 text-white">
+                        ${Object.entries(data.members || {}).map(([uid, memberData]) => `
+                            <li class="flex justify-between items-center p-1 rounded ${uid === data.ownerId ? 'bg-yellow-500 bg-opacity-20' : ''}">
+                                <span>${memberData.name} ${uid === data.ownerId ? '👑' : ''}</span>
+                                <span class="text-xs text-gray-400">Niv. ${memberData.level}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                <div class="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                    <h3 class="text-xl text-white font-bold mb-2">Bonus de Guilde</h3>
+                    <ul id="guild-perks-list" class="guild-perks-list space-y-1 text-white">
+                        ${Object.entries(GUILD_PERKS).map(([level, perk]) => `
+                            <li class="${currentLevel >= parseInt(level) ? 'text-green-400' : 'text-gray-500'}">
+                                <strong>Niv. ${level}:</strong> ${perk.description}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+
+        // Attacher les écouteurs d'événements spécifiques à cette vue
+        document.getElementById('guild-send-chat-button').addEventListener('click', sendGuildChatMessage);
+        document.getElementById('guild-chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendGuildChatMessage();
+        });
+        document.getElementById('guild-contribute-button').addEventListener('click', contributeToGuild);
+        // NOUVEAU: Écouteur pour quitter la guilde
+        const leaveButton = document.getElementById('leave-guild-button');
+        if (leaveButton) leaveButton.addEventListener('click', leaveGuild);
+    }
+
+    async function searchGuilds() {
+        const searchTerm = guildSearchInput.value.trim();
+        if (searchTerm.length < 3) {
+            guildSearchResults.innerHTML = `<p class="text-yellow-400">Veuillez entrer au moins 3 caractères pour rechercher.</p>`;
+            return;
+        }
+        guildSearchResults.innerHTML = `<p class="text-white">Recherche en cours...</p>`;
+
+        try {
+            const querySnapshot = await db.collection('guilds').where('name', '>=', searchTerm).where('name', '<=', searchTerm + '\uf8ff').limit(10).get();
+            if (querySnapshot.empty) {
+                guildSearchResults.innerHTML = `<p class="text-gray-400">Aucune guilde trouvée.</p>`;
+                return;
+            }
+            guildSearchResults.innerHTML = querySnapshot.docs.map(doc => {
+                const guild = doc.data();
+                const isFull = Object.keys(guild.members || {}).length >= GUILD_MEMBER_LIMIT;
+                return `
+                    <div class="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                        <div>
+                            <p class="text-white font-semibold">${guild.name}</p>
+                            <p class="text-sm text-gray-400">Membres: ${Object.keys(guild.members || {}).length}/${GUILD_MEMBER_LIMIT} | Niveau: ${getGuildLevelFromExp(guild.exp)}</p>
+                        </div>
+                        <button class="join-guild-button bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-lg text-sm ${isFull ? 'opacity-50 cursor-not-allowed' : ''}" data-guild-id="${doc.id}" data-guild-name="${guild.name}" ${isFull ? 'disabled' : ''}>
+                            ${isFull ? 'Pleine' : 'Rejoindre'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error("Erreur de recherche de guilde:", error);
+            guildSearchResults.innerHTML = `<p class="text-red-500">Erreur lors de la recherche.</p>`;
+        }
+    }
+
+    async function joinGuild(guildId, guildName) {
+        if (playerGuildId) {
+            resultElement.innerHTML = `<p class="text-red-400">Vous êtes déjà dans une guilde.</p>`;
+            return;
+        }
+        
+        const guildRef = db.collection('guilds').doc(guildId);
+        const playerRef = db.collection('playerSaves').doc(currentUser.uid);
+
+        try {
+            await db.runTransaction(async (transaction) => {
+                const guildDoc = await transaction.get(guildRef);
+                if (!guildDoc.exists) throw new Error("La guilde n'existe plus.");
+                
+                const guildData = guildDoc.data();
+                if (Object.keys(guildData.members || {}).length >= GUILD_MEMBER_LIMIT) {
+                    throw new Error("La guilde est pleine.");
+                }
+
+                const username = currentUser.email.split('@')[0];
+                const newMemberData = { name: username, level: level };
+                transaction.update(guildRef, { [`members.${currentUser.uid}`]: newMemberData });
+                transaction.update(playerRef, { playerGuildId: guildId });
+            });
+
+            resultElement.innerHTML = `<p class="text-green-400">Vous avez rejoint la guilde "${guildName}" !</p>`;
+            await loadAndDisplayGuildData(guildId);
+            scheduleSave();
+
+        } catch (error) {
+            console.error("Erreur pour rejoindre la guilde:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Impossible de rejoindre la guilde: ${error.message}</p>`;
+        }
+    }
+
+    function openCreateGuildModal() {
+        if (coins < 10000) {
+            resultElement.innerHTML = `<p class="text-red-400">Il vous faut 10,000 pièces pour créer une guilde.</p>`;
+            return;
+        }
+        openModal(createGuildModal);
+    }
+
+    async function createGuild() {
+        const guildName = createGuildNameInput.value.trim();
+        if (guildName.length < 3 || guildName.length > 20) {
+            resultElement.innerHTML = `<p class="text-red-400">Le nom de la guilde doit faire entre 3 et 20 caractères.</p>`;
+            return;
+        }
+        if (coins < 10000) {
+            resultElement.innerHTML = `<p class="text-red-400">Pas assez de pièces.</p>`;
+            return;
+        }
+
+        // Vérifier si le nom est déjà pris
+        const guildsRef = db.collection('guilds');
+        const querySnapshot = await guildsRef.where('name', '==', guildName).get();
+        if (!querySnapshot.empty) {
+            resultElement.innerHTML = `<p class="text-red-400">Ce nom de guilde est déjà pris.</p>`;
+            return;
+        }
+
+        coins -= 10000;
+        const username = currentUser.email.split('@')[0];
+        const newGuildData = {
+            name: guildName,
+            ownerId: currentUser.uid,
+            exp: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            members: {
+                [currentUser.uid]: { name: username, level: level }
+            }
+        };
+
+        try {
+            const docRef = await guildsRef.add(newGuildData);
+            playerGuildId = docRef.id;
+            await db.collection('playerSaves').doc(currentUser.uid).update({ playerGuildId: docRef.id });
+            
+            resultElement.innerHTML = `<p class="text-green-400">Guilde "${guildName}" créée avec succès !</p>`;
+            closeModalHelper(createGuildModal);
+            await loadAndDisplayGuildData(playerGuildId);
+            scheduleSave();
+
+        } catch (error) {
+            console.error("Erreur de création de guilde:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la création de la guilde.</p>`;
+            coins += 10000; // Rembourser
+        }
+    }
+
+    function openGuildActionConfirmModal(message, callback) {
+        guildActionConfirmMessageElement.textContent = message;
+        guildActionConfirmationCallback = callback;
+        openModal(guildActionConfirmModal);
+    }
+
+    function closeGuildActionConfirmModal() {
+        closeModalHelper(guildActionConfirmModal);
+        guildActionConfirmationCallback = null;
+    }
+
+    async function leaveGuild() {
+        if (!playerGuildId || !playerGuildData) return;
+
+        const isOwner = playerGuildData.ownerId === currentUser.uid;
+        const memberCount = Object.keys(playerGuildData.members || {}).length;
+
+        if (isOwner && memberCount > 1) {
+            resultElement.innerHTML = `<p class="text-red-400">Vous ne pouvez pas quitter la guilde car vous en êtes le propriétaire. Veuillez d'abord transférer la propriété ou dissoudre la guilde (fonctionnalité à venir).</p>`;
+            return;
+        }
+
+        const confirmMessage = `Êtes-vous sûr de vouloir quitter la guilde "${playerGuildData.name}" ?` + (isOwner ? " Cela la dissoudra car vous êtes le dernier membre." : "");
+
+        const userConfirmed = await new Promise(resolve => {
+            guildActionConfirmationCallback = (confirmed) => resolve(confirmed);
+            openGuildActionConfirmModal(confirmMessage, guildActionConfirmationCallback);
+        });
+        guildActionConfirmationCallback = null; // Clean up
+
+        if (!userConfirmed) {
+            resultElement.innerHTML = `<p class="text-blue-400">Action annulée.</p>`;
+            return;
+        }
+
+        const guildRef = db.collection('guilds').doc(playerGuildId);
+        const playerRef = db.collection('playerSaves').doc(currentUser.uid);
+
+        try {
+            if (isOwner && memberCount === 1) {
+                // Dissoudre la guilde
+                await guildRef.delete();
+            } else {
+                // Juste quitter
+                await guildRef.update({
+                    [`members.${currentUser.uid}`]: firebase.firestore.FieldValue.delete()
+                });
+            }
+
+            // Mettre à jour la sauvegarde du joueur
+            await playerRef.update({ playerGuildId: null });
+
+            resultElement.innerHTML = `<p class="text-green-400">Vous avez quitté la guilde.</p>`;
+            
+            // Nettoyer l'état local
+            playerGuildId = null;
+            cleanupGuildListeners();
+            updateGuildDisplay(); // Mettre à jour l'UI pour afficher la vue "rejoindre/créer"
+            scheduleSave();
+
+        } catch (error) {
+            console.error("Erreur pour quitter la guilde:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Une erreur est survenue en quittant la guilde.</p>`;
+        }
+    }
+
+    async function startRaid() {
+        // This function is complex and requires Firestore logic.
+        // 1. Check if user is owner.
+        // 2. Check if there's already a raid.
+        // 3. Check if guild has resources to start a raid (if any cost).
+        // 4. Create a transaction to update the guild document in Firestore:
+        //    - Set `activeRaid.bossId`, `activeRaid.currentHealth`, `activeRaid.startTime`, `activeRaid.contributors`.
+        // 5. This is a placeholder.
+        console.log("Placeholder: startRaid function called.");
+        resultElement.innerHTML = `<p class="text-yellow-400">Fonctionnalité de lancement de raid en cours de développement.</p>`;
+    }
+
+    async function attackRaidBoss() {
+        // This function is also complex.
+        // 1. Player selects a team (or uses preset).
+        // 2. Calculate team power.
+        // 3. Create a transaction to update the guild document:
+        //    - Decrement `activeRaid.currentHealth` by team power.
+        //    - Increment `activeRaid.contributors.[playerUID].damage` by team power.
+        // 4. Handle player cooldown for attacking.
+        // 5. If health <= 0, trigger rewards distribution.
+        console.log("Placeholder: attackRaidBoss function called.");
+        resultElement.innerHTML = `<p class="text-yellow-400">Fonctionnalité d'attaque de raid en cours de développement.</p>`;
+    }
+
+    // --- FIN: Fonctions de Guilde ---
 
     function showSubTab(subtabId) {
         let parentTabId = null;
@@ -6044,6 +7165,19 @@
             if (oldSubTab) {
                 oldSubTab.classList.add("hidden");
             }
+
+            // --- NOUVEAU: Détacher le listener du classement PvP si on quitte ce sous-onglet ---
+            if (parentTabId === 'play' && currentActiveSubTabId === 'pvp' && pvpLeaderboardListener) {
+                console.log("[Listener] Détachement du listener du classement PvP (changement de sous-onglet).");
+                pvpLeaderboardListener();
+                pvpLeaderboardListener = null;
+            }
+            if (parentTabId === 'play' && currentActiveSubTabId === 'tour' && towerLeaderboardListener) {
+                console.log("[Listener] Détachement du listener du classement Tour (changement de sous-onglet).");
+                towerLeaderboardListener();
+                towerLeaderboardListener = null;
+            }
+            // --- FIN NOUVEAU ---
         }
 
         // Afficher le nouveau sous-onglet
@@ -6081,11 +7215,47 @@
              updateChallengeDisplay();
         } else if (parentTabId === "play" && subtabId === "materiaux") {
              updateMaterialFarmDisplay();
-        } else if (parentTabId === "inventory" && subtabId === "items") {
-             updateItemDisplay();
+        } else if (parentTabId === "inventory" && subtabId === "items") { // Pas de logique spécifique ici, c'est ok
+        } else if (parentTabId === "play" && subtabId === "pvp") { // CORRECTION
+             updatePvpDisplay();
+             updatePvpLeaderboard();
+        } else if (parentTabId === "play" && subtabId === "quotidien") {
+             updateDailyDungeonDisplay();
+        } else if (parentTabId === "play" && subtabId === "tour") {
+             updateTowerDisplay();
         }
         // updateCharacterDisplay() est appelé dans les fonctions ci-dessus si nécessaire, ou pour désactiver le mode suppression
         updateUI(); // Mise à jour générale de l'UI
+    }
+
+    function updateTowerDisplay() {
+        const currentFloorEl = document.getElementById('tower-current-floor');
+        const enemyPowerEl = document.getElementById('tower-enemy-power');
+        const rewardsInfoEl = document.getElementById('tower-rewards-info');
+        const startButton = document.getElementById('start-tower-floor-button');
+
+        if (!currentFloorEl || !enemyPowerEl || !rewardsInfoEl || !startButton) return;
+
+        currentFloorEl.textContent = towerFloor;
+
+        const enemyPower = Math.floor(TOWER_CONFIG.baseEnemyPower * Math.pow(TOWER_CONFIG.powerIncreasePerFloor, towerFloor - 1));
+        enemyPowerEl.textContent = `Puissance: ${enemyPower.toLocaleString()}`;
+
+        let rewardsHtml = `<ul class="list-disc list-inside">`;
+        const floorReward = TOWER_CONFIG.rewards.perFloor;
+        rewardsHtml += `<li>${floorReward.gems} Gemmes, ${floorReward.coins} Pièces, ${floorReward.exp} EXP</li>`;
+
+        if (towerFloor > 0 && towerFloor % TOWER_CONFIG.rewards.milestoneFloors === 0) {
+            rewardsHtml += `<li class="text-yellow-300 font-bold">Étage Palier ! Récompenses Bonus :</li>`;
+            const milestoneReward = TOWER_CONFIG.rewards.milestoneRewards;
+            rewardsHtml += `<ul class="list-disc list-inside ml-4">`;
+            rewardsHtml += `<li>+${milestoneReward.gems} Gemmes</li>`;
+            milestoneReward.itemChance.forEach(chance => { rewardsHtml += `<li>${chance.item} (${chance.probability * 100}%)</li>`; });
+            rewardsHtml += `</ul>`;
+        }
+        rewardsHtml += `</ul>`;
+        rewardsInfoEl.innerHTML = rewardsHtml;
+        updateTowerLeaderboard();
     }
 
     function updateStatChangeTabDisplay() {
@@ -6201,16 +7371,12 @@
       return baseSize + bonus;
     }
     
-    function calculateMaxPresetTeamSize() { // NOUVELLE FONCTION
-      let baseSize = 3;
-      let bonus = 0;
-      selectedPresetCharacters.forEach(index => { // Utilise selectedPresetCharacters
-          const char = ownedCharacters[index];
-          if (char && char.passive && typeof char.passive.teamSizeBonus === 'number') {
-              bonus = Math.max(bonus, char.passive.teamSizeBonus);
-          }
-      });
-      return baseSize + bonus;
+    function calculateMaxTeamSizeForMode() {
+        if (currentTeamSelectionMode === 'preset' || currentTeamSelectionMode === 'defense') {
+            return 3;
+        }
+        // Fallback to battle selection logic
+        return calculateMaxTeamSize();
     }
 
     function openStatChangeConfirmModal(message, callback) {
@@ -7497,16 +8663,16 @@
       localStorage.setItem("battleFilterRarity", battleFilterRarity);
       updateCharacterSelectionDisplay();
     });
-    // Filtres pour la modale de sélection de preset
-    document.getElementById("preset-search-name").addEventListener("input", (e) => {
-      presetSearchName = e.target.value.toLowerCase();
-      localStorage.setItem("presetSearchName", presetSearchName);
-      updatePresetSelectionDisplay();
+    // Filtres pour la modale de sélection d'équipe (Preset & Défense)
+    document.getElementById("team-search-name").addEventListener("input", (e) => {
+      teamSearchName = e.target.value.toLowerCase();
+      localStorage.setItem("teamSearchName", teamSearchName);
+      updateTeamSelectionDisplay();
     });
-    document.getElementById("preset-filter-rarity").addEventListener("change", (e) => {
-      presetFilterRarity = e.target.value;
-      localStorage.setItem("presetFilterRarity", presetFilterRarity);
-      updatePresetSelectionDisplay();
+    document.getElementById("team-filter-rarity").addEventListener("change", (e) => {
+      teamFilterRarity = e.target.value;
+      localStorage.setItem("teamFilterRarity", teamFilterRarity);
+      updateTeamSelectionDisplay();
     });
     // Filtres pour la modale de fusion
     document.getElementById("fusion-search-name").addEventListener("input", (e) => {
@@ -7541,12 +8707,37 @@
     confirmGiveItemsButton.addEventListener("click", confirmGiveItems);
     cancelEvolutionButton.addEventListener("click", cancelEvolution);
     confirmEvolutionButton.addEventListener("click", confirmEvolution);
-    document.getElementById("open-preset-modal-button").addEventListener("click", openPresetSelectionModal);
+    document.getElementById("open-preset-modal-button").addEventListener("click", () => openTeamSelectionModal('preset'));
     document.getElementById("apply-stat-change-button").addEventListener("click", applyStatChange);
     document.getElementById("stat-change-search").addEventListener("input", updateStatChangeTabDisplay);
     document.getElementById("curse-char-search").addEventListener("input", updateCurseTabDisplay);
     statRankInfoButton.addEventListener("click", openStatRankProbabilitiesModal);
     closeStatRankProbabilitiesModalButton.addEventListener("click", closeStatRankProbabilitiesModal);
+    setDefenseTeamButton.addEventListener("click", () => openTeamSelectionModal('defense'));
+    viewPvpLogsButton.addEventListener('click', async () => {
+        // Étape 1 : On force le traitement des résultats en attente AVANT d'ouvrir la modale.
+        // L'utilisation de "await" garantit que nous attendons que ce soit terminé.
+        await processPendingPvpResults();
+
+        // Étape 2 : Maintenant que les logs sont à jour, on ouvre la modale.
+        openPvpLogsModal();
+    });
+    closePvpLogsButton.addEventListener('click', () => closeModalHelper(pvpLogsModal));
+    gameContainer.addEventListener('click', (event) => {
+        // On utilise .closest() pour vérifier si le clic a eu lieu sur notre bouton
+        // ou sur un de ses éléments enfants (comme du texte ou une icône).
+        
+        // Pour le bouton "Trouver un adversaire"
+        if (event.target.closest('#find-opponent-button')) {
+            findOpponent();
+        }
+        
+        // Vous pouvez ajouter d'autres boutons ici si vous rencontrez le même problème avec eux.
+        // Par exemple :
+        // if (event.target.closest('#un-autre-bouton-problematique')) {
+        //     maFonctionPourCetAutreBouton();
+        // }
+    });
     autofuseSettingsButton.addEventListener("click", startAutofuse);
     cancelAutofuseButton.addEventListener("click", cancelAutofuse);
     confirmAutofuseButton.addEventListener("click", confirmAutofuse);
@@ -7746,13 +8937,39 @@
     }
 
     applyCurseButton.addEventListener("click", applyCurse);
-    document.getElementById("load-preset-button").addEventListener("click", loadPreset);
-    document.getElementById("confirm-preset").addEventListener("click", confirmPreset);
-    document.getElementById("cancel-preset").addEventListener("click", cancelPreset);
-    document.getElementById("preset-sort-criteria").addEventListener("change", () => {
-      presetSortCriteria = document.getElementById("preset-sort-criteria").value;
-      localStorage.setItem("presetSortCriteria", presetSortCriteria);
-      updatePresetSelectionDisplay();
+    document.getElementById("load-preset-button").addEventListener("click", loadPreset); // Reste pour charger le preset en combat
+    confirmTeamSelectionButton.addEventListener("click", confirmTeamSelection);
+    cancelTeamSelectionButton.addEventListener("click", () => closeModalHelper(teamSelectionModal));
+    document.getElementById("team-sort-criteria").addEventListener("change", () => {
+      teamSortCriteria = document.getElementById("team-sort-criteria").value;
+      localStorage.setItem("teamSortCriteria", teamSortCriteria);
+      updateTeamSelectionDisplay();
+    });
+    document.getElementById('start-raid-button').addEventListener('click', startRaid);
+
+    // NOUVEAU: Écouteurs d'événements pour la guilde
+    openCreateGuildModalButton.addEventListener('click', openCreateGuildModal);
+    cancelCreateGuildButton.addEventListener('click', () => closeModalHelper(createGuildModal));
+    confirmCreateGuildButton.addEventListener('click', createGuild);
+    guildSearchButton.addEventListener('click', searchGuilds);
+    guildSearchResults.addEventListener('click', (e) => {
+        if (e.target.classList.contains('join-guild-button')) {
+            joinGuild(e.target.dataset.guildId, e.target.dataset.guildName);
+        }
+    });
+
+    guildConfirmYesButton.addEventListener("click", () => {
+        if (guildActionConfirmationCallback) {
+            guildActionConfirmationCallback(true);
+        }
+        closeGuildActionConfirmModal();
+    });
+
+    guildConfirmNoButton.addEventListener("click", () => {
+        if (guildActionConfirmationCallback) {
+            guildActionConfirmationCallback(false);
+        }
+        closeGuildActionConfirmModal();
     });
 
     // --- DANS LE FICHIER script.js ---
@@ -7793,6 +9010,7 @@
     document.getElementById("legende-level-list").addEventListener('click', handleLevelStartClick);
     document.getElementById("challenge-level-list").addEventListener('click', handleLevelStartClick);
     document.getElementById("materiaux-level-list").addEventListener('click', handleLevelStartClick);
+    document.getElementById("daily-dungeon-list").addEventListener('click', handleLevelStartClick);
 
     // NOUVEAU: Fermeture de la modale d'avertissement
      const autoClickerModalCloseButton = document.getElementById('auto-clicker-modal-close-button');
@@ -7802,6 +9020,7 @@
         });
     }
 
+    document.getElementById('start-tower-floor-button').addEventListener('click', startTowerFloor);
     populateTargetStatRanks();
     populateTargetTraits();
 
@@ -7828,6 +9047,10 @@
             // L'utilisateur est déconnecté
             currentUser = null;
             console.log("Aucun utilisateur connecté.");
+
+            // NOUVEAU: Nettoyer les données de guilde à la déconnexion
+            cleanupGuildListeners();
+            playerGuildId = null;
 
             // Cacher le jeu et le statut, afficher les formulaires
             isGameInitialized = false;
