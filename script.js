@@ -14,11 +14,15 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // --- NOUVEAU: Variables pour l'état de l'authentification ---
+    // Cette ligne force Firestore à utiliser une méthode de communication plus "classique" (Long Polling)
+    // au lieu du protocole QUIC. Cela permet de résoudre les erreurs `net::ERR_QUIC_PROTOCOL_ERROR`
+    // qui peuvent survenir à cause de configurations réseau, de VPNs ou d'extensions de navigateur.
+    db.settings({ experimentalForceLongPolling: true });
+
     let currentUser = null;
     let isGameInitialized = false; // Pour s'assurer que le jeu n'est initialisé qu'une seule fois
 
-    // --- NOUVEAU: Références aux nouveaux éléments HTML ---
+    // Références aux nouveaux éléments HTML
     const appContainer = document.getElementById("app-container");
     const authContainer = document.getElementById("auth-container");
     const gameContainer = document.getElementById("game-container");
@@ -502,6 +506,12 @@
     let guildActionConfirmationCallback = null;
     let currentLimitBreakCharacterId = null;
     let bannerTimerIntervalId = null;
+    // NOUVEAU: Variables pour le mode Co-op
+    let currentCoopRoomListener = null;
+    let currentCoopBattleListener = null;
+    let currentCoopRoomId = null;
+    let coopCharacterSelectionCallback = null;
+    let publicRoomsListener = null;
     let currentMaxTeamSize = 3; // Recalculé dynamiquement
 
     let battleSearchName = localStorage.getItem("battleSearchName") || "";
@@ -809,6 +819,24 @@
     const guildActionConfirmMessageElement = document.getElementById('guild-action-confirm-message');
     const guildConfirmYesButton = document.getElementById('guild-confirm-yes-button');
     const guildConfirmNoButton = document.getElementById('guild-confirm-no-button');
+    // NOUVEAU: Éléments DOM pour le Co-op
+    const coopTab = document.getElementById('coop');
+    const coopLobbyView = document.getElementById('coop-lobby-view');
+    const coopDungeonList = document.getElementById('coop-dungeon-list');
+    const coopPublicRoomsList = document.getElementById('coop-public-rooms-list');
+    const coopRoomView = document.getElementById('coop-room-view');
+    const coopRoomTitle = document.getElementById('coop-room-title');
+    const coopRoomPlayers = document.getElementById('coop-room-players');
+    const coopReadyButton = document.getElementById('coop-ready-button');
+    const coopStartBattleButton = document.getElementById('coop-start-battle-button');
+    const coopLeaveRoomButton = document.getElementById('coop-leave-room-button');
+    const coopBattleModal = document.getElementById('coop-battle-modal');
+    const coopBattleBossName = document.getElementById('coop-battle-boss-name');
+    const coopBattleBossHealthBar = document.getElementById('coop-battle-boss-health-bar');
+    const coopBattleBossHealthText = document.getElementById('coop-battle-boss-health-text');
+    const coopBattlePlayersDisplay = document.getElementById('coop-battle-players-display');
+    const coopBattleLog = document.getElementById('coop-battle-log');
+    const coopBattleAttackButton = document.getElementById('coop-battle-attack-button');
 
     // NOUVEAU: Éléments pour la gestion d'équipe
     const createNewTeamButton = document.getElementById("create-new-team-button");
@@ -867,130 +895,78 @@
     };
 
 
-    function createCharacterCardHTML(char, originalIndex, context) {
-        let cardClasses = ['relative', 'p-2', 'rounded-lg', 'border', 'cursor-pointer', 'flex', 'flex-col', 'justify-between', 'items-center', 'box-border']; // Classes de base
-        let innerHTML = '';
-        let lockedOverlay = char.locked ? '<span class="absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1">🔒</span>' : '';
+    function createCharacterCard(char, originalIndex, context) {
+        const template = document.getElementById('character-card-template');
+        if (!template) {
+            console.error("Le template #character-card-template est introuvable !");
+            return document.createElement('div');
+        }
+        const cardClone = template.content.cloneNode(true);
+    
+        const cardDiv = cardClone.querySelector('.character-card');
+        const lockOverlay = cardClone.querySelector('.char-lock-overlay');
+        const image = cardClone.querySelector('.char-image');
+        const nameEl = cardClone.querySelector('.char-name');
+        const rarityEl = cardClone.querySelector('.char-rarity');
+        const levelEl = cardClone.querySelector('.char-level');
+        const statRankEl = cardClone.querySelector('.char-stat-rank');
+        const powerEl = cardClone.querySelector('.char-power');
+        const additionalInfoEl = cardClone.querySelector('.char-additional-info');
+    
+        // --- Common properties ---
+        image.src = char.image;
+        image.alt = char.name;
+    
         let rarityTextColorClass = char.color;
         if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
         else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
         else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
-
-        // Styles pour l'image pour assurer une taille cohérente
-        const imageHeightStyle = "max-height: 120px;"; // Hauteur max pour l'image dans les cartes
-        const cardMinHeightStyle = "min-height: 220px;"; // Hauteur min pour la carte entière
-
-        // Logique de base commune
-        let baseImageHTML = `<img src="${char.image}" alt="${char.name}" class="w-full h-auto object-contain rounded" loading="lazy" decoding="async" style="${imageHeightStyle}">`;
-        let baseNameHTML = `<p class="text-center text-white font-semibold mt-1 text-sm">${char.name}</p>`;
-        let baseRarityHTML = `<p class="text-center ${rarityTextColorClass} text-xs">${char.rarity}</p>`;
-        let baseLevelHTML = `<p class="text-center text-white text-xs">Niveau: ${char.level} / ${char.maxLevelCap || 60}</p>`;
-        let basePowerHTML = `<p class="text-center text-white text-xs">Puissance: ${char.power}</p>`;
-        let statRankHTML = '';
-        if (char.statRank && statRanks[char.statRank]) {
-            statRankHTML = `<p class="text-center text-white text-xs">Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span></p>`;
-        }
         
-        cardClasses.push('min-h-[220px]'); // Appliquer la hauteur minimale via classe Tailwind si possible
-
-        // Personnalisation basée sur le contexte
+        if (char.locked) {
+            lockOverlay.classList.remove('hidden');
+        }
+    
+        // Hide all optional elements by default
+        levelEl.style.display = 'none';
+        statRankEl.style.display = 'none';
+        powerEl.style.display = 'none';
+        additionalInfoEl.style.display = 'none';
+        rarityEl.style.display = 'none';
+    
+        // --- Context-specific logic ---
         switch (context) {
             case 'inventory':
-                cardClasses.push(getRarityBorderClass(char.rarity));
+                cardDiv.classList.add(getRarityBorderClass(char.rarity));
                 if (isDeleteMode) {
-                    if (char.locked) cardClasses.push('opacity-50', 'cursor-not-allowed');
-                    else if (selectedCharacterIndices.has(char.id)) cardClasses.push('selected-character');
+                    if (char.locked) cardDiv.classList.add('opacity-50', 'cursor-not-allowed');
+                    else if (selectedCharacterIndices.has(char.id)) cardDiv.classList.add('selected-character');
                 }
-                innerHTML = `<div style="${cardMinHeightStyle}">${lockedOverlay}${baseImageHTML}<div class="mt-auto">${baseNameHTML}${baseRarityHTML}${baseLevelHTML}${statRankHTML}${basePowerHTML}</div></div>`;
-                break;
-            case 'battleSelection':
-            case 'teamSelection': 
-                let isSelected = context === 'battleSelection' ? selectedBattleCharacters.has(originalIndex) : selectedTeamCharacters.has(originalIndex);
-                let selectedNamesSet = context === 'battleSelection' ? 
-                    new Set(Array.from(selectedBattleCharacters).map(idx => ownedCharacters[idx]?.name)) :
-                    new Set(Array.from(selectedTeamCharacters).map(idx => ownedCharacters[idx]?.name));
-                let currentSelectionSize = context === 'battleSelection' ? selectedBattleCharacters.size : selectedTeamCharacters.size;
-                let maxTeamSize = context === 'battleSelection' ? calculateMaxTeamSize() : calculateMaxTeamSizeForMode();
-                const isLocked = char.locked;
-                
-                cardClasses.push(getRarityBorderClass(char.rarity));
-                if (isSelected) {
-                    cardClasses.push('selected-for-battle');
-                } else if (isLocked || currentSelectionSize >= maxTeamSize || (selectedNamesSet.has(char.name) && !isSelected) ) {
-                     cardClasses.push(isLocked ? 'non-selectable-for-battle' : 'opacity-50');
+                nameEl.textContent = char.name;
+                rarityEl.textContent = char.rarity;
+                rarityEl.className = `char-rarity text-xs ${rarityTextColorClass}`;
+                rarityEl.style.display = 'block';
+                levelEl.textContent = `Niveau: ${char.level} / ${char.maxLevelCap || 60}`;
+                levelEl.style.display = 'block';
+                powerEl.textContent = `Puissance: ${char.power}`;
+                powerEl.style.display = 'block';
+                if (char.statRank && statRanks[char.statRank]) {
+                    statRankEl.innerHTML = `Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span>`;
+                    statRankEl.style.display = 'block';
                 }
-                 innerHTML = `<div style="${cardMinHeightStyle}">${baseImageHTML}<div class="mt-auto">
-                             <p class="${rarityTextColorClass} font-semibold text-center">${char.name} (<span class="${rarityTextColorClass}">${char.rarity}</span>, Niv. ${char.level})</p>
-                             ${basePowerHTML}</div></div>`;
                 break;
-            case 'fusionSelection':
-                cardClasses.push(getRarityBorderClass(char.rarity));
-                if (selectedFusionCharacters.has(char.id)) cardClasses.push('selected-for-fusion');
-                innerHTML = `<div style="${cardMinHeightStyle}">${baseImageHTML}<div class="mt-auto">
-                             <p class="${char.color} font-semibold text-center">${char.name} (<span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level})</p>
-                             ${basePowerHTML}</div></div>`;
+            // Other contexts can be added here to replicate the original function's behavior
+            default: // Fallback to a simple display, similar to inventory
+                cardDiv.classList.add(getRarityBorderClass(char.rarity));
+                nameEl.textContent = char.name;
+                rarityEl.textContent = char.rarity;
+                rarityEl.className = `char-rarity text-xs ${rarityTextColorClass}`;
+                rarityEl.style.display = 'block';
+                powerEl.textContent = `Puissance: ${char.power}`;
+                powerEl.style.display = 'block';
                 break;
-            case 'autofuseGrid':
-                 cardClasses.push(getRarityBorderClass(char.rarity), 'cursor-pointer', 'hover:bg-gray-700');
-                 if (currentAutofuseCharacterId === char.id) cardClasses.push('border-green-500');
-                 innerHTML = `<div style="min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;"><img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-2" loading="lazy" decoding="async">
-                              <div><p class="${char.color} font-semibold text-sm text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
-                              <p class="text-white text-xs text-center"><span class="${char.rarity === 'Mythic' ? 'rainbow-text' : ''}">${char.rarity}</span>, Niv. ${char.level} / ${char.maxLevelCap || 60}</p></div></div>`;
-                break;
-            case 'curseSelection':
-            case 'traitSelection':
-            case 'limitBreakSelection':
-            case 'statChangeSelection':
-                let currentId, selectedClassSpecial; // Renamed selectedClass to avoid conflict
-                if (context === 'curseSelection') { currentId = currentCurseCharacterId; selectedClassSpecial = 'selected-for-curse'; }
-                else if (context === 'traitSelection') { currentId = currentTraitCharacterId; selectedClassSpecial = 'selected-for-trait'; }
-                else if (context === 'limitBreakSelection') { currentId = currentLimitBreakCharacterId; selectedClassSpecial = 'border-amber-500'; }
-                else if (context === 'statChangeSelection') { currentId = currentStatChangeCharacterId; selectedClassSpecial = 'border-green-500';}
-
-                cardClasses.push(currentId === char.id ? selectedClassSpecial : (getRarityBorderClass(char.rarity) || 'border-gray-600 hover:border-gray-500'));
-                
-                let additionalInfo = '';
-                if(context === 'curseSelection' && char.curseEffect && char.curseEffect !== 0) {
-                    const baseP = char.basePower * char.statModifier;
-                    const perc = baseP !== 0 ? ((char.curseEffect / baseP) * 100) : 0;
-                    additionalInfo = `, <span class="text-xs ${char.curseEffect > 0 ? 'text-green-400' : 'text-red-400'}">Curse: ${char.curseEffect > 0 ? '+' : ''}${perc.toFixed(1)}%</span>`;
-                } else if (context === 'traitSelection' && char.trait && char.trait.id && char.trait.grade > 0) {
-                    const tDef = TRAIT_DEFINITIONS[char.trait.id];
-                    if(tDef) {
-                        let traitNameMini = tDef.name;
-                        if (tDef.gradeProbabilities && tDef.gradeProbabilities.length > 0) {
-                             traitNameMini += ` G${char.trait.grade}`;
-                        }
-                        additionalInfo = `<p class="text-xs text-center text-emerald-400">${traitNameMini}</p>`;
-                    }
-                } else if (context === 'limitBreakSelection') {
-                    const currentMax = char.maxLevelCap || 60;
-                    const isAtCap = char.level >= currentMax;
-                    if (currentMax >= MAX_POSSIBLE_LEVEL_CAP) additionalInfo = '<p class="text-yellow-500 text-xs text-center">Cap Ultime</p>';
-                    else if (isAtCap) additionalInfo = `<p class="text-green-400 text-xs text-center">Prêt LB</p>`;
-                    else additionalInfo = `<p class="text-gray-400 text-xs text-center">Atteindre Niv. ${currentMax}</p>`;
-                }
-
-                innerHTML = `<div style="min-height: 160px; display: flex; flex-direction: column; justify-content: space-between;">
-                             <img src="${char.image}" alt="${char.name}" class="w-full h-20 object-contain rounded mb-1" loading="lazy" decoding="async">
-                             <div><p class="${rarityTextColorClass} font-semibold text-xs text-center">${char.name} ${char.locked ? '🔒' : ''}</p>
-                             <p class="text-white text-xs text-center">P: ${char.power}${context === 'curseSelection' ? additionalInfo : ''}</p>
-                             ${ (context === 'statChangeSelection') ? `<p class="text-white text-xs text-center ${statRanks[char.statRank]?.color || 'text-white'}">Stat: ${char.statRank}</p>` : ''}
-                             ${ (context === 'traitSelection') ? additionalInfo : ''}
-                             ${ (context === 'limitBreakSelection') ? additionalInfo : ''}
-                             </div></div>`;
-                break;
-            default: 
-                cardClasses.push(getRarityBorderClass(char.rarity));
-                innerHTML = `<div style="${cardMinHeightStyle}">${lockedOverlay}${baseImageHTML}<div class="mt-auto">${baseNameHTML}${baseRarityHTML}${baseLevelHTML}${statRankHTML}${basePowerHTML}</div></div>`;
         }
-
-        const cardDiv = document.createElement('div');
-        cardDiv.classList.add(...cardClasses);
-        cardDiv.innerHTML = innerHTML;
-        cardDiv.style.minHeight = cardMinHeightStyle; // Assurer la hauteur minimale pour tous les contextes
-
-        // Gestionnaire d'événements
+    
+        // Event listeners
         if (context === 'inventory') {
             cardDiv.addEventListener('click', () => {
                 if (isDeleteMode) { if (!char.locked) deleteCharacter(char.id); } 
@@ -1017,6 +993,7 @@
         } else if (context === 'statChangeSelection') {
             cardDiv.addEventListener("click", () => selectStatChangeCharacter(char.id));
         }
+    
         return cardDiv;
     }
 
@@ -2540,6 +2517,24 @@
     }
 
     async function confirmSelection() {
+        // NOUVEAU: Gérer le callback de sélection de personnage pour le mode co-op
+        if (coopCharacterSelectionCallback) {
+            if (selectedBattleCharacters.size !== 1) {
+                resultElement.innerHTML = `<p class="text-red-400">Veuillez sélectionner 1 personnage pour le combat co-op.</p>`;
+                // On ne ferme pas la modale, on laisse l'utilisateur corriger
+                return;
+            }
+            // L'ensemble contient des index, il faut récupérer le premier (et unique)
+            const selectedIndex = selectedBattleCharacters.values().next().value;
+            const selectedChar = ownedCharacters[selectedIndex];
+            
+            coopCharacterSelectionCallback(selectedChar); // Envoyer le personnage sélectionné
+            coopCharacterSelectionCallback = null; // Réinitialiser le callback
+            selectedBattleCharacters.clear(); // Vider la sélection
+            closeModalHelper(characterSelectionModal); // Fermer la modale
+            return; // Important: arrêter l'exécution ici pour ne pas lancer un combat normal
+        }
+
         let levelData;
         if (typeof currentLevelId === 'string' && currentLevelId.startsWith('tower_')) {
             levelData = window.currentTowerLevelData;
@@ -5030,78 +5025,8 @@
             fragment.appendChild(p);
         } else {
             sortedAndFilteredCharacters.forEach((char) => {
-                const cardDiv = document.createElement('div');
-                const isSelected = selectedCharacterIndices.has(char.id);
-                let rarityTextColorClass = char.color;
-                if (char.rarity === "Mythic") rarityTextColorClass = "rainbow-text";
-                else if (char.rarity === "Vanguard") rarityTextColorClass = "text-vanguard";
-                else if (char.rarity === "Secret") rarityTextColorClass = "text-secret";
-
-                let cardClasses = ['relative', 'p-2', 'rounded-lg', 'border', 'cursor-pointer'];
-                
-                if (isDeleteMode) {
-                    if (char.locked) {
-                        cardClasses.push(getRarityBorderClass(char.rarity), 'opacity-50', 'cursor-not-allowed');
-                    } else {
-                        cardClasses.push(isSelected ? 'selected-character' : getRarityBorderClass(char.rarity));
-                    }
-                } else {
-                    cardClasses.push(getRarityBorderClass(char.rarity));
-                }
-                cardDiv.className = cardClasses.join(' ');
-
-                cardDiv.addEventListener('click', () => {
-                    if (isDeleteMode) {
-                        if (!char.locked) {
-                            deleteCharacter(char.id);
-                        }
-                    } else {
-                        showCharacterStats(char.id);
-                    }
-                });
-
-                if (char.locked) {
-                    const lockSpan = document.createElement('span');
-                    lockSpan.className = 'absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1';
-                    lockSpan.textContent = '🔒';
-                    cardDiv.appendChild(lockSpan);
-                }
-
-                const img = document.createElement('img');
-                img.src = char.image;
-                img.alt = char.name;
-                img.className = 'w-full h-auto object-contain rounded';
-                img.loading = 'lazy';
-                img.decoding = 'async';
-                cardDiv.appendChild(img);
-
-                const nameP = document.createElement('p');
-                nameP.className = 'text-center text-white font-semibold mt-1 text-sm';
-                nameP.textContent = char.name;
-                cardDiv.appendChild(nameP);
-
-                const rarityP = document.createElement('p');
-                rarityP.className = `text-center ${rarityTextColorClass} text-xs`;
-                rarityP.textContent = char.rarity;
-                cardDiv.appendChild(rarityP);
-
-                const levelP = document.createElement('p');
-                levelP.className = 'text-center text-white text-xs';
-                levelP.textContent = `Niveau: ${char.level} / ${char.maxLevelCap || 60}`;
-                cardDiv.appendChild(levelP);
-
-                if (char.statRank && statRanks[char.statRank]) {
-                    const statRankP = document.createElement('p');
-                    statRankP.className = 'text-center text-white text-xs';
-                    statRankP.innerHTML = `Stat: <span class="${statRanks[char.statRank].color || 'text-white'}">${char.statRank}</span>`;
-                    cardDiv.appendChild(statRankP);
-                }
-
-                const powerP = document.createElement('p');
-                powerP.className = 'text-center text-white text-xs';
-                powerP.textContent = `Puissance: ${char.power}`;
-                cardDiv.appendChild(powerP);
-                
+                // Remplacer la création manuelle par un appel à la nouvelle fonction
+                const cardDiv = createCharacterCard(char, -1, 'inventory');
                 fragment.appendChild(cardDiv); // Ajouter la carte au fragment
             });
         }
@@ -5110,11 +5035,19 @@
 
     function updateCharacterSelectionDisplay() {
         characterSelectionList.innerHTML = ""; // Clear existing content
-        const currentMaxTeamSize = calculateMaxTeamSize();
+
+        // NOUVELLE LOGIQUE: Déterminer la taille de l'équipe en fonction du contexte
+        const isCoopSelection = coopCharacterSelectionCallback !== null;
+        const currentMaxTeamSize = isCoopSelection ? 1 : calculateMaxTeamSize();
 
         const modalTitle = document.getElementById("character-selection-title");
         if (modalTitle) {
-            modalTitle.textContent = `Sélectionner ${currentMaxTeamSize} Personnage(s) pour le Combat`;
+            // MODIFIÉ: Titre dynamique
+            if (isCoopSelection) {
+                modalTitle.textContent = `Sélectionner 1 Personnage pour le Combat Co-op`;
+            } else {
+                modalTitle.textContent = `Sélectionner ${currentMaxTeamSize} Personnage(s) pour le Combat`;
+            }
         }
 
         const searchNameInput = document.getElementById("battle-search-name");
@@ -5151,8 +5084,8 @@
             sortedCharacters.forEach((char) => {
                 const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
                 if (originalIndex === -1) return; // Should not happen if sortedCharacters is derived from ownedCharacters
-
-                const cardElement = createCharacterCardHTML(char, originalIndex, 'battleSelection');
+                // MODIFICATION: Utiliser la nouvelle fonction createCharacterCard
+                const cardElement = createCharacterCard(char, originalIndex, 'battleSelection');
                 fragment.appendChild(cardElement);
             });
             characterSelectionList.appendChild(fragment);
@@ -5168,48 +5101,59 @@
     }
 
     function selectBattleCharacter(index) {
-      const characterToAdd = ownedCharacters[index];
-      let currentMaxTeamSize = calculateMaxTeamSize();
+        const isCoopSelection = coopCharacterSelectionCallback !== null;
 
-      if (selectedBattleCharacters.has(index)) {
-          selectedBattleCharacters.delete(index);
-      } else {
-          // Recalculer la taille max *potentielle* si ce personnage était ajouté
-          let potentialSelected = new Set(selectedBattleCharacters);
-          potentialSelected.add(index);
-          let potentialMaxTeamSize = 3;
-          let potentialBonus = 0;
-          potentialSelected.forEach(idx => {
-              const char = ownedCharacters[idx];
-              if (char && char.passive && typeof char.passive.teamSizeBonus === 'number') {
-                  potentialBonus = Math.max(potentialBonus, char.passive.teamSizeBonus);
-              }
-          });
-          potentialMaxTeamSize += potentialBonus;
+        if (isCoopSelection) {
+            // Pour le co-op, c'est une sélection unique. Cliquer sélectionne et désélectionne le reste.
+            if (selectedBattleCharacters.has(index)) {
+                selectedBattleCharacters.delete(index); // Désélectionner si on clique sur le même
+            } else {
+                selectedBattleCharacters.clear();
+                selectedBattleCharacters.add(index);
+            }
+        } else {
+            // Logique de combat normal
+            const characterToAdd = ownedCharacters[index];
+            if (selectedBattleCharacters.has(index)) {
+                selectedBattleCharacters.delete(index);
+            } else {
+                // Vérifier la taille de l'équipe potentielle
+                const potentialTeam = new Set(selectedBattleCharacters).add(index);
+                const potentialMaxSize = 3 + Array.from(potentialTeam).reduce((maxBonus, idx) => {
+                    const char = ownedCharacters[idx];
+                    return Math.max(maxBonus, char?.passive?.teamSizeBonus || 0);
+                }, 0);
 
-          if (selectedBattleCharacters.size < potentialMaxTeamSize) { // Vérifier par rapport à la taille potentielle
-              let alreadySelectedSameName = false;
-              for (const selectedIndex of selectedBattleCharacters) {
-                  if (ownedCharacters[selectedIndex].name === characterToAdd.name) {
-                      alreadySelectedSameName = true;
-                      break;
-                  }
-              }
-              if (!alreadySelectedSameName) {
-                  selectedBattleCharacters.add(index);
-              } else {
-                  // console.log(`Personnage ${characterToAdd.name} déjà sélectionné.`);
-              }
-          }
-      }
-      updateCharacterSelectionDisplay(); // Ceci va recalculer et réafficher avec la bonne taille max
+                // Vérifier les doublons de nom et la taille
+                const hasNameDuplicate = Array.from(selectedBattleCharacters).some(idx => ownedCharacters[idx].name === characterToAdd.name);
+
+                if (potentialTeam.size <= potentialMaxSize && !hasNameDuplicate) {
+                    selectedBattleCharacters.add(index);
+                }
+            }
+        }
+        updateCharacterSelectionDisplay();
     }
 
     function cancelSelection() {
-      selectedBattleCharacters.clear();
-      closeModalHelper(characterSelectionModal);
-      updateLevelDisplay();
-      updateCharacterSelectionDisplay();
+        // NOUVEAU: Gérer l'annulation de la sélection de personnage pour le mode co-op
+        if (coopCharacterSelectionCallback) {
+            console.log("Annulation de la sélection de personnage en mode co-op.");
+            coopCharacterSelectionCallback = null; // Réinitialiser le callback pour éviter des effets de bord
+            selectedBattleCharacters.clear();
+            closeModalHelper(characterSelectionModal);
+            
+            // La partie cruciale : quitter (et potentiellement supprimer) la salle
+            leaveCoopRoom(); 
+            
+            return; // Important: arrêter l'exécution ici pour ne pas continuer avec la logique normale
+        }
+
+        // Comportement normal pour les autres modes (histoire, pvp, etc.)
+        selectedBattleCharacters.clear();
+        closeModalHelper(characterSelectionModal);
+        updateLevelDisplay();
+        updateCharacterSelectionDisplay();
     }
 
     function startFusion(id) {
@@ -5280,7 +5224,8 @@
 
         const fragment = document.createDocumentFragment();
         availableForFusion.forEach((char) => {
-            const cardElement = createCharacterCardHTML(char, -1, 'fusionSelection');
+            // MODIFICATION: Utiliser la nouvelle fonction createCharacterCard
+            const cardElement = createCharacterCard(char, -1, 'fusionSelection');
             fragment.appendChild(cardElement);
         });
         fusionSelectionList.appendChild(fragment);
@@ -5850,7 +5795,8 @@
       } else {
             const fragment = document.createDocumentFragment();
           availableCharacters.sort((a, b) => b.power - a.power).forEach(c => {
-                const cardElement = createCharacterCardHTML(c, -1, 'limitBreakSelection');
+                // MODIFICATION: Utiliser la nouvelle fonction createCharacterCard
+                const cardElement = createCharacterCard(c, -1, 'limitBreakSelection');
                 fragment.appendChild(cardElement);
           });
             limitBreakCharSelectionGridElement.appendChild(fragment);
@@ -6412,6 +6358,12 @@
             console.log("[Listener] Détachement du listener du classement Tour (changement d'onglet principal).");
             towerLeaderboardListener();
             towerLeaderboardListener = null;
+        }
+        // NOUVEAU: Détacher le listener des salles publiques co-op quand on quitte l'onglet Play
+        if (activeTabId === 'play' && activePlaySubTabId === 'coop' && publicRoomsListener) {
+            console.log("[Listener] Détachement du listener des salles co-op (changement d'onglet principal).");
+            publicRoomsListener();
+            publicRoomsListener = null;
         }
         // --- FIN NOUVEAU ---
 
@@ -7649,6 +7601,12 @@
                 towerLeaderboardListener();
                 towerLeaderboardListener = null;
             }
+            // NOUVEAU: Détacher le listener des salles publiques co-op quand on quitte l'onglet
+            if (parentTabId === 'play' && currentActiveSubTabId === 'coop' && publicRoomsListener) {
+                console.log("[Listener] Détachement du listener des salles co-op (changement de sous-onglet).");
+                publicRoomsListener();
+                publicRoomsListener = null;
+            }
             // --- FIN NOUVEAU ---
         }
 
@@ -7695,6 +7653,8 @@
              updateDailyDungeonDisplay();
         } else if (parentTabId === "play" && subtabId === "tour") {
              updateTowerDisplay();
+        } else if (parentTabId === "play" && subtabId === "coop") {
+             updateCoopLobbyDisplay();
         }
         // updateCharacterDisplay() est appelé dans les fonctions ci-dessus si nécessaire, ou pour désactiver le mode suppression
         updateUI(); // Mise à jour générale de l'UI
@@ -7728,6 +7688,505 @@
         rewardsHtml += `</ul>`;
         rewardsInfoEl.innerHTML = rewardsHtml;
         updateTowerLeaderboard();
+    }
+
+    // --- NOUVEAU: Fonctions pour le mode Co-op ---
+
+    function cleanupCoopListeners() {
+        // MODIFIÉ: Ne nettoie que les listeners de la salle/bataille active.
+        // Le listener du lobby (`publicRoomsListener`) n'est PAS touché ici.
+        // Cela corrige un bug critique où, après avoir quitté une salle, le lobby
+        // ne recevait plus de mises à jour en temps réel (nouvelles salles, etc.),
+        // obligeant les joueurs à rafraîchir la page.
+        if (currentCoopRoomListener) {
+            currentCoopRoomListener();
+            currentCoopRoomListener = null;
+        }
+        if (currentCoopBattleListener) {
+            currentCoopBattleListener();
+            currentCoopBattleListener = null;
+        }
+        currentCoopRoomId = null;
+        coopCharacterSelectionCallback = null; // S'assurer que le callback est aussi nettoyé.
+        coopLobbyView.classList.remove('hidden'); // Retour à la vue du lobby
+        coopRoomView.classList.add('hidden'); // Cacher la vue de la salle
+        closeModalHelper(coopBattleModal); // Fermer la modale de combat si elle est ouverte
+    }
+
+    async function updateCoopLobbyDisplay() {
+        cleanupStaleCoopRooms(); // Exécuter le nettoyage à chaque fois que le lobby est affiché
+
+        if (!coopDungeonList || !coopPublicRoomsList) return;
+
+        const coopDungeons = allGameLevels.filter(l => l.type === 'coop');
+        coopDungeonList.innerHTML = coopDungeons.map(dungeon => `
+            <div class="coop-dungeon-card">
+                <h5 class="text-lg font-bold text-white">${dungeon.name}</h5>
+                <p class="text-sm text-gray-300">Joueurs : ${dungeon.maxPlayers} | Puissance Boss : ${dungeon.enemy.power.toLocaleString()}</p>
+                <p class="text-xs text-gray-400 mt-1">Récompenses: ${dungeon.rewards.gems}G, ${dungeon.rewards.coins}P, ${dungeon.rewards.exp}EXP</p>
+                <button class="create-coop-room-button mt-3 w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-4 rounded-lg" data-dungeon-id="${dungeon.id}">
+                    Créer une Salle
+                </button>
+            </div>
+        `).join('');
+
+        if (publicRoomsListener) publicRoomsListener();
+        
+        publicRoomsListener = db.collection('coopRooms').where('status', '==', 'waiting').limit(20)
+            .onSnapshot(snapshot => {
+                if (snapshot.empty) {
+                    coopPublicRoomsList.innerHTML = '<p class="text-gray-400 text-center">Aucune salle publique. Créez-en une !</p>';
+                    return;
+                }
+                coopPublicRoomsList.innerHTML = snapshot.docs.map(doc => {
+                    const room = doc.data();
+                    const dungeon = allGameLevels.find(l => l.id === room.dungeonId);
+                    const isFull = Object.keys(room.players).length >= dungeon.maxPlayers;
+                    return `
+                        <div class="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
+                            <div>
+                                <p class="text-white font-semibold">${room.hostName}'s Room - ${dungeon.name}</p>
+                                <p class="text-sm text-gray-400">Joueurs: ${Object.keys(room.players).length}/${dungeon.maxPlayers}</p>
+                            </div>
+                            <button class="join-coop-room-button bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-lg text-sm ${isFull ? 'opacity-50 cursor-not-allowed' : ''}" data-room-id="${doc.id}" ${isFull ? 'disabled' : ''}>
+                                ${isFull ? 'Pleine' : 'Rejoindre'}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }, error => {
+                console.error("Error fetching co-op rooms:", error);
+                coopPublicRoomsList.innerHTML = '<p class="text-red-500 text-center">Erreur de chargement des salles.</p>';
+            });
+    }
+
+    async function createCoopRoom(dungeonId) {
+        if (!currentUser) return;
+        const dungeon = allGameLevels.find(l => l.id === dungeonId);
+        if (!dungeon) return;
+
+        const username = currentUser.email.split('@')[0];
+        const newRoom = {
+            hostId: currentUser.uid,
+            hostName: username,
+            dungeonId: dungeonId,
+            status: 'waiting',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            players: {
+                [currentUser.uid]: { name: username, isReady: false, character: null }
+            }
+        };
+
+        try {
+            const roomRef = await db.collection('coopRooms').add(newRoom);
+            await joinCoopRoom(roomRef.id, true);
+        } catch (error) {
+            console.error("Error creating co-op room:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la création de la salle.</p>`;
+        }
+    }
+
+    async function joinCoopRoom(roomId, isHost = false) {
+        if (!currentUser) return;
+        const roomRef = db.collection('coopRooms').doc(roomId);
+        
+        try {
+            await db.runTransaction(async (transaction) => {
+                const roomDoc = await transaction.get(roomRef);
+                if (!roomDoc.exists) throw new Error("La salle n'existe plus.");
+                
+                const roomData = roomDoc.data();
+                const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
+                
+                if (Object.keys(roomData.players).length >= dungeon.maxPlayers && !isHost) {
+                    throw new Error("La salle est pleine.");
+                }
+
+                if (!isHost) {
+                    const username = currentUser.email.split('@')[0];
+                    transaction.update(roomRef, {
+                        [`players.${currentUser.uid}`]: { name: username, isReady: false, character: null }
+                    });
+                }
+            });
+
+            listenToCoopRoom(roomId);
+
+            coopCharacterSelectionCallback = (character) => {
+                const charData = {
+                    id: character.id, name: character.name, rarity: character.rarity,
+                    power: character.power, image: character.image, color: character.color
+                };
+                roomRef.update({ [`players.${currentUser.uid}.character`]: charData });
+            };
+            selectedBattleCharacters.clear();
+            openModal(characterSelectionModal);
+            updateCharacterSelectionDisplay();
+
+        } catch (error) {
+            console.error("Error joining co-op room:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Impossible de rejoindre: ${error.message}</p>`;
+        }
+    }
+
+    function listenToCoopRoom(roomId) {
+        if (currentCoopRoomListener) currentCoopRoomListener();
+
+        currentCoopRoomListener = db.collection('coopRooms').doc(roomId)
+            .onSnapshot(doc => {
+                if (doc.exists) {
+                    currentCoopRoomId = doc.id;
+                    const roomData = doc.data();
+                    
+                    // NOUVEAU: Vérifier si un joueur s'est déconnecté pendant le combat
+                    if (roomData.status === 'in-progress' && roomData.battleState?.playerCountAtStart) {
+                        const currentPlayersInRoom = Object.keys(roomData.players).length;
+                        if (currentPlayersInRoom < roomData.battleState.playerCountAtStart) {
+                            // Un joueur a quitté. L'hôte met fin au combat.
+                            if (roomData.hostId === currentUser.uid) {
+                                console.log("Un joueur a quitté pendant le combat. Annulation par l'hôte.");
+                                doc.ref.update({
+                                    status: 'failed',
+                                    'battleState.battleLog': firebase.firestore.FieldValue.arrayUnion("Un joueur a quitté. Le combat est annulé.")
+                                }).catch(e => console.error("Erreur lors de l'annulation du combat:", e));
+                            }
+                            // Les autres clients recevront la mise à jour 'failed' et leur combat se terminera.
+                            return;
+                        }
+                    }
+                    
+                    // Gérer l'affichage en fonction de l'état de la salle
+                    if (roomData.status === 'waiting') {
+                        renderCoopRoom(roomData);
+                    }
+ 
+                    // Si le combat commence (la modale n'est pas encore visible)
+                    if (roomData.status === 'in-progress' && coopBattleModal.classList.contains('hidden')) {
+                        launchCoopBattle(roomData);
+                    // Si le combat est en cours (la modale est déjà visible), on met juste l'UI à jour
+                    } else if (roomData.status === 'in-progress' && !coopBattleModal.classList.contains('hidden')) {
+                        updateCoopBattleUI(roomData);
+                    // Si le combat est terminé
+                    } else if (roomData.status === 'completed' || roomData.status === 'failed') {
+                        if(!coopBattleModal.classList.contains('hidden')) {
+                            endCoopBattle(roomData.status === 'completed', roomData);
+                        }
+                    }
+                } else {
+                    resultElement.innerHTML = `<p class="text-yellow-400">La salle co-op a été dissoute (l'hôte a peut-être quitté).</p>`;
+                    cleanupCoopListeners();
+                }
+            }, error => {
+                console.error("Error listening to co-op room:", error);
+                cleanupCoopListeners();
+            });
+    }
+
+    function renderCoopRoom(roomData) {
+        coopLobbyView.classList.add('hidden');
+        coopRoomView.classList.remove('hidden');
+        const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
+        coopRoomTitle.textContent = `Salle pour ${dungeon.name}`;
+
+        coopRoomPlayers.innerHTML = Object.entries(roomData.players).map(([uid, playerData]) => {
+            const isHost = uid === roomData.hostId;
+            return `
+                <div class="coop-room-player-card ${playerData.isReady ? 'ready' : ''} ${isHost ? 'host' : ''}">
+                    <p class="player-name font-bold text-white">${playerData.name}</p>
+                    ${playerData.character ? `
+                        <img src="${playerData.character.image}" alt="${playerData.character.name}" class="h-24 mx-auto my-2">
+                        <p class="text-sm ${playerData.character.color}">${playerData.character.name}</p>
+                        <p class="text-xs text-gray-300">Puissance: ${playerData.character.power.toLocaleString()}</p>
+                    ` : '<p class="text-gray-400 my-4">Sélection...</p>'}
+                    <p class="text-sm font-semibold ${playerData.isReady ? 'text-green-400' : 'text-yellow-400'}">${playerData.isReady ? 'Prêt' : 'Pas prêt'}</p>
+                </div>
+            `;
+        }).join('');
+
+        const allReady = Object.values(roomData.players).every(p => p.isReady);
+        const isHost = currentUser.uid === roomData.hostId;
+        coopStartBattleButton.classList.toggle('hidden', !isHost || !allReady);
+    }
+
+    async function leaveCoopRoom() {
+        if (!currentCoopRoomId || !currentUser) return;
+        const roomRef = db.collection('coopRooms').doc(currentCoopRoomId);
+
+        try {
+            await db.runTransaction(async (transaction) => {
+                const roomDoc = await transaction.get(roomRef);
+                if (!roomDoc.exists) {
+                    return; // La salle a déjà été supprimée, rien à faire.
+                }
+
+                const roomData = roomDoc.data();
+                const currentPlayers = roomData.players || {};
+                const isHost = roomData.hostId === currentUser.uid;
+
+                // Si l'hôte quitte, ou si le joueur qui part est le dernier, on supprime la salle.
+                if (isHost || Object.keys(currentPlayers).length <= 1) {
+                    console.log(`[Co-op Leave] Suppression de la salle ${currentCoopRoomId} car l'hôte ou le dernier joueur est parti.`);
+                    transaction.delete(roomRef);
+                } else {
+                    // Sinon, on retire simplement le joueur de la liste.
+                    console.log(`[Co-op Leave] Retrait du joueur ${currentUser.uid} de la salle ${currentCoopRoomId}.`);
+                    transaction.update(roomRef, {
+                        [`players.${currentUser.uid}`]: firebase.firestore.FieldValue.delete()
+                    });
+                }
+            });
+            // Il n'y a plus de bloc "finally" ici.
+        } catch (error) {
+            console.error("Erreur en quittant/supprimant la salle:", error);
+            // En cas d'erreur, on peut vouloir nettoyer localement
+            cleanupCoopListeners();
+        }
+    }
+
+    async function setCoopReadyStatus(isReady) {
+        if (!currentCoopRoomId || !currentUser) return;
+        const roomRef = db.collection('coopRooms').doc(currentCoopRoomId);
+        const player = (await roomRef.get()).data().players[currentUser.uid];
+        if (!player.character) {
+            resultElement.innerHTML = `<p class="text-red-400">Veuillez d'abord sélectionner un personnage.</p>`;
+            return;
+        }
+        await roomRef.update({ [`players.${currentUser.uid}.isReady`]: isReady });
+        coopReadyButton.textContent = isReady ? "Pas Prêt" : "Prêt";
+        coopReadyButton.onclick = () => setCoopReadyStatus(!isReady);
+    }
+
+    // --- FIN: Fonctions pour le mode Co-op ---
+
+    // --- NOUVEAU: Fonctions de nettoyage pour le Co-op ---
+    async function cleanupStaleCoopRooms() {
+        console.log("[Co-op Cleanup] Vérification des salles obsolètes...");
+        // Les salles en attente depuis plus d'une heure seront considérées comme obsolètes
+        const oneHourAgoMillis = Date.now() - 3600 * 1000;
+
+        // MODIFICATION: Nous utilisons une requête plus simple pour éviter la nécessité d'un index composite,
+        // ce qui peut être une source d'erreurs silencieuses pour les listeners.
+        // Le filtrage par date se fait maintenant côté client.
+        const waitingRoomsQuery = db.collection('coopRooms').where('status', '==', 'waiting');
+
+        try {
+            const snapshot = await waitingRoomsQuery.get();
+            if (snapshot.empty) {
+                // Il n'y a aucune salle en attente, donc aucune n'est obsolète.
+                return;
+            }
+
+            let deletedCount = 0;
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => {
+                const room = doc.data();
+                // Filtrage par date côté client
+                if (room.createdAt && room.createdAt.toMillis() < oneHourAgoMillis) {
+                    batch.delete(doc.ref);
+                    deletedCount++;
+                }
+            });
+            if (deletedCount > 0) {
+                await batch.commit();
+                console.log(`[Co-op Cleanup] ${deletedCount} salle(s) obsolète(s) supprimée(s) avec succès.`);
+            }
+        } catch (error) {
+            console.error("Erreur lors du nettoyage des salles co-op obsolètes:", error);
+            if (error.code === 'failed-precondition') {
+                console.warn("Un index Firestore est requis pour le nettoyage des salles co-op. Veuillez vérifier la console du navigateur pour un lien permettant de le créer.");
+            }
+        }
+    }
+
+    // --- NOUVEAU: Fonctions pour le COMBAT Co-op ---
+    async function startCoopBattle() {
+        if (!currentCoopRoomId || !currentUser) return;
+
+        const roomRef = db.collection('coopRooms').doc(currentCoopRoomId);
+        try {
+            const roomDoc = await roomRef.get();
+            if (!roomDoc.exists) throw new Error("La salle n'existe plus.");
+
+            const roomData = roomDoc.data();
+            if (roomData.hostId !== currentUser.uid) {
+                console.warn("Seul l'hôte peut démarrer le combat.");
+                return;
+            }
+
+            const allReady = Object.values(roomData.players).every(p => p.isReady);
+            if (!allReady) {
+                resultElement.innerHTML = `<p class="text-red-400">Tous les joueurs ne sont pas prêts.</p>`;
+                return;
+            }
+
+            const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
+            if (!dungeon) throw new Error("Données du donjon introuvables.");
+
+            const playerCount = Object.keys(roomData.players).length;
+            const battleState = {
+                bossMaxHealth: dungeon.enemy.power,
+                playerCountAtStart: playerCount,
+                bossCurrentHealth: dungeon.enemy.power,
+                battleLog: [`Le combat contre ${dungeon.enemy.name} commence !`],
+                lastActionTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await roomRef.update({
+                status: 'in-progress',
+                battleState: battleState
+            });
+            // Le listener onSnapshot déclenchera launchCoopBattle pour tous les joueurs.
+        } catch (error) {
+            console.error("Erreur lors du démarrage du combat co-op:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur: ${error.message}</p>`;
+        }
+    }
+
+    function launchCoopBattle(roomData) {
+        if (!roomData || !roomData.battleState) return;
+        const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
+        if (!dungeon) return;
+
+        console.log("Lancement de l'interface de combat co-op pour tous les joueurs.");
+        coopLobbyView.classList.add('hidden');
+        coopRoomView.classList.add('hidden');
+
+        coopBattleBossName.textContent = dungeon.enemy.name;
+        updateCoopBattleUI(roomData);
+
+        openModal(coopBattleModal);
+    }
+
+    function updateCoopBattleUI(roomData) {
+        if (!roomData || !roomData.battleState) return;
+
+        const { bossCurrentHealth, bossMaxHealth, battleLog } = roomData.battleState;
+        const healthPercentage = (bossCurrentHealth / bossMaxHealth) * 100;
+
+        coopBattleBossHealthBar.style.width = `${healthPercentage}%`;
+        coopBattleBossHealthText.textContent = `${bossCurrentHealth.toLocaleString()} / ${bossMaxHealth.toLocaleString()}`;
+
+        coopBattlePlayersDisplay.innerHTML = Object.values(roomData.players).map(player => {
+            return `
+                <div class="coop-room-player-card">
+                    <p class="player-name font-bold text-white">${player.name}</p>
+                    ${player.character ? `
+                        <img src="${player.character.image}" alt="${player.character.name}" class="h-20 mx-auto my-1">
+                        <p class="text-xs ${player.character.color}">${player.character.name}</p>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+
+        coopBattleLog.innerHTML = (battleLog || []).map(log => `<p>${log}</p>`).join('');
+        coopBattleLog.scrollTop = coopBattleLog.scrollHeight;
+    }
+
+    async function coopAttack() {
+        if (!currentCoopRoomId || !currentUser) return;
+
+        const roomRef = db.collection('coopRooms').doc(currentCoopRoomId);
+        coopBattleAttackButton.disabled = true;
+
+        try {
+            await db.runTransaction(async (transaction) => {
+                const roomDoc = await transaction.get(roomRef);
+                if (!roomDoc.exists) throw new Error("Le combat n'existe plus.");
+
+                const roomData = roomDoc.data();
+                if (roomData.status !== 'in-progress') return;
+
+                const player = roomData.players[currentUser.uid];
+                if (!player || !player.character) throw new Error("Données du joueur introuvables.");
+
+                const damageDealt = player.character.power;
+                const newHealth = Math.max(0, roomData.battleState.bossCurrentHealth - damageDealt);
+                
+                const newLogEntry = `${player.name} attaque et inflige ${damageDealt.toLocaleString()} dégâts !`;
+                const newBattleLog = [...(roomData.battleState.battleLog || []), newLogEntry];
+                if (newBattleLog.length > 20) newBattleLog.shift();
+
+                let newStatus = roomData.status;
+                if (newHealth <= 0) {
+                    newStatus = 'completed';
+                    newBattleLog.push("Le boss a été vaincu !");
+                }
+
+                transaction.update(roomRef, {
+                    'battleState.bossCurrentHealth': newHealth,
+                    'battleState.battleLog': newBattleLog,
+                    'status': newStatus,
+                    'battleState.lastActionTimestamp': firebase.firestore.FieldValue.serverTimestamp()
+                });
+            });
+        } catch (error) {
+            console.error("Erreur lors de l'attaque en co-op:", error);
+        } finally {
+            setTimeout(() => { coopBattleAttackButton.disabled = false; }, 1000);
+        }
+    }
+
+    function endCoopBattle(isVictory, roomData) {
+        if (coopBattleModal.classList.contains('hidden')) return;
+
+        let message = "";
+        if (isVictory) {
+            const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
+            message = `<p class="text-green-400">Victoire ! Vous avez vaincu ${dungeon.enemy.name} !</p>`;
+            
+            const playerUid = currentUser.uid;
+            if (roomData.players[playerUid]) {
+                let rewardText = [];
+                const rewards = dungeon.rewards;
+                if (rewards.gems) { addGems(rewards.gems); rewardText.push(`${rewards.gems} Gemmes`); }
+                if (rewards.coins) { coins += rewards.coins; rewardText.push(`${rewards.coins} Pièces`); }
+                if (rewards.exp) { addExp(rewards.exp); rewardText.push(`${rewards.exp} EXP`); }
+                
+                if (rewards.itemChance) {
+                    rewards.itemChance.forEach(chance => {
+                        if (Math.random() < chance.probability) {
+                            const quantity = Math.floor(Math.random() * (chance.maxQuantity - chance.minQuantity + 1)) + chance.minQuantity;
+                            inventory[chance.item] = (inventory[chance.item] || 0) + quantity;
+                            rewardText.push(`${quantity}x ${chance.item}`);
+                        }
+                    });
+                }
+                message += `<p class="text-white">Récompenses obtenues: ${rewardText.join(', ')}</p>`;
+            }
+            if (animationsEnabled) confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+        } else {
+            const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
+            const battleLog = roomData.battleState?.battleLog || [];
+            const lastLogMessage = battleLog.length > 0 ? battleLog[battleLog.length - 1] : "";
+
+            if (lastLogMessage.includes("annulé")) {
+                message = `<p class="text-yellow-400 font-bold">Combat Annulé</p><p class="text-white">${lastLogMessage}</p>`;
+            } else if (dungeon) {
+                message = `<p class="text-red-400">Défaite ! Vous avez été vaincu par ${dungeon.enemy.name}.</p>`;
+            } else {
+                message = `<p class="text-red-400">Défaite ! Le combat est terminé.</p>`;
+            }
+        }
+
+        resultElement.innerHTML = message;
+        setTimeout(() => {
+            if (resultElement.innerHTML.includes("Victoire !") || resultElement.innerHTML.includes("Défaite !")) {
+                resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+            }
+        }, 7000);
+
+        if (roomData.hostId === currentUser.uid) {
+            setTimeout(() => {
+                if(currentCoopRoomId) {
+                    db.collection('coopRooms').doc(currentCoopRoomId).delete().catch(e => console.error("Erreur lors de la suppression de la salle co-op terminée:", e));
+                }
+            }, 10000);
+        }
+        
+        cleanupCoopListeners();
+        updateUI();
+        updateItemDisplay();
+        scheduleSave();
     }
 
     function updateStatChangeTabDisplay() {
@@ -7807,7 +8266,8 @@
             const fragment = document.createDocumentFragment();
             availableCharacters.sort((a,b) => (statRanks[b.statRank]?.order || 0) - (statRanks[a.statRank]?.order || 0) || b.power - a.power)
             .forEach(c => {
-                const cardElement = createCharacterCardHTML(c, -1, 'statChangeSelection');
+                // MODIFICATION: Utiliser la nouvelle fonction createCharacterCard
+                const cardElement = createCharacterCard(c, -1, 'statChangeSelection');
                 fragment.appendChild(cardElement);
             });
             charSelectionGrid.appendChild(fragment);
@@ -8157,7 +8617,8 @@
         } else {
             const fragment = document.createDocumentFragment();
             availableCharacters.sort((a, b) => b.power - a.power).forEach(c => {
-                const cardElement = createCharacterCardHTML(c, -1, 'traitSelection');
+                // MODIFICATION: Utiliser la nouvelle fonction createCharacterCard
+                const cardElement = createCharacterCard(c, -1, 'traitSelection');
                 fragment.appendChild(cardElement);
             });
             traitCharacterSelectionGridElement.appendChild(fragment);
@@ -8660,7 +9121,8 @@
       } else {
         const fragment = document.createDocumentFragment();
         availableCharacters.sort((a, b) => b.power - a.power).forEach(char => {
-            const cardElement = createCharacterCardHTML(char, -1, 'curseSelection');
+            // MODIFICATION: Utiliser la nouvelle fonction createCharacterCard
+            const cardElement = createCharacterCard(char, -1, 'curseSelection');
             fragment.appendChild(cardElement);
         });
         curseCharacterSelectionGridElement.appendChild(fragment);
@@ -9524,12 +9986,31 @@
     document.getElementById("daily-dungeon-list").addEventListener('click', handleLevelStartClick);
 
     // NOUVEAU: Fermeture de la modale d'avertissement
+    if (coopTab) {
+        coopTab.addEventListener('click', (e) => {
+            const createButton = e.target.closest('.create-coop-room-button');
+            const joinButton = e.target.closest('.join-coop-room-button');
+            if (createButton) {
+                const dungeonId = parseInt(createButton.dataset.dungeonId, 10);
+                createCoopRoom(dungeonId);
+            }
+            if (joinButton) {
+                const roomId = joinButton.dataset.roomId;
+                joinCoopRoom(roomId);
+            }
+        });
+    }
      const autoClickerModalCloseButton = document.getElementById('auto-clicker-modal-close-button');
     if (autoClickerModalCloseButton) {
         autoClickerModalCloseButton.addEventListener('click', () => {
             closeModalHelper(autoClickerWarningModal);
         });
     }
+
+    if(coopReadyButton) coopReadyButton.addEventListener('click', () => setCoopReadyStatus(true));
+    if(coopLeaveRoomButton) coopLeaveRoomButton.addEventListener('click', leaveCoopRoom);
+    if(coopStartBattleButton) coopStartBattleButton.addEventListener('click', startCoopBattle);
+    if(coopBattleAttackButton) coopBattleAttackButton.addEventListener('click', coopAttack);
 
     document.getElementById('start-tower-floor-button').addEventListener('click', startTowerFloor);
     populateTargetStatRanks();
@@ -9561,6 +10042,13 @@
 
             // NOUVEAU: Nettoyer les données de guilde à la déconnexion
             cleanupGuildListeners();
+            // MODIFIÉ: Nettoyage complet des listeners co-op à la déconnexion
+            if (publicRoomsListener) {
+                console.log("[Listener] Détachement du listener des salles publiques (déconnexion).");
+                publicRoomsListener();
+                publicRoomsListener = null;
+            }
+            cleanupCoopListeners(); // Nettoie la salle/bataille active s'il y en a une
             playerGuildId = null;
 
             // Cacher le jeu et le statut, afficher les formulaires

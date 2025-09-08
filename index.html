@@ -125,6 +125,7 @@
               <button id="subtab-quotidien" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 subtab-button" data-subtab="quotidien">Quotidien</button>
               <button id="subtab-pvp" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 subtab-button" data-subtab="pvp">Arène PvP</button>
               <button id="subtab-tour" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 subtab-button" data-subtab="tour">Tour Infinie</button>
+              <button id="subtab-coop" class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 subtab-button" data-subtab="coop">Co-op</button>
             </div>
             <div id="subtab-content-play">
               <div id="story" class="p-4">
@@ -203,6 +204,40 @@
                             <div id="pvp-leaderboard"><p class="text-gray-400">Classement bientôt disponible.</p></div>
                         </div>
                     </div>
+                </div>
+              </div>
+              <div id="coop" class="hidden p-4 text-white">
+                <h3 class="text-2xl font-bold mb-4">Donjons Co-op</h3>
+                
+                <!-- This view shows available dungeons and public rooms -->
+                <div id="coop-lobby-view">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- Left: Dungeon List -->
+                        <div>
+                            <h4 class="text-xl font-semibold mb-2">Choisir un Donjon</h4>
+                            <div id="coop-dungeon-list" class="space-y-3">
+                                <!-- Dungeons will be populated by JS -->
+                                <p class="text-gray-400">Chargement des donjons co-op...</p>
+                            </div>
+                        </div>
+                        <!-- Right: Public Rooms -->
+                        <div>
+                            <h4 class="text-xl font-semibold mb-2">Salles Publiques</h4>
+                            <div id="coop-public-rooms-list" class="space-y-2 bg-gray-900 bg-opacity-50 p-3 rounded-lg max-h-96 overflow-y-auto">
+                                <!-- Public rooms will be populated by JS -->
+                                <p class="text-gray-400 text-center">Aucune salle publique disponible.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+                <!-- This view is shown when inside a room -->
+                <div id="coop-room-view" class="hidden">
+                    <h4 id="coop-room-title" class="text-xl font-semibold mb-2">Salle d'attente</h4>
+                    <div id="coop-room-players" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <!-- Player cards will be populated by JS -->
+                    </div>
+                    <div class="flex gap-4"><button id="coop-ready-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Prêt</button><button id="coop-start-battle-button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg hidden">Lancer le Combat</button><button id="coop-leave-room-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Quitter</button></div>
                 </div>
               </div>
             </div>
@@ -899,6 +934,33 @@
       </div>
     </div>
 
+    <!-- Modal for Co-op Battle -->
+    <div id="coop-battle-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden game-modal z-[9800]">
+        <div class="bg-gray-900 p-4 sm:p-6 rounded-lg w-full max-w-4xl text-center shadow-lg border-4 border-purple-500" style="background-image: url('https://i.pinimg.com/originals/a1/81/d7/a181d76a163158485de067262b947c2b.gif'); background-size: cover; background-position: center;">
+            <h2 id="coop-battle-boss-name" class="text-3xl text-yellow-300 font-bold drop-shadow-lg mb-2">Boss de Co-op</h2>
+            <!-- Boss Health Bar -->
+            <div class="w-full bg-gray-700 rounded-full h-8 border-2 border-gray-500 mt-2 relative mb-4">
+                <div id="coop-battle-boss-health-bar" class="bg-red-600 h-full rounded-full transition-all duration-100 ease-linear" style="width: 100%;"></div>
+                <span id="coop-battle-boss-health-text" class="absolute inset-0 flex items-center justify-center text-white font-bold">100%</span>
+            </div>
+            
+            <!-- Player Teams Display -->
+            <div id="coop-battle-players-display" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <!-- Player team info will be injected here -->
+            </div>
+    
+            <!-- Battle Log -->
+            <div id="coop-battle-log" class="text-left text-white text-sm bg-black bg-opacity-40 p-3 rounded-lg h-40 overflow-y-auto mb-4">
+                <p class="text-gray-400">Le combat commence...</p>
+            </div>
+    
+            <!-- Player Actions -->
+            <div id="coop-battle-actions" class="flex justify-center gap-4">
+                <button id="coop-battle-attack-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg">Attaquer</button>
+                <!-- Other skills/actions could go here -->
+            </div>
+        </div>
+    </div>
     <!-- Modal for Pull Probabilities -->
     <div id="probabilities-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -1127,6 +1189,21 @@
 
     </div>
     
+    <!-- NOUVEAU: Template pour les cartes de personnage -->
+    <template id="character-card-template">
+        <div class="character-card relative p-2 rounded-lg border cursor-pointer flex flex-col justify-between items-center box-border">
+            <span class="char-lock-overlay absolute top-1 right-1 text-xl text-white bg-black bg-opacity-50 rounded p-1 hidden">🔒</span>
+            <img class="char-image w-full object-contain rounded" loading="lazy" decoding="async" src="" alt="">
+            <div class="char-info-container mt-auto text-center w-full">
+                <p class="char-name text-white font-semibold mt-1 text-sm"></p>
+                <p class="char-rarity text-xs"></p>
+                <p class="char-level text-white text-xs"></p>
+                <p class="char-stat-rank text-white text-xs"></p>
+                <p class="char-power text-white text-xs"></p>
+                <div class="char-additional-info text-xs"></div>
+            </div>
+        </div>
+    </template>
   <script type="text/javascript">
     var gk_isXlsx = false;
     var gk_xlsxFileLookup = {};

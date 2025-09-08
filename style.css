@@ -535,3 +535,25 @@ body {
     font-size: 0.75rem; /* text-xs */
     color: #cbd5e0; /* text-gray-300 */
 }
+
+.coop-dungeon-card {
+    background-color: rgba(63, 63, 70, 0.7); /* bg-zinc-700 opacity-70 */
+    border: 1px solid #a1a1aa; /* border-zinc-400 */
+    padding: 1rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease-in-out;
+}
+.coop-dungeon-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(167, 139, 250, 0.3); /* shadow-violet-400 */
+    border-color: #a78bfa; /* border-violet-400 */
+}
+.coop-room-player-card {
+    background-color: rgba(31, 41, 55, 0.8); /* bg-gray-800 opacity-80 */
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #4b5563; /* border-gray-600 */
+    text-align: center;
+}
+.coop-room-player-card.ready { border-color: #34d399; box-shadow: 0 0 8px #34d399; }
+.coop-room-player-card.host .player-name::after { content: ' 👑'; color: #facc15; }

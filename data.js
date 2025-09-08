@@ -889,6 +889,43 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
     ];
     const storyLevels = [...baseStoryLevels, ...legendaryStoryLevels];
 
+    const coopDungeons = [
+      {
+          id: 501,
+          name: "Gardien Gémellaire",
+          maxPlayers: 2,
+          enemy: { name: "Les Jumeaux Astraux", power: 50000 },
+          rewards: {
+              gems: 500,
+              coins: 1000,
+              exp: 2000,
+              itemChance: [
+                  { item: "Plume Céleste", probability: 0.5, minQuantity: 1, maxQuantity: 2 },
+                  { item: "Divin Wish", probability: 0.05, minQuantity: 1, maxQuantity: 1 }
+              ]
+          },
+          type: 'coop',
+          unlocked: true
+      },
+      {
+          id: 502,
+          name: "Titan à Trois Têtes",
+          maxPlayers: 3,
+          enemy: { name: "Hydre du Vide", power: 150000 },
+          rewards: {
+              gems: 1500,
+              coins: 3000,
+              exp: 5000,
+              itemChance: [
+                  { item: "Sablier Ancien", probability: 0.5, minQuantity: 1, maxQuantity: 2 },
+                  { item: "Divin Wish", probability: 0.1, minQuantity: 1, maxQuantity: 2 }
+              ]
+          },
+          type: 'coop',
+          unlocked: true
+      }
+    ];
+
     const challengeLevels = [
       { id: 201, world: "Challenge Unique", name: "Défi: Vague d'ennemis", enemy: { name: "Horde Mixte", power: 3000}, rewards: { gems: 100, coins: 50, exp: 200, itemChance: { item: "Cursed Token", probability: 0.01, minQuantity: 1, maxQuantity: 1 } }, type: 'challenge', unlocked: true, completed: false },
       { id: 202, world: "Challenge Unique", name: "Défi: Boss Résistant", enemy: { name: "Golem Ancien", power: 6000}, rewards: { gems: 200, coins: 100, exp: 400, itemChance: { item: "Stat Chip", probability: 0.01, minQuantity: 1, maxQuantity: 1 }}, type: 'challenge', unlocked: true, completed: false },
@@ -1209,7 +1246,7 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
       { id: 407, dayOfWeek: 0, name: "Donjon du Dimanche: Panthéon Prismatique", enemy: { name: "Gardien Prismatique", power: 9000 }, rewards: { gems: 50, coins: 150, exp: 50, itemChance: [{ item: "Green Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Blue Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Red Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Yellow Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Pink Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Purple Essence", probability: 0.25, minQuantity: 1, maxQuantity: 2 }, { item: "Rainbow Essence", probability: 0.05, minQuantity: 1, maxQuantity: 1 }] }, type: 'daily', unlocked: true, completed: false },
     ];
 
-    const allGameLevels = [...baseStoryLevels, ...legendaryStoryLevels, ...challengeLevels, ...materialFarmLevels, ...dailyDungeons];
+    const allGameLevels = [...baseStoryLevels, ...legendaryStoryLevels, ...challengeLevels, ...materialFarmLevels, ...dailyDungeons, ...coopDungeons];
 
     const worldRewards = [
       { world: 1, item: "Haricots", minQuantity: 2, maxQuantity: 4 },
