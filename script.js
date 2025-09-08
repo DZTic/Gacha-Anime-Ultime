@@ -517,6 +517,11 @@
         console.warn("[LocalStorage] 'fusionFilterRarity' invalide. Réinitialisation à 'all'.");
         fusionFilterRarity = "all";
     }
+
+    if (!validRarities.includes(fusionFilterRarity)) {
+        console.warn("[LocalStorage] 'fusionFilterRarity' invalide. Réinitialisation à 'all'.");
+        fusionFilterRarity = "all";
+    }
     
     let standardPityCount = parseInt(localStorage.getItem("standardPityCount") || "0", 10);
     if (isNaN(standardPityCount) || standardPityCount < 0) { console.warn("[LocalStorage] 'standardPityCount' invalide. Réinitialisation à 0."); standardPityCount = 0; }
@@ -597,6 +602,7 @@
     const epicCountElement = document.getElementById("epic-count");
     const legendaryCountElement = document.getElementById("legendary-count");
     const mythicCountElement = document.getElementById("mythic-count");
+    const sellSelectedButton = document.getElementById("sell-selected-button");
     const secretCountElement = document.getElementById("secret-count");
     const tabButtons = document.querySelectorAll(".tab-button"); // This will include the new tab-stat-change
     const subtabButtons = document.querySelectorAll(".subtab-button"); // Keep this for Play and Inventory subtabs
@@ -3367,6 +3373,12 @@
         localStorage.removeItem("inventoryFilterEvolvable");
         localStorage.removeItem("inventoryFilterLimitBreak");
         localStorage.removeItem("inventoryFilterCanReceiveExp");
+        let fusionSearchName = localStorage.getItem("fusionSearchName") || "";
+        let fusionFilterRarity = localStorage.getItem("fusionFilterRarity") || "all";
+        localStorage.removeItem("inventoryFilterRarity");
+        localStorage.removeItem("inventoryFilterEvolvable");
+        localStorage.removeItem("inventoryFilterLimitBreak");
+        localStorage.removeItem("inventoryFilterCanReceiveExp");
 
         // 2. Réassigner les valeurs par défaut aux variables globales des paramètres
         soundEnabled = true;
@@ -3746,9 +3758,25 @@
       specialPullButton.classList.toggle("opacity-50", specialPullButton.disabled);
       specialPullButton.classList.toggle("cursor-not-allowed", specialPullButton.disabled);
       
-      deleteButton.textContent = isDeleteMode ? "Confirmer la suppression" : "Activer le mode suppression";
-      deleteButton.classList.toggle("bg-red-700", isDeleteMode);
+      // Logique pour le mode suppression
+      deleteButton.textContent = isDeleteMode ? "Quitter le mode suppression" : "Activer le mode suppression";
+      deleteButton.classList.toggle("bg-gray-500", isDeleteMode);
+      deleteButton.classList.toggle("hover:bg-gray-600", isDeleteMode);
       deleteButton.classList.toggle("bg-red-500", !isDeleteMode);
+      deleteButton.classList.toggle("hover:bg-red-600", !isDeleteMode);
+
+      if (isDeleteMode) {
+          const count = selectedCharacterIndices.size;
+          sellSelectedButton.textContent = `Vendre (${count}) personnage(s)`;
+          sellSelectedButton.disabled = count === 0;
+          sellSelectedButton.classList.toggle('opacity-50', count === 0);
+          sellSelectedButton.classList.toggle('cursor-not-allowed', count === 0);
+      }
+
+      // Cacher le bouton "Gérer les Équipes" en mode suppression
+      if (manageTeamsButton) {
+          manageTeamsButton.classList.toggle('hidden', isDeleteMode);
+      }
 
       const stats = { Rare: 0, Épique: 0, Légendaire: 0, Mythic: 0, Secret: 0 };
       ownedCharacters.forEach(char => stats[char.rarity]++);
@@ -3757,6 +3785,7 @@
       legendaryCountElement.textContent = stats.Légendaire;
       mythicCountElement.textContent = stats.Mythic;
       secretCountElement.textContent = stats.Secret;
+
       const standardPityDisplay = document.getElementById("standard-pity-display");
       const specialPityDisplay = document.getElementById("special-pity-display");
       if (standardPityDisplay) standardPityDisplay.textContent = standardPityCount;
@@ -4693,13 +4722,12 @@
     }
 
     function toggleDeleteMode() {
-      isDeleteMode = !isDeleteMode;
-      if (!isDeleteMode) {
-        deleteSelectedCharacters();
-      }
-      selectedCharacterIndices.clear();
-      updateCharacterDisplay();
-      updateUI();
+        isDeleteMode = !isDeleteMode;
+        selectedCharacterIndices.clear(); // Toujours vider la sélection en entrant/sortant du mode
+
+        sellSelectedButton.classList.toggle('hidden', !isDeleteMode);
+        updateCharacterDisplay();
+        updateUI();
     }
 
     function selectCharacter(id) {
@@ -5234,26 +5262,37 @@
     }
 
     function updateFusionSelectionDisplay() {
-      fusionSelectionList.innerHTML = "";
-      // Filtrez les personnages non verrouillés et différents du personnage principal
-      const availableForFusion = ownedCharacters.filter(char => char.id !== currentFusionCharacterId && !char.locked);
-      const fragment = document.createDocumentFragment();
+        fusionSelectionList.innerHTML = "";
 
-      availableForFusion.forEach((char) => {
-          const cardElement = createCharacterCardHTML(char, -1, 'fusionSelection'); // originalIndex non pertinent ici
-          fragment.appendChild(cardElement);
-      });
-      fusionSelectionList.appendChild(fragment);
+        const searchNameInput = document.getElementById("fusion-search-name");
+        const filterRaritySelect = document.getElementById("fusion-filter-rarity");
+        if (searchNameInput) searchNameInput.value = fusionSearchName;
+        if (filterRaritySelect) filterRaritySelect.value = fusionFilterRarity;
 
+        let availableForFusion = ownedCharacters.filter(char => char.id !== currentFusionCharacterId && !char.locked);
 
-      if (availableForFusion.length === 0) {
-         fusionSelectionList.innerHTML = '<p class="text-gray-400 col-span-full">Aucun personnage non verrouillé disponible pour la fusion.</p>';
-      }
+        if (fusionSearchName) {
+            availableForFusion = availableForFusion.filter(char => (char.name || "").toLowerCase().includes(fusionSearchName));
+        }
+        if (fusionFilterRarity !== "all") {
+            availableForFusion = availableForFusion.filter(char => char.rarity === fusionFilterRarity);
+        }
 
-      fusionSelectedCountElement.textContent = selectedFusionCharacters.size;
-      confirmFusionButton.disabled = selectedFusionCharacters.size === 0;
-      confirmFusionButton.classList.toggle("opacity-50", selectedFusionCharacters.size === 0);
-      confirmFusionButton.classList.toggle("cursor-not-allowed", selectedFusionCharacters.size === 0);
+        const fragment = document.createDocumentFragment();
+        availableForFusion.forEach((char) => {
+            const cardElement = createCharacterCardHTML(char, -1, 'fusionSelection');
+            fragment.appendChild(cardElement);
+        });
+        fusionSelectionList.appendChild(fragment);
+
+        if (availableForFusion.length === 0) {
+            fusionSelectionList.innerHTML = '<p class="text-gray-400 col-span-full">Aucun personnage non verrouillé disponible pour la fusion (ou correspondant aux filtres).</p>';
+        }
+
+        fusionSelectedCountElement.textContent = selectedFusionCharacters.size;
+        confirmFusionButton.disabled = selectedFusionCharacters.size === 0;
+        confirmFusionButton.classList.toggle("opacity-50", selectedFusionCharacters.size === 0);
+        confirmFusionButton.classList.toggle("cursor-not-allowed", selectedFusionCharacters.size === 0);
     }
 
     function selectFusionCharacter(id) {
@@ -9065,6 +9104,7 @@
     pullWithTicketButton.addEventListener("click", () => {
       pullMethodModal.classList.add("hidden");
       document.body.classList.remove("no-scroll");
+      sellSelectedButton.addEventListener('click', deleteSelectedCharacters);
       executePull(true);
     });
     curseKeepBetterToggle.addEventListener("change", () => {
@@ -9079,6 +9119,16 @@
       battleFilterRarity = e.target.value;
       localStorage.setItem("battleFilterRarity", battleFilterRarity);
       updateCharacterSelectionDisplay();
+    });
+    document.getElementById("fusion-search-name").addEventListener("input", (e) => {
+        fusionSearchName = e.target.value.toLowerCase();
+        localStorage.setItem("fusionSearchName", fusionSearchName);
+        updateFusionSelectionDisplay();
+    });
+    document.getElementById("fusion-filter-rarity").addEventListener("change", (e) => {
+        fusionFilterRarity = e.target.value;
+        localStorage.setItem("fusionFilterRarity", fusionFilterRarity);
+        updateFusionSelectionDisplay();
     });
     // Filtres pour la modale de fusion
     document.getElementById("fusion-search-name").addEventListener("input", (e) => {
