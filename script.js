@@ -5343,17 +5343,33 @@
       let totalExpGained = 0;
       const fusionSummary = {};
       const idsToDelete = Array.from(selectedFusionCharacters);
+      const trulyFusedIds = new Set();
+      let charactersSkipped = 0;
+
       idsToDelete.forEach(id => {
         const char = ownedCharacters.find(c => c.id === id);
-            if (!char) { console.log("Personnage à fusionner non trouvé, id:", id); return; }
+        if (!char) {
+            console.log("Personnage à fusionner non trouvé, id:", id);
+            return;
+        }
+        // --- AJOUT DE LA VÉRIFICATION ---
+        if (char.locked) {
+            console.log(`Fusion du personnage verrouillé ${char.name} ignorée.`);
+            charactersSkipped++;
+            return; // Ne pas traiter ce personnage
+        }
+        // --- FIN DE L'AJOUT ---
+
         const expGained = expByRarity[char.rarity] || 25;
         totalExpGained += expGained;
         fusionSummary[char.rarity] = (fusionSummary[char.rarity] || 0) + 1;
+        trulyFusedIds.add(id); // Ajouter seulement si non verrouillé
       });
 
       addCharacterExp(mainChar, totalExpGained);
 
-      ownedCharacters = ownedCharacters.filter(c => !selectedFusionCharacters.has(c.id));
+      // --- MODIFICATION : Filtrer en utilisant le nouveau Set ---
+      ownedCharacters = ownedCharacters.filter(c => !trulyFusedIds.has(c.id));
 
         // Nettoyer les IDs des personnages fusionnés de lastUsedBattleTeamIds et characterPreset
         idsToDelete.forEach(deletedId => {
