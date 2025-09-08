@@ -190,9 +190,6 @@
                             <button id="find-opponent-button" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">
                                 Trouver un Adversaire
                             </button>
-                            <button id="set-defense-team-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
-                                Définir l'Équipe de Défense
-                            </button>
                             <button id="view-pvp-logs-button" class="relative w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">
                                 Historique des Combats
                                 <span id="pvp-logs-badge" class="absolute -top-1 -right-1 flex h-4 w-4 hidden"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-4 w-4 bg-red-500 justify-center items-center text-xs">!</span></span>
@@ -233,11 +230,7 @@
                             <option value="Mythic">Mythic</option>
                             <option value="Secret">Secret</option>
                             <option value="Vanguard">Vanguard</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="sort-criteria-secondary" class="text-white mr-2 block mb-1 text-sm">Trier par :</label>
-                        <select id="sort-criteria-secondary" class="bg-gray-600 text-white p-2 rounded w-full text-sm">
+                        </select></div><div><label for="sort-criteria-secondary" class="text-white mr-2 block mb-1 text-sm">Trier par :</label><select id="sort-criteria-secondary" class="bg-gray-600 text-white p-2 rounded w-full text-sm">
                             <option value="none">Aucun</option>
                             <option value="power">Puissance</option>
                             <option value="rarity">Rareté</option>
@@ -267,10 +260,10 @@
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row justify-end mb-4 gap-4">
+                  <button id="manage-teams-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105">
+                    Gérer les Équipes
+                  </button>
                   <div class="flex gap-4">
-                    <button id="open-preset-modal-button" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105">
-                      Enregistrer Preset
-                    </button>
                     <button id="delete-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105">
                       Activer le mode suppression
                     </button>
@@ -295,7 +288,6 @@
             <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Index des Personnages</h2>
             <div id="index-display" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
           </div>
-
           <div id="evolution" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
             <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Évolution des Personnages</h2>
             <div id="evolve-char" class="p-4">
@@ -580,6 +572,23 @@
       </div>
     </div>
 
+    <!-- Modal for Team Management -->
+    <div id="teams-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
+      <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl sm:text-2xl text-white font-bold">Gestion des Équipes</h2>
+          <button id="create-new-team-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Créer une Équipe</button>
+        </div>
+        <p class="text-sm text-gray-300 mb-4">Créez et sauvegardez des équipes pour différents modes de jeu. Chargez une équipe pour l'utiliser rapidement dans les combats.</p>
+        <div id="saved-teams-list" class="space-y-4"></div>
+        <div class="flex justify-end mt-6">
+          <button id="close-teams-modal-button" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg">
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal for Character Selection in Story Mode -->
     <div id="character-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="modal-content-wrapper bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -617,7 +626,6 @@
         </div>
         <p class="text-white mb-4 text-sm sm:text-base">Personnages sélectionnés: <span id="selected-count">0</span>/3</p>
         <div class="modal-sticky-footer flex gap-4 bg-gray-800 bg-opacity-90 -mx-4 -mb-4 rounded-b-lg">
-          <button id="load-preset-button" class="bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Charger Preset</button>
           <button id="confirm-selection" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Confirmer</button>
           <button id="cancel-selection" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
         </div>
@@ -775,20 +783,24 @@
       </div>
     </div>
 
-    <!-- Modal for Preset Selection -->
-    <div id="team-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
+    <!-- Modal for Team Editor -->
+    <div id="team-editor-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
       <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <h2 id="team-selection-modal-title" class="text-xl sm:text-2xl text-white font-bold mb-4">Sélectionner une Équipe</h2>
+        <h2 id="team-editor-modal-title" class="text-xl sm:text-2xl text-white font-bold mb-4">Créer/Modifier une Équipe</h2>
         
-        <!-- NOUVELLE SECTION DE FILTRES ET TRI POUR PRESET -->
+        <div class="mb-4">
+          <label for="team-editor-name-input" class="block text-white mb-2">Nom de l'équipe :</label>
+          <input type="text" id="team-editor-name-input" class="w-full p-2 bg-gray-700 text-white rounded border border-gray-600" placeholder="Ex: Équipe Arène">
+        </div>
+
         <div class="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-4 gap-3">
             <div class="flex-grow sm:flex-grow-0">
-                <label for="team-search-name" class="text-white mr-2 text-sm sm:text-base">Nom:</label>
-                <input type="text" id="team-search-name" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto" placeholder="Rechercher...">
+                <label for="team-editor-search-name" class="text-white mr-2 text-sm sm:text-base">Nom:</label>
+                <input type="text" id="team-editor-search-name" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto" placeholder="Rechercher...">
             </div>
             <div class="flex-grow sm:flex-grow-0">
-                <label for="team-filter-rarity" class="text-white mr-2 text-sm sm:text-base">Rareté:</label>
-                <select id="team-filter-rarity" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto">
+                <label for="team-editor-filter-rarity" class="text-white mr-2 text-sm sm:text-base">Rareté:</label>
+                <select id="team-editor-filter-rarity" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto">
                 <option value="all">Toutes</option>
                 <option value="Rare">Rare</option>
                 <option value="Épique">Épique</option>
@@ -799,23 +811,20 @@
                 </select>
             </div>
             <div class="flex-grow sm:flex-grow-0">
-                <label for="team-sort-criteria" class="text-white mr-2 text-sm sm:text-base">Trier par:</label>
-                <select id="team-sort-criteria" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto">
+                <label for="team-editor-sort-criteria" class="text-white mr-2 text-sm sm:text-base">Trier par:</label>
+                <select id="team-editor-sort-criteria" class="bg-gray-700 text-white p-2 rounded text-sm sm:text-base w-full sm:w-auto">
                 <option value="power">Puissance</option>
                 <option value="rarity">Rareté</option>
                 <option value="level">Niveau</option>
                 </select>
             </div>
         </div>
-        <!-- FIN NOUVELLE SECTION -->
 
-        <div id="team-selection-list-container" class="max-h-[55vh] sm:max-h-[60vh] overflow-hidden">
-          <div id="team-selection-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto"></div>
-        </div>
-        <p class="text-white mb-4 text-sm sm:text-base">Personnages sélectionnés: <span id="team-selected-count-display">0/3</span></p>
+        <div id="team-editor-character-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto"></div>
+        <p class="text-white mb-4 text-sm sm:text-base">Personnages sélectionnés: <span id="team-editor-selected-count">0/3</span></p>
         <div class="flex gap-4 sticky bottom-0 bg-gray-800 bg-opacity-90 p-4 -mx-4 -mb-4 rounded-b-lg">
-          <button id="confirm-team-selection" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Confirmer</button>
-          <button id="cancel-team-selection" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+          <button id="save-team-button" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Sauvegarder l'Équipe</button>
+          <button id="cancel-team-editor-button" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
         </div>
       </div>
     </div>
@@ -919,6 +928,20 @@
         </div>
         <div class="flex justify-end mt-6">
           <button id="close-stat-rank-probabilities-modal-button" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOUVEAU: Modal for Daily Login Bonus -->
+    <div id="daily-login-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden game-modal z-[9600]">
+      <div class="bg-gray-800 p-6 rounded-lg w-full max-w-3xl shadow-xl border-2 border-yellow-400">
+        <h2 class="text-2xl text-yellow-300 font-bold mb-4 text-center">Bonus de Connexion Quotidienne</h2>
+        <p class="text-white text-center mb-6">Connectez-vous chaque jour pour obtenir des récompenses !</p>
+        <div id="daily-login-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-4 mb-6">
+          <!-- Reward cards will be injected here by JS -->
+        </div>
+        <div id="daily-login-action" class="text-center">
+          <!-- Claim button or message will be injected here -->
         </div>
       </div>
     </div>

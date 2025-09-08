@@ -1292,6 +1292,16 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         }
     ];
 
+    const dailyLoginRewards = [
+        { day: 1, reward: { gems: 100 }, description: "100 Gemmes", image: "./images/items/Gem.webp" },
+        { day: 2, reward: { item: "Haricots", quantity: 5 }, description: "5x Haricots", image: "./images/items/Haricot.webp" },
+        { day: 3, reward: { coins: 500 }, description: "500 Pièces", image: "./images/items/Gold.webp" },
+        { day: 4, reward: { item: "Reroll Token", quantity: 1 }, description: "1x Reroll Token", image: "./images/items/Trait_Reroll.webp" },
+        { day: 5, reward: { gems: 250 }, description: "250 Gemmes", image: "./images/items/Gem.webp" },
+        { day: 6, reward: { item: "Cursed Token", quantity: 2 }, description: "2x Cursed Token", image: "./images/items/Curse_Tokens.webp" },
+        { day: 7, reward: { pullTickets: 1 }, description: "1x Ticket de Tirage", image: "./images/items/Pass_XP.webp" }
+    ];
+
     const BANNER_CONFIG = {
         Secret:     { overallChance: 0.000025 }, // 0.0025% (inchangé)
         Mythic:     { overallChance: 0.00005,  numFeatured: 3, featuredPoolRatio: 0.85, featuredRelativeWeights: [0.33 / 1.16, 0.33 / 1.16, 0.50 / 1.16] },

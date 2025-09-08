@@ -148,6 +148,11 @@ body.dark-theme #curse .my-4.p-3.bg-gray-700 .text-xs.text-gray-400 { color: #b3
 body.dark-theme.curse-tab-active-bg { background-image: radial-gradient(ellipse at center, #4d0000 0%, #1a0000 40%, #000000 100%); background-size: cover; background-attachment: fixed; background-repeat: no-repeat; transition: background-image 0.5s ease-in-out; }
 .trait-target-disabled label, .trait-target-disabled input[type="checkbox"] { opacity: 0.5; cursor: not-allowed; }
 .non-selectable-for-battle { opacity: 0.5; cursor: not-allowed !important; }
+.non-selectable-for-battle {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    filter: grayscale(50%);
+}
 @keyframes vanguard-text {
   0%, 100% { color: #ec4899; text-shadow: 0 0 8px #ec4899, 0 0 12px #ec4899; } 
   50% { color: #fbcfe8; text-shadow: 0 0 10px #fbcfe8, 0 0 15px #fbcfe8; } 
@@ -443,4 +448,90 @@ body {
 .guild-member-list, .guild-perks-list {
     max-height: 300px;
     overflow-y: auto;
+}
+
+/* --- Team Management Styles --- */
+.saved-team-card {
+    background-color: rgba(31, 41, 55, 0.8); /* bg-gray-800 with opacity */
+    border: 1px solid #4b5563; /* border-gray-600 */
+    padding: 1rem;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.saved-team-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.saved-team-name {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: white;
+}
+.saved-team-characters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.saved-team-char-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 0.25rem;
+    object-fit: cover;
+    border: 2px solid transparent;
+}
+.saved-team-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+.default-team-card {
+    border-color: #facc15; /* un jaune doré */
+    box-shadow: 0 0 8px #facc15;
+}
+
+/* --- Daily Login Styles --- */
+.daily-reward-card {
+    background-color: rgba(41, 53, 76, 0.7);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border-width: 2px;
+    border-color: #4a5568;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.2s ease-in-out;
+}
+.daily-reward-card.claimed {
+    opacity: 0.5;
+    background-color: #1a202c;
+}
+.daily-reward-card.today {
+    border-color: #f6e05e;
+    transform: scale(1.05);
+    box-shadow: 0 4px 6px -1px rgba(246, 224, 94, 0.1), 0 2px 4px -1px rgba(246, 224, 94, 0.06);
+}
+.daily-reward-card img {
+    height: 4rem; /* 64px */
+    width: 4rem; /* 64px */
+    margin-left: auto;
+    margin-right: auto;
+    object-fit: contain;
+    margin-bottom: 0.5rem;
+}
+.daily-reward-card .day-label {
+    font-weight: 700;
+    font-size: 1.125rem; /* text-lg */
+    color: white;
+    margin-bottom: 0.25rem;
+}
+.daily-reward-card .reward-label {
+    font-size: 0.75rem; /* text-xs */
+    color: #cbd5e0; /* text-gray-300 */
 }

@@ -391,6 +391,8 @@
     let infiniteLevelStartTime = null;
     let everOwnedCharacters = safeJsonParse("everOwnedCharacters", [], isValidStringArray);
     
+    // NOUVEAU: Déclaration des variables de preset manquantes
+    let defaultBattleTeamId = null; // NOUVEAU: ID de l'équipe par défaut pour les combats
     let sortCriteria = localStorage.getItem("sortCriteria") || "power";
     const validSortCriteria = ["power", "rarity", "level", "name", "none"];
     if (!validSortCriteria.includes(sortCriteria)) {
@@ -453,24 +455,26 @@
     let selectedItemsForGiving = new Map(); 
     let currentGiveItemsCharacterId = null;
     let currentEvolutionCharacterId = null;
-    let selectedEvolutionItems = new Map(); 
-
+    let selectedEvolutionItems = new Map();
+    
     let purchasedOffers = safeJsonParse("purchasedOffers", [], isValidNumberArray);
-    let characterPreset = safeJsonParse("characterPreset", [], isValidStringArray);
-    let presetConfirmed = localStorage.getItem("presetConfirmed") === "true"; 
+    const isValidTeamsArray = (arr) => Array.isArray(arr) && arr.every(t =>
+        t && typeof t.id === 'string' &&
+        typeof t.name === 'string' &&
+        Array.isArray(t.characterIds) &&
+        t.characterIds.every(id => typeof id === 'string')
+    );
+    let savedTeams = safeJsonParse("savedTeams", [], isValidTeamsArray);
+    let editingTeamId = null;
     let defenseTeamIds = safeJsonParse("defenseTeamIds", [], isValidStringArray);
     let playerPvpPoints = getNumberFromStorage("playerPvpPoints", 0);
     let pvpLogs = [];
 
     let selectedTeamCharacters = new Set();
-    let currentTeamSelectionMode = null; // 'preset' or 'defense'
-    let teamSortCriteria = localStorage.getItem("teamSortCriteria") || "power";
-    if (!validSortCriteria.includes(teamSortCriteria)) {
-        console.warn("[LocalStorage] 'teamSortCriteria' invalide. Réinitialisation à 'power'.");
-        teamSortCriteria = "power";
-    }
-    let teamSearchName = localStorage.getItem("teamSearchName") || "";
-    let teamFilterRarity = localStorage.getItem("teamFilterRarity") || "all";
+    let teamEditorSelectedCharacters = new Set();
+    let teamEditorSortCriteria = localStorage.getItem("teamEditorSortCriteria") || "power";
+    let teamEditorSearchName = localStorage.getItem("teamEditorSearchName") || "";
+    let teamEditorFilterRarity = localStorage.getItem("teamEditorFilterRarity") || "all";
 
     let towerFloor = getNumberFromStorage("towerFloor", 1);
     let currentPvpOpponent = null;
@@ -555,6 +559,10 @@
         stopRequested: false, selectedLevelId: null, selectedLevelName: ''
     };
     let disableAutoClickerWarning = localStorage.getItem("disableAutoClickerWarning") === "true";
+
+    // NOUVEAU: Variables pour le bonus de connexion
+    let lastLoginDate = null; // Format 'YYYY-MM-DD'
+    let loginStreak = 0; // 1-7
 
     // NOUVEAU: Variables de Guilde
     let playerGuildId = null;
@@ -645,8 +653,7 @@
     const autofuseCountElement = document.getElementById("autofuse-count");
     const confirmAutofuseButton = document.getElementById("confirm-autofuse");
     const cancelAutofuseButton = document.getElementById("cancel-autofuse");
-    const autofuseRarityCheckboxes = {
-      Rare: document.getElementById("autofuse-rare"),
+    const autofuseRarityCheckboxes = { Rare: document.getElementById("autofuse-rare"),
       Épique: document.getElementById("autofuse-epic"),
       Légendaire: document.getElementById("autofuse-legendary"),
       Mythic: document.getElementById("autofuse-mythic"),
@@ -657,10 +664,9 @@
     const teamSelectedCountDisplayElement = document.getElementById("team-selected-count-display");
     const confirmTeamSelectionButton = document.getElementById("confirm-team-selection");
     const cancelTeamSelectionButton = document.getElementById("cancel-team-selection");
-    const pullMethodModal = document.getElementById("pull-method-modal");
-    const pvpTab = document.getElementById('pvp');
+    const pullMethodModal = document.getElementById("pull-method-modal"); const pvpTab = document.getElementById('pvp');
     const findOpponentButton = document.getElementById('find-opponent-button');
-    const setDefenseTeamButton = document.getElementById('set-defense-team-button');
+    
     const pvpRankDisplay = document.getElementById('pvp-rank-display');
     const pvpPointsDisplay = document.getElementById('pvp-points-display');
     const pvpLeaderboard = document.getElementById('pvp-leaderboard');
@@ -798,6 +804,18 @@
     const guildConfirmYesButton = document.getElementById('guild-confirm-yes-button');
     const guildConfirmNoButton = document.getElementById('guild-confirm-no-button');
 
+    // NOUVEAU: Éléments pour la gestion d'équipe
+    const createNewTeamButton = document.getElementById("create-new-team-button");
+    const savedTeamsList = document.getElementById("saved-teams-list");
+    const teamEditorModal = document.getElementById("team-editor-modal");
+    const teamEditorCharacterList = document.getElementById("team-editor-character-list");
+    const teamEditorSelectedCount = document.getElementById("team-editor-selected-count");
+    const saveTeamButton = document.getElementById("save-team-button");
+    const cancelTeamEditorButton = document.getElementById("cancel-team-editor-button");
+    // NOUVEAU: Éléments pour la modale de gestion d'équipe
+    const manageTeamsButton = document.getElementById("manage-teams-button");
+    const teamsModal = document.getElementById("teams-modal");
+    const closeTeamsModalButton = document.getElementById("close-teams-modal-button");
     // Add hide-scrollbar to relevant list containers dynamically
     const listContainersToHideScrollbar = [
         "character-selection-list", "fusion-selection-list", "item-selection-list",
@@ -805,7 +823,8 @@
         "trait-probabilities-content", "autofuse-character-grid", "curse-character-selection-grid",
         "trait-character-selection-grid", "limit-break-char-selection-grid", "stat-change-char-selection-grid",
         "standard-probabilities", "special-probabilities", "index-display", "evolution-display", 
-        "mission-list", "shop-items", "level-list", "legende-level-list", "challenge-level-list", "materiaux-level-list"
+        "mission-list", "shop-items", "level-list", "legende-level-list", "challenge-level-list", "materiaux-level-list",
+        "team-editor-character-list" // NOUVEAU
     ];
     listContainersToHideScrollbar.forEach(id => {
         const el = document.getElementById(id);
@@ -880,17 +899,19 @@
                 break;
             case 'battleSelection':
             case 'teamSelection': 
-                let isSelectedBattle = context === 'battleSelection' ? selectedBattleCharacters.has(originalIndex) : selectedTeamCharacters.has(originalIndex);
+                let isSelected = context === 'battleSelection' ? selectedBattleCharacters.has(originalIndex) : selectedTeamCharacters.has(originalIndex);
                 let selectedNamesSet = context === 'battleSelection' ? 
                     new Set(Array.from(selectedBattleCharacters).map(idx => ownedCharacters[idx]?.name)) :
                     new Set(Array.from(selectedTeamCharacters).map(idx => ownedCharacters[idx]?.name));
                 let currentSelectionSize = context === 'battleSelection' ? selectedBattleCharacters.size : selectedTeamCharacters.size;
                 let maxTeamSize = context === 'battleSelection' ? calculateMaxTeamSize() : calculateMaxTeamSizeForMode();
+                const isLocked = char.locked;
                 
                 cardClasses.push(getRarityBorderClass(char.rarity));
-                if (isSelectedBattle) cardClasses.push('selected-for-battle');
-                else if (currentSelectionSize >= maxTeamSize || (selectedNamesSet.has(char.name) && !isSelectedBattle) ) {
-                     cardClasses.push(selectedNamesSet.has(char.name) && !isSelectedBattle ? 'non-selectable-for-battle' : 'opacity-50');
+                if (isSelected) {
+                    cardClasses.push('selected-for-battle');
+                } else if (isLocked || currentSelectionSize >= maxTeamSize || (selectedNamesSet.has(char.name) && !isSelected) ) {
+                     cardClasses.push(isLocked ? 'non-selectable-for-battle' : 'opacity-50');
                 }
                  innerHTML = `<div style="${cardMinHeightStyle}">${baseImageHTML}<div class="mt-auto">
                              <p class="${rarityTextColorClass} font-semibold text-center">${char.name} (<span class="${rarityTextColorClass}">${char.rarity}</span>, Niv. ${char.level})</p>
@@ -974,7 +995,7 @@
                 cardDiv.addEventListener("click", () => selectBattleCharacter(originalIndex));
             }
         } else if (context === 'teamSelection') {
-             if (!cardDiv.classList.contains('opacity-50') && !cardDiv.classList.contains('non-selectable-for-battle')) {
+            if (!cardDiv.classList.contains('opacity-50') && !cardDiv.classList.contains('non-selectable-for-battle')) {
                 cardDiv.addEventListener("click", () => selectTeamCharacter(originalIndex));
             }
         } else if (context === 'fusionSelection') {
@@ -1054,6 +1075,8 @@
             pullTickets = 0;
             
             // Variables de progression et d'état
+            lastLoginDate = null; // NOUVEAU
+            loginStreak = 0;      // NOUVEAU
             missions = [];
             shopOffers = [];
             shopRefreshTime = Date.now() + TWO_HOURS_MS;
@@ -1062,10 +1085,8 @@
                 id: level.id,
                 unlocked: level.type === 'challenge' ? true : (level.type === 'material' ? true : (level.type === 'daily' ? true : (level.type === 'story' && level.id === 1))),
                 completed: false
-            }));
+            })); savedTeams = [];
             discoveredCharacters = [];
-            characterPreset = [];
-            presetConfirmed = false;
             defenseTeamIds = [];
             playerPvpPoints = 0;
             pvpLogs = [];
@@ -1075,6 +1096,7 @@
             playerGuildId = null; // NOUVEAU
             towerFloor = 1;
             autosellSettings = { Rare: false, Épique: false, Légendaire: false, Mythic: false, Secret: false };
+            defaultBattleTeamId = null; // NOUVEAU
 
             // Inventaire par défaut (tous les objets à 0)
             inventory = {
@@ -1115,6 +1137,8 @@
             exp = saveData.exp || 0;
             expMultiplier = saveData.expMultiplier || 1;
             pullTickets = saveData.pullTickets || 0;
+            lastLoginDate = saveData.lastLoginDate || null; // NOUVEAU
+            loginStreak = saveData.loginStreak || 0;       // NOUVEAU
             missions = saveData.missions || [];
             shopOffers = saveData.shopOffers || [];
             shopRefreshTime = saveData.shopRefreshTime || (Date.now() + TWO_HOURS_MS);
@@ -1125,9 +1149,8 @@
                 completed: false
             }));
             inventory = saveData.inventory || {};
+            savedTeams = saveData.savedTeams || [];
             discoveredCharacters = saveData.discoveredCharacters || [];
-            characterPreset = saveData.characterPreset || [];
-            presetConfirmed = saveData.presetConfirmed || false;
             defenseTeamIds = saveData.defenseTeamIds || [];
             playerPvpPoints = saveData.playerPvpPoints || 0;
             pvpLogs = saveData.pvpLogs || [];
@@ -1137,6 +1160,7 @@
             playerGuildId = saveData.playerGuildId || null; // NOUVEAU
             towerFloor = saveData.towerFloor || 1;
             autosellSettings = saveData.autosellSettings || { Rare: false, Épique: false, Légendaire: false, Mythic: false, Secret: false };
+            defaultBattleTeamId = saveData.defaultBattleTeamId || null; // NOUVEAU
             
             // CORRECTION: S'assurer que les missions et la boutique ne sont pas vides (utile pour les anciennes sauvegardes)
             if (missions.length === 0) {
@@ -1185,6 +1209,45 @@
         }
     }
 
+    // --- NOUVEAU: Fonctions pour le bonus de connexion (CORRECTION) ---
+    function isNewDay(lastLoginString) {
+        if (!lastLoginString) return true; // Premier login
+        const todayString = new Date().toISOString().split('T')[0]; // 'YYYY-MM-DD'
+        return todayString !== lastLoginString;
+    }
+
+    function isConsecutiveDay(lastLoginString) {
+        if (!lastLoginString) return false; // Pas consécutif si c'est le premier login
+        try {
+            const lastDate = new Date(lastLoginString);
+            const today = new Date();
+            // Utiliser UTC pour éviter les problèmes de fuseau horaire
+            lastDate.setUTCHours(0, 0, 0, 0);
+            today.setUTCHours(0, 0, 0, 0);
+            const diffTime = today - lastDate;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays === 1;
+        } catch (e) {
+            console.error("Erreur lors du parsing de lastLoginString:", lastLoginString, e);
+            return false;
+        }
+    }
+    // --- FIN NOUVEAU ---
+
+    // NOUVEAU: Vérifie et affiche le bonus de connexion si nécessaire
+    function checkDailyLogin() {
+        if (isNewDay(lastLoginDate)) {
+            console.log("Nouveau jour de connexion détecté.");
+            if (isConsecutiveDay(lastLoginDate)) {
+                loginStreak++;
+                if (loginStreak > 7) loginStreak = 1; // La boucle recommence après 7 jours
+            } else {
+                loginStreak = 1; // La série est brisée, on recommence au jour 1
+            }
+            showDailyLoginModal();
+        }
+    }
+
     async function handleLogin(e) {
         e.preventDefault();
         document.getElementById('auth-error').textContent = '';
@@ -1228,7 +1291,6 @@
         const username = document.getElementById('signup-username').value.trim();
         const password = document.getElementById('signup-password').value;
 
-        // Validation du pseudo
         if (username.length < 3 || username.length > 15) {
             document.getElementById('auth-error').textContent = "Le pseudo doit contenir entre 3 et 15 caractères.";
             return;
@@ -1238,7 +1300,6 @@
             return;
         }
 
-        // NOUVEAU: Vérification des pseudos interdits
         const lowerCaseUsername = username.toLowerCase();
         if (typeof forbiddenNames !== 'undefined' && forbiddenNames.some(forbidden => lowerCaseUsername.includes(forbidden))) {
             document.getElementById('auth-error').textContent = "Ce pseudo contient des mots non autorisés.";
@@ -1246,7 +1307,6 @@
         }
 
         try {
-            // 1. Vérifier si le pseudo est déjà pris dans Firestore (en minuscules pour être insensible à la casse)
             const usernameDocRef = db.collection('usernames').doc(username.toLowerCase());
             const doc = await usernameDocRef.get();
 
@@ -1254,21 +1314,24 @@
                 throw new Error("Ce pseudo est déjà utilisé.");
             }
 
-            // 2. Générer un email synthétique pour Firebase Auth
-            const email = `${username.toLowerCase()}@gacha-game-ultime.com`; // Le domaine n'a pas besoin d'exister
-
-            // 3. Créer l'utilisateur dans Firebase Auth
+            const email = `${username.toLowerCase()}@gacha-game-ultime.com`;
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             const user = userCredential.user;
 
-            // 4. Enregistrer l'association pseudo/email et uid dans Firestore
             await usernameDocRef.set({
                 email: user.email,
                 uid: user.uid,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            
-            // L'observateur onAuthStateChanged s'occupera du reste
+
+            // NOUVELLE PARTIE : Créer l'entrée initiale dans le classement public
+            const leaderboardRef = db.collection('leaderboard').doc(user.uid);
+            await leaderboardRef.set({
+                username: username,
+                playerPvpPoints: 0,
+                level: 1 // Score et niveau de départ
+            });
+            // FIN DE LA NOUVELLE PARTIE
 
         } catch (error) {
             console.error("Erreur d'inscription:", error);
@@ -1815,31 +1878,26 @@
         }
       }
       
-      if (!teamReady && presetConfirmed && characterPreset && characterPreset.length > 0) {
-        const validPreset = characterPreset.every(pid => ownedCharacters.find(c => c.id === pid));
-        if (validPreset) {
-          characterPreset.forEach(pid => {
-            const index = ownedCharacters.findIndex(c => c.id === pid);
-            if (index !== -1) selectedBattleCharacters.add(index);
-          });
-          
-          const expectedSizeForThisPresetTeam = calculateMaxTeamSize(); 
-          if (selectedBattleCharacters.size === expectedSizeForThisPresetTeam && selectedBattleCharacters.size === characterPreset.length) { 
-            teamReady = true;
-            loadedTeam = Array.from(selectedBattleCharacters).map(index => ownedCharacters[index]);
-            console.log("Utilisation du preset confirmé:", loadedTeam.map(c => c.name));
-          } else {
-            selectedBattleCharacters.clear();
-            characterPreset = [];
-            presetConfirmed = false;
-            localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
-            localStorage.setItem("presetConfirmed", presetConfirmed.toString());
-          }
+      // NOUVEAU: Vérifier si une équipe par défaut est définie
+      if (!teamReady && defaultBattleTeamId) {
+        const defaultTeam = savedTeams.find(t => t.id === defaultBattleTeamId);
+        if (defaultTeam) {
+            const validTeam = defaultTeam.characterIds.every(id => ownedCharacters.find(c => c.id === id));
+            if (validTeam && defaultTeam.characterIds.length === 3) { // Pour l'instant, on suppose que les équipes de combat ont 3 membres
+                defaultTeam.characterIds.forEach(charId => {
+                    const index = ownedCharacters.findIndex(c => c.id === charId);
+                    if (index !== -1) selectedBattleCharacters.add(index);
+                });
+                teamReady = true;
+                loadedTeam = Array.from(selectedBattleCharacters).map(index => ownedCharacters[index]);
+                console.log("Utilisation de l'équipe par défaut:", loadedTeam.map(c => c.name));
+            } else {
+                // L'équipe par défaut est invalide (ex: personnage vendu), on la désactive
+                defaultBattleTeamId = null;
+                resultElement.innerHTML = '<p class="text-yellow-400">Votre équipe par défaut est invalide et a été désactivée.</p>';
+            }
         } else {
-          characterPreset = [];
-          presetConfirmed = false;
-          localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
-          localStorage.setItem("presetConfirmed", presetConfirmed.toString());
+            defaultBattleTeamId = null; // L'ID de l'équipe par défaut n'existe plus
         }
       }
       }
@@ -2654,40 +2712,66 @@
             } else {
             // Logique pour les niveaux normaux et PvP...
                 if (currentLevelId === 'pvp_battle') {
+                    let pointsChange = 0; // NOUVEAU
                     if (playerScore > enemyScore) { // VICTOIRE PvP
-                        const pointsGained = 10;
+                        const pointsGained = 10; const pointsLostByDefender = -3;
+                        pointsChange = pointsGained; // NOUVEAU
                         playerPvpPoints += pointsGained;
                         battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire PvP !</p><p class="text-white">Vous avez vaincu ${enemyName} !</p><p class="text-white">Récompenses: +${pointsGained} Points PvP</p>`;
                         missions.forEach(m => { if (m.type === "pvp_wins" && !m.completed) m.progress++; if (m.type === "pvp_fights" && !m.completed) m.progress++; });
 
                         pvpLogs.unshift({ id: `log_${Date.now()}_${Math.random()}`, type: 'attack', opponentName: currentPvpOpponent.name, outcome: 'victory', pointsChange: pointsGained, timestamp: Date.now(), read: true });
-                        
-                        const defenderInboxRef = db.collection('playerSaves').doc(currentPvpOpponent.id).collection('pendingPvpResults');
-                            defenderInboxRef.add({
+
+                        const defenderPlayerSavesRef = db.collection('playerSaves').doc(currentPvpOpponent.id);
+                        const defenderInboxRef = defenderPlayerSavesRef.collection('pendingPvpResults');
+                        const batch = db.batch();
+
+                        // Ajouter le résultat à la boîte de réception du défenseur pour notification
+                        batch.set(defenderInboxRef.doc(), {
                                 attackerId: currentUser.uid,
                                 attackerName: currentUser.email.split('@')[0],
                                 outcome: 'defeat', // Le défenseur a perdu
-                                pointsChange: -3,
+                                pointsChange: pointsLostByDefender, // Conserver pour le log
                                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                            }).catch(e => console.error("Erreur dépôt résultat PvP (défaite défenseur):", e));
+                        });
+                        batch.commit().catch(e => console.error("Erreur lors de l'écriture du résultat pour le défenseur :", e));
 
                     } else { // DÉFAITE PvP
-                        const pointsLost = -5; // Points are negative
+                        const pointsLost = -5; const pointsGainedByDefender = 3;
+                        const oldPoints = playerPvpPoints; // NOUVEAU
                         playerPvpPoints = Math.max(0, playerPvpPoints + pointsLost); // Add negative value
+                        pointsChange = playerPvpPoints - oldPoints; // NOUVEAU
                         battleOutcomeMessage = `<p class="text-red-400 text-2xl font-bold mb-2">Défaite PvP !</p><p class="text-white">Vous avez été vaincu par ${enemyName} !</p><p class="text-white">Récompenses: ${pointsLost} Points PvP</p>`;
                         missions.forEach(m => { if (m.type === "pvp_fights" && !m.completed) m.progress++; });
 
                         pvpLogs.unshift({ id: `log_${Date.now()}_${Math.random()}`, type: 'attack', opponentName: currentPvpOpponent.name, outcome: 'defeat', pointsChange: pointsLost, timestamp: Date.now(), read: true });
 
-                        const defenderInboxRef = db.collection('playerSaves').doc(currentPvpOpponent.id).collection('pendingPvpResults');
-                        defenderInboxRef.add({
+                        const defenderPlayerSavesRef = db.collection('playerSaves').doc(currentPvpOpponent.id);
+                        const defenderInboxRef = defenderPlayerSavesRef.collection('pendingPvpResults');
+                        const batch = db.batch();
+
+                        // Ajouter le résultat à la boîte de réception du défenseur pour notification
+                        batch.set(defenderInboxRef.doc(), {
                             attackerId: currentUser.uid,
                             attackerName: currentUser.email.split('@')[0],
                             outcome: 'victory', // Le défenseur a gagné
-                            pointsChange: 3,
+                            pointsChange: pointsGainedByDefender, // Conserver pour le log
                             timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                        }).catch(e => console.error("Erreur dépôt résultat PvP (victoire défenseur):", e));
+                        });
+                        batch.commit().catch(e => console.error("Erreur lors de l'écriture du résultat pour le défenseur :", e));
                     }
+
+                    // NOUVEAU: Mettre à jour le classement pour l'attaquant
+                    if (pointsChange !== 0 && currentUser) {
+                        const leaderboardRef = db.collection('leaderboard').doc(currentUser.uid);
+                        const username = currentUser.email.split('@')[0];
+                        leaderboardRef.set({
+                            username: username,
+                            playerPvpPoints: firebase.firestore.FieldValue.increment(pointsChange)
+                        }, { merge: true }).catch(e => console.error("Erreur de mise à jour du classement PvP pour l'attaquant:", e));
+                    }
+
+                    findOpponentButton.disabled = false;
                 } else { // COMBAT PvE
                     if (playerScore > enemyScore) { // VICTOIRE PvE
                         let itemRewardText = '';
@@ -2898,15 +2982,11 @@
         updateUI();
         updateItemDisplay();
 
-        if (currentLevelId === 'pvp_battle') {
-            findOpponentButton.disabled = false;
-        }
-
         scheduleSave(); // CORRECTION: Appel de la bonne fonction de sauvegarde
     } // Accolade fermante correcte pour confirmSelection
 
     async function processPendingPvpResults() {
-        if (!currentUser) return; // S'assurer que l'utilisateur est connecté
+        if (!currentUser) return;
 
         const playerDocRef = db.collection('playerSaves').doc(currentUser.uid);
         const resultsRef = playerDocRef.collection('pendingPvpResults').orderBy('timestamp', 'asc');
@@ -2914,58 +2994,59 @@
         try {
             const querySnapshot = await resultsRef.get();
             if (querySnapshot.empty) {
-                return; // Pas de résultats à traiter, on arrête ici.
+                return;
             }
 
             console.log(`[PvP] ${querySnapshot.size} résultat(s) en attente trouvé(s). Traitement en cours...`);
-            const pvpLogsBadge = document.getElementById('pvp-logs-badge');
-
-            const batch = db.batch(); // On utilise un "batch" pour regrouper les écritures, c'est plus efficace.
-            let pointsChangeTotal = 0;
+            const batch = db.batch();
+            let hasNewLogs = false;
+            let totalPointsChange = 0;
 
             querySnapshot.forEach(doc => {
+                hasNewLogs = true;
                 const data = doc.data();
                 const logTimestamp = data.timestamp ? data.timestamp.toDate() : new Date();
+                totalPointsChange += (data.pointsChange || 0);
 
-                // Créer le log pour l'historique local du joueur
                 const newLog = {
                     id: `log_${logTimestamp.getTime()}_${Math.random()}`,
                     type: 'defense',
                     opponentName: data.attackerName || 'Un joueur',
-                    outcome: data.outcome, // 'victory' ou 'defeat'
+                    outcome: data.outcome,
                     pointsChange: data.pointsChange,
                     timestamp: logTimestamp.getTime(),
-                    read: false // Marqué comme non lu pour afficher la notification
+                    read: false
                 };
+                pvpLogs.unshift(newLog);
 
-                pvpLogs.unshift(newLog); // Ajouter au début du tableau des logs
-                pointsChangeTotal += data.pointsChange;
-
-                // Préparer la suppression du document traité dans le batch
                 batch.delete(doc.ref);
             });
 
-            // Mettre à jour les points et les logs du joueur dans la base de données
-            playerPvpPoints = Math.max(0, playerPvpPoints + pointsChangeTotal);
+            if (!hasNewLogs) return;
+
             if (pvpLogs.length > 50) {
-                pvpLogs.length = 50; // Garder seulement les 50 derniers logs
+                pvpLogs.length = 50;
             }
 
-            // Préparer la mise à jour du document principal du joueur dans le batch
             batch.update(playerDocRef, {
-                playerPvpPoints: playerPvpPoints,
+                playerPvpPoints: firebase.firestore.FieldValue.increment(totalPointsChange),
                 pvpLogs: pvpLogs
             });
-
-            // Exécuter toutes les opérations (mises à jour et suppressions) en une seule fois
-            await batch.commit();
-
-            console.log("[PvP] Traitement des résultats terminé. Mise à jour de l'UI.");
             
-            // Mettre à jour l'interface utilisateur pour refléter les changements
+            const leaderboardRef = db.collection('leaderboard').doc(currentUser.uid);
+            const username = currentUser.email.split('@')[0];
+            batch.set(leaderboardRef, {
+                username: username,
+                playerPvpPoints: firebase.firestore.FieldValue.increment(totalPointsChange)
+            }, { merge: true });
+
+            await batch.commit();
+            
+            playerPvpPoints += totalPointsChange;
+            console.log(`[PvP] Traitement des résultats terminé. Nouveaux points : ${playerPvpPoints}`);
             updatePvpDisplay();
-            if (pvpLogsBadge) pvpLogsBadge.classList.remove('hidden'); // Afficher la petite notification "!"
-            updateUI(); // Mettre à jour les stats générales
+            updatePvpLogsNotification();
+            updateUI();
 
         } catch (error) {
             console.error("Erreur lors du traitement des résultats PvP en attente:", error);
@@ -3245,7 +3326,15 @@
 
         // Supprimer la sauvegarde de la base de données
         if (currentUser) {
-            await db.collection('playerSaves').doc(currentUser.uid).delete();
+            // Utiliser un batch pour supprimer les deux documents atomiquement
+            const batch = db.batch();
+            const playerSavesRef = db.collection('playerSaves').doc(currentUser.uid);
+            const leaderboardRef = db.collection('leaderboard').doc(currentUser.uid);
+
+            batch.delete(playerSavesRef); // Supprime la sauvegarde principale (classements niveau, tour, etc.)
+            batch.delete(leaderboardRef); // Supprime la sauvegarde du classement PvP
+
+            await batch.commit();
         }
 
         // NOUVEAU: Nettoyer les listeners de guilde
@@ -3261,17 +3350,16 @@
         // --- NOUVEAU: Réinitialisation complète des paramètres ---
         // 1. Supprimer les clés de paramètres du localStorage
         localStorage.removeItem("soundEnabled");
-        localStorage.removeItem("towerFloor");
+        localStorage.removeItem("towerFloor"); localStorage.removeItem("savedTeams");
         localStorage.removeItem("animationsEnabled");
         localStorage.removeItem("theme");
         localStorage.removeItem("autosellSettings");
         localStorage.removeItem("sortCriteria");
-        localStorage.removeItem("battleSortCriteria");
-        localStorage.removeItem("presetSortCriteria");
+        localStorage.removeItem("battleSortCriteria"); localStorage.removeItem("teamEditorSortCriteria");
         localStorage.removeItem("battleSearchName");
         localStorage.removeItem("battleFilterRarity");
-        localStorage.removeItem("presetSearchName");
-        localStorage.removeItem("presetFilterRarity");
+        localStorage.removeItem("teamEditorSearchName");
+        localStorage.removeItem("teamEditorFilterRarity");
         localStorage.removeItem("fusionSearchName");
         localStorage.removeItem("fusionFilterRarity");
         localStorage.removeItem("inventoryFilterName");
@@ -3288,11 +3376,11 @@
         autosellSettings = { Rare: false, Épique: false, Légendaire: false, Mythic: false, Secret: false };
         sortCriteria = "power";
         battleSortCriteria = "power";
-        presetSortCriteria = "power";
+        teamEditorSortCriteria = "power";
         battleSearchName = "";
         battleFilterRarity = "all";
-        presetSearchName = "";
-        presetFilterRarity = "all";
+        teamEditorSearchName = "";
+        teamEditorFilterRarity = "all";
         fusionSearchName = "";
         fusionFilterRarity = "all";
         inventoryFilterName = "";
@@ -3300,9 +3388,7 @@
         inventoryFilterEvolvable = false;
         inventoryFilterLimitBreak = false;
         inventoryFilterCanReceiveExp = false;
-        // --- FIN NOUVEAU ---
-
-        // Réinitialiser le reste du jeu à son état initial
+        savedTeams = []; // --- FIN NOUVEAU ---
         isGameInitialized = false; // Forcer la réinitialisation
         initializeGameData(null);
         
@@ -3446,7 +3532,7 @@
         "Pièces": "https://via.placeholder.com/150?text=Pièces",
         "Pass XP": "./images/items/Pass_XP.webp",
         "Stat Chip": "./images/items/Stat_Chip.webp",
-        "Cursed Token": "./images/items/Cursed_Token.webp",
+        "Cursed Token": "./images/items/Curse_Tokens.webp",
         "Boost EXP x2": "https://via.placeholder.com/150?text=BoostEXP",
         "Shadow Tracer": "./images/items/Shadow_Tracer.webp",
         "Blood-Red Armor": "./images/items/Blood_Red_Armor.webp",
@@ -3568,20 +3654,20 @@
     }
 
     async function _performSave() {
-        if (!currentUser || !isGameInitialized) {
-            return;
-        }
+        if (!currentUser || !isGameInitialized) { return; }
         console.log(`%c[SAVE] Déclenchement de la sauvegarde sur Firestore... (Gemmes: ${gems})`, 'color: #7CFC00');
         
         const saveData = {
             username: currentUser.email.split('@')[0],
-            characterIdCounter, gems, coins, pullCount, ownedCharacters, level, exp,
-            pullTickets, missions, shopOffers, shopRefreshTime, storyProgress, inventory, playerGuildId, towerFloor,
+            characterIdCounter, gems, coins, pullCount, ownedCharacters, level, exp, pullTickets,
+            missions, shopOffers, shopRefreshTime, storyProgress, inventory, playerGuildId, towerFloor, defaultBattleTeamId,
             playerPvpPoints, // AJOUT: Sauvegarde des points PvP
-            characterPreset, presetConfirmed, pvpLogs, standardPityCount, specialPityCount,
-            lastUsedBattleTeamIds, autosellSettings, expMultiplier, expBoostEndTime, discoveredCharacters,
+            savedTeams, pvpLogs, standardPityCount, specialPityCount,
+            lastUsedBattleTeamIds, autosellSettings, expMultiplier, expBoostEndTime, discoveredCharacters, // `characterPreset` et `presetConfirmed` sont supprimés
             everOwnedCharacters,
             defenseTeamIds, // <-- AJOUTEZ CETTE LIGNE !
+            lastLoginDate, // NOUVEAU
+            loginStreak,   // NOUVEAU
         };
 
         try {
@@ -3613,10 +3699,9 @@
             if (doc.exists) {
                 initializeGameData(doc.data());
                 
-                // On traite les résultats qui attendaient depuis la dernière connexion
+                // ### AJOUTEZ CETTE LIGNE ICI ###
                 processPendingPvpResults(); 
                 
-                // MODIFICATION : On active l'écouteur pour les futurs combats
                 setupPvpResultsListener(userId);
                 
                 if (doc.data().playerGuildId) {
@@ -3625,9 +3710,11 @@
             } else {
                 initializeGameData(null);
             }
+            checkDailyLogin();
         } catch (error) {
             console.error("Erreur lors du chargement de la progression:", error);
             initializeGameData(null);
+            checkDailyLogin();
         }
     }
 
@@ -3677,6 +3764,57 @@
 
       updateShopDisplay(); 
       updatePvpLogsNotification();
+    }
+
+    // NOUVEAU: Fonctions pour le bonus de connexion
+    function showDailyLoginModal() {
+        const modal = document.getElementById('daily-login-modal');
+        const grid = document.getElementById('daily-login-grid');
+        const actionArea = document.getElementById('daily-login-action');
+        if (!modal || !grid || !actionArea) return;
+
+        grid.innerHTML = '';
+        dailyLoginRewards.forEach(rewardInfo => {
+            const isClaimed = rewardInfo.day < loginStreak;
+            const isToday = rewardInfo.day === loginStreak;
+
+            const card = document.createElement('div');
+            card.className = 'daily-reward-card';
+            if (isClaimed) card.classList.add('claimed');
+            if (isToday) card.classList.add('today');
+
+            card.innerHTML = `
+                <p class="day-label">Jour ${rewardInfo.day}</p>
+                <img src="${rewardInfo.image}" alt="${rewardInfo.description}">
+                <p class="reward-label">${rewardInfo.description}</p>
+            `;
+            grid.appendChild(card);
+        });
+
+        actionArea.innerHTML = `<button id="claim-daily-reward-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-xl transition transform hover:scale-105">Réclamer</button>`;
+        document.getElementById('claim-daily-reward-btn').addEventListener('click', claimDailyReward);
+
+        openModal(modal);
+    }
+
+    function claimDailyReward() {
+        const rewardInfo = dailyLoginRewards.find(r => r.day === loginStreak);
+        if (!rewardInfo) return;
+
+        const reward = rewardInfo.reward;
+        let rewardMessage = "";
+
+        if (reward.gems) { addGems(reward.gems); rewardMessage = `${reward.gems} gemmes`; }
+        else if (reward.coins) { coins += reward.coins; rewardMessage = `${reward.coins} pièces`; }
+        else if (reward.pullTickets) { pullTickets += reward.pullTickets; inventory["Pass XP"] = (inventory["Pass XP"] || 0) + reward.pullTickets; rewardMessage = `${reward.pullTickets} Ticket(s) de Tirage`; }
+        else if (reward.item) { inventory[reward.item] = (inventory[reward.item] || 0) + reward.quantity; rewardMessage = `${reward.quantity}x ${reward.item}`; }
+
+        resultElement.innerHTML = `<p class="text-green-400">Récompense du jour ${loginStreak} réclamée : +${rewardMessage} !</p>`;
+        lastLoginDate = new Date().toISOString().split('T')[0];
+        closeModalHelper(document.getElementById('daily-login-modal'));
+        updateUI();
+        updateItemDisplay();
+        scheduleSave();
     }
 
     function getRarityBorderClass(rarity) {
@@ -4655,10 +4793,9 @@
             // Nettoyer les IDs des personnages supprimés de lastUsedBattleTeamIds et characterPreset
             trulyDeletedIds.forEach(deletedId => {
                 lastUsedBattleTeamIds = lastUsedBattleTeamIds.filter(id => id !== deletedId);
-                characterPreset = characterPreset.filter(id => id !== deletedId);
+            savedTeams.forEach(team => { team.characterIds = team.characterIds.filter(id => id !== deletedId); });
             });
             localStorage.setItem("lastUsedBattleTeamIds", JSON.stringify(lastUsedBattleTeamIds));
-            localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
 
         } else {
             resultElement.innerHTML = `<p class="text-yellow-400">Aucun personnage non verrouillé n'a été sélectionné pour la suppression ou supprimé.</p>`;
@@ -5169,16 +5306,12 @@
       const idsToDelete = Array.from(selectedFusionCharacters);
       idsToDelete.forEach(id => {
         const char = ownedCharacters.find(c => c.id === id);
-        if (!char) {
-          console.log("Personnage à fusionner non trouvé, id:", id);
-          return;
-        }
+            if (!char) { console.log("Personnage à fusionner non trouvé, id:", id); return; }
         const expGained = expByRarity[char.rarity] || 25;
         totalExpGained += expGained;
         fusionSummary[char.rarity] = (fusionSummary[char.rarity] || 0) + 1;
       });
 
-      mainChar.basePower += 10;
       addCharacterExp(mainChar, totalExpGained);
 
       ownedCharacters = ownedCharacters.filter(c => !selectedFusionCharacters.has(c.id));
@@ -5186,10 +5319,11 @@
         // Nettoyer les IDs des personnages fusionnés de lastUsedBattleTeamIds et characterPreset
         idsToDelete.forEach(deletedId => {
             lastUsedBattleTeamIds = lastUsedBattleTeamIds.filter(id => id !== deletedId);
-            characterPreset = characterPreset.filter(id => id !== deletedId);
-      });
+            savedTeams.forEach(team => {
+                team.characterIds = team.characterIds.filter(id => id !== deletedId);
+            });
+        });
         localStorage.setItem("lastUsedBattleTeamIds", JSON.stringify(lastUsedBattleTeamIds));
-        localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
 
 
       missions.forEach(mission => {
@@ -5213,8 +5347,7 @@
         .map(([rarity, count]) => `${count} ${rarity} (+${count * expByRarity[rarity]} EXP)`)
         .join(", ");
       resultElement.innerHTML = `
-        <p class="text-green-400">Fusion réussie pour ${mainChar.name} !</p>
-        <p class="text-white">Puissance augmentée à ${mainChar.power}</p>
+        <p class="text-green-400">Fusion réussie pour ${mainChar.name} !</p><p class="text-white">Puissance augmentée à ${mainChar.power}</p>
         <p class="text-white">${idsToDelete.length} personnage(s) fusionné(s): ${summaryText}</p>
         <p class="text-white">Total +${totalExpGained} EXP gagné pour ${mainChar.name} et le joueur</p>
       `;
@@ -5423,6 +5556,8 @@
         "Wisteria Flower": "./images/vWisteria_Flower.webp",
         "Ramen Bowl": "./images/items/Ramen_Bowl.webp",
         "Ghoul Coffee": "./images/items/Ghoul_Coffee.webp",
+        "Gem": "./images/items/Gem.webp", // Placeholder
+        "Gold": "./images/items/Gold.webp", // Placeholder
         "Soul Candy": "./images/items/Soul_Candy.webp",
         "Cooked Fish": "./images/vCooked_Fish.webp",
         "Magical Artifact": "./images/vMagical_Artifact.webp",
@@ -6141,15 +6276,23 @@
     function toggleLockCharacter(id) {
         const charIndex = ownedCharacters.findIndex(c => c.id === id);
         if (charIndex === -1) return;
+        const char = ownedCharacters[charIndex];
 
-        ownedCharacters[charIndex].locked = !ownedCharacters[charIndex].locked; // Inverse l'état locked
-        const char = ownedCharacters[charIndex]; // Récupère le personnage mis à jour
+        // NOUVELLE VÉRIFICATION: Empêcher le déverrouillage manuel si le personnage est dans l'équipe de défense.
+        if (char.locked && defenseTeamIds.includes(id)) {
+            resultElement.innerHTML = `<p class="text-yellow-400">Impossible de déverrouiller. Ce personnage est dans votre équipe de défense. Changez votre équipe de défense pour le libérer.</p>`;
+            // On ne ferme pas la modale pour que l'utilisateur voie le message.
+            return;
+        }
+
+        // Si la vérification passe, on peut inverser l'état de verrouillage.
+        char.locked = !char.locked;
 
         // Mettre à jour le texte et le style du bouton de verrouillage dans la modale
         const lockButton = document.getElementById("lock-button");
         if (lockButton) {
             lockButton.textContent = char.locked ? "Déverrouiller" : "Verrouiller";
-            lockButton.disabled = isDeleteMode; // Le bouton lock/unlock lui-même ne doit pas être désactivé par l'état lock
+            lockButton.disabled = isDeleteMode;
             lockButton.classList.toggle("opacity-50", lockButton.disabled);
             lockButton.classList.toggle("cursor-not-allowed", lockButton.disabled);
             lockButton.classList.toggle("bg-red-500", char.locked);
@@ -6164,7 +6307,7 @@
         const giveItemsButton = document.getElementById("give-items-button");
 
         if (fuseButton) {
-            fuseButton.disabled = char.level >= 100 || isDeleteMode || ownedCharacters.length <= 1 || char.locked;
+            fuseButton.disabled = char.level >= (char.maxLevelCap || 60) || isDeleteMode || ownedCharacters.length <= 1 || char.locked;
             fuseButton.classList.toggle("opacity-50", fuseButton.disabled);
             fuseButton.classList.toggle("cursor-not-allowed", fuseButton.disabled);
         }
@@ -6201,8 +6344,7 @@
         // --- NOUVEAU: Détacher les listeners des classements en temps réel ---
         // Si on quitte l'onglet "leaderboard"
         if (activeTabId === 'leaderboard' && leaderboardListener) {
-            console.log("[Listener] Détachement du listener du classement général.");
-            leaderboardListener();
+            console.log("[Listener] Détachement du listener du classement général."); leaderboardListener();
             leaderboardListener = null;
         }
         // Si on quitte l'onglet "play" ET que le sous-onglet "pvp" était actif
@@ -6347,138 +6489,123 @@
         }
     }
 
-function updatePvpLeaderboard() {
-    pvpLeaderboard.innerHTML = '<p class="text-white text-center">Chargement du classement PvP...</p>';
+    async function updatePvpLeaderboard() {
+        const pvpLeaderboardEl = document.getElementById('pvp-leaderboard');
+        if (!pvpLeaderboardEl) return;
 
-    // --- MODIFIÉ: Utilisation de onSnapshot pour le temps réel ---
-    // Détacher l'ancien listener s'il existe, pour éviter les doublons
-    if (pvpLeaderboardListener) {
-        pvpLeaderboardListener();
-    }
+        pvpLeaderboardEl.innerHTML = '<p class="text-white text-center">Chargement du classement PvP...</p>';
+        
+        if (pvpLeaderboardListener) {
+            pvpLeaderboardListener();
+        }
 
-    const query = db.collection('playerSaves')
+        const query = db.collection('leaderboard')
             .orderBy('playerPvpPoints', 'desc')
             .limit(100);
 
-    pvpLeaderboardListener = query.onSnapshot(querySnapshot => {
-        const players = [];
-        querySnapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.username && typeof data.playerPvpPoints === 'number') {
-                players.push({
-                    uid: doc.id,
-                    name: data.username,
-                    points: data.playerPvpPoints
-                });
+        pvpLeaderboardListener = query.onSnapshot(querySnapshot => {
+            if (querySnapshot.empty) {
+                pvpLeaderboardEl.innerHTML = '<p class="text-white text-center">Le classement PvP est vide.</p>';
+                return;
+            }
+
+            const players = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+
+            pvpLeaderboardEl.innerHTML = `
+                <table class="w-full text-white text-sm">
+                    <thead>
+                        <tr class="text-left border-b border-gray-600">
+                            <th class="p-2">Rang</th>
+                            <th class="p-2">Nom</th>
+                            <th class="p-2">Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${players.map((p, index) => `
+                            <tr class="border-b border-gray-700 ${p.uid === currentUser?.uid ? 'bg-yellow-500 bg-opacity-30' : ''}">
+                                <td class="p-2">${index + 1}</td>
+                                <td class="p-2">${p.username}</td>
+                                <td class="p-2">${(p.playerPvpPoints || 0).toLocaleString()}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            `;
+        }, error => {
+            console.error("Erreur de lecture du classement PvP:", error);
+            pvpLeaderboardEl.innerHTML = '<p class="text-red-500">Impossible de charger le classement PvP.</p>';
+            if (error.code === 'failed-precondition') {
+                pvpLeaderboardEl.innerHTML += '<p class="text-yellow-400 text-center text-xs mt-2">Note: Un index Firestore pour `playerPvpPoints` dans la collection `leaderboard` est peut-être requis.</p>';
             }
         });
-
-        if (players.length === 0) {
-            pvpLeaderboard.innerHTML = '<p class="text-white text-center">Le classement PvP est vide.</p>';
-            return;
-        }
-
-        pvpLeaderboard.innerHTML = `
-            <table class="w-full text-white text-sm">
-                <thead>
-                    <tr class="text-left border-b border-gray-600">
-                        <th class="p-2">Rang</th>
-                        <th class="p-2">Nom</th>
-                        <th class="p-2">Points</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${players.map((p, index) => `
-                        <tr class="border-b border-gray-700 ${p.uid === currentUser?.uid ? 'bg-yellow-500 bg-opacity-30' : ''}">
-                            <td class="p-2">${index + 1}</td>
-                            <td class="p-2">${p.name}</td>
-                            <td class="p-2">${p.points.toLocaleString()}</td>
-                        </tr>
-                    `).join("")}
-                </tbody>
-            </table>
-        `;
-
-    }, error => {
-        console.error("Erreur lors du chargement du classement PvP:", error);
-        pvpLeaderboard.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement PvP.</p>';
-        if (error.code === 'failed-precondition') {
-            pvpLeaderboard.innerHTML += '<p class="text-yellow-400 text-center text-xs mt-2">Note: Un index Firestore pour \`playerPvpPoints\` est peut-être requis. Vérifiez la console du navigateur pour un lien de création d\'index.</p>';
-        }
-        // Arrêter l'écoute en cas d'erreur
-        if (pvpLeaderboardListener) {
-            pvpLeaderboardListener();
-            pvpLeaderboardListener = null;
-        }
-    });
-}
-
-function updateTowerLeaderboard() {
-    const towerLeaderboardEl = document.getElementById('tower-leaderboard');
-    if (!towerLeaderboardEl) return;
-
-    towerLeaderboardEl.innerHTML = '<p class="text-white text-center">Chargement du classement de la Tour...</p>';
-
-    // Détacher l'ancien listener s'il existe
-    if (towerLeaderboardListener) {
-        towerLeaderboardListener();
     }
 
-    const query = db.collection('playerSaves')
-            .orderBy('towerFloor', 'desc')
-            .limit(100);
+    function updateTowerLeaderboard() {
+        const towerLeaderboardEl = document.getElementById('tower-leaderboard');
+        if (!towerLeaderboardEl) return;
 
-    towerLeaderboardListener = query.onSnapshot(querySnapshot => {
-        const players = [];
-        querySnapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.username && typeof data.towerFloor === 'number') {
-                players.push({
-                    uid: doc.id,
-                    name: data.username,
-                    floor: data.towerFloor
-                });
-            }
-        });
+        towerLeaderboardEl.innerHTML = '<p class="text-white text-center">Chargement du classement de la Tour...</p>';
 
-        if (players.length === 0) {
-            towerLeaderboardEl.innerHTML = '<p class="text-white text-center">Le classement de la Tour est vide.</p>';
-            return;
-        }
-
-        towerLeaderboardEl.innerHTML = `
-            <table class="w-full text-white text-sm">
-                <thead>
-                    <tr class="text-left border-b border-gray-600">
-                        <th class="p-2">Rang</th>
-                        <th class="p-2">Nom</th>
-                        <th class="p-2">Étage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${players.map((p, index) => `
-                        <tr class="border-b border-gray-700 ${p.uid === currentUser?.uid ? 'bg-yellow-500 bg-opacity-30' : ''}">
-                            <td class="p-2">${index + 1}</td>
-                            <td class="p-2">${p.name}</td>
-                            <td class="p-2">${p.floor.toLocaleString()}</td>
-                        </tr>
-                    `).join("")}
-                </tbody>
-            </table>
-        `;
-
-    }, error => {
-        console.error("Erreur lors du chargement du classement de la Tour:", error);
-        towerLeaderboardEl.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement de la Tour.</p>';
-        if (error.code === 'failed-precondition') {
-            towerLeaderboardEl.innerHTML += '<p class="text-yellow-400 text-center text-xs mt-2">Note: Un index Firestore pour `towerFloor` est peut-être requis. Vérifiez la console du navigateur pour un lien de création d\'index.</p>';
-        }
+        // Détacher l'ancien listener s'il existe
         if (towerLeaderboardListener) {
             towerLeaderboardListener();
-            towerLeaderboardListener = null;
         }
-    });
-}
+
+        const query = db.collection('playerSaves')
+                .orderBy('towerFloor', 'desc')
+                .limit(100);
+
+        towerLeaderboardListener = query.onSnapshot(querySnapshot => {
+            const players = [];
+            querySnapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.username && typeof data.towerFloor === 'number') {
+                    players.push({
+                        uid: doc.id,
+                        name: data.username,
+                        floor: data.towerFloor
+                    });
+                }
+            });
+
+            if (players.length === 0) {
+                towerLeaderboardEl.innerHTML = '<p class="text-white text-center">Le classement de la Tour est vide.</p>';
+                return;
+            }
+
+            towerLeaderboardEl.innerHTML = `
+                <table class="w-full text-white text-sm">
+                    <thead>
+                        <tr class="text-left border-b border-gray-600">
+                            <th class="p-2">Rang</th>
+                            <th class="p-2">Nom</th>
+                            <th class="p-2">Étage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${players.map((p, index) => `
+                            <tr class="border-b border-gray-700 ${p.uid === currentUser?.uid ? 'bg-yellow-500 bg-opacity-30' : ''}">
+                                <td class="p-2">${index + 1}</td>
+                                <td class="p-2">${p.name}</td>
+                                <td class="p-2">${p.floor.toLocaleString()}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            `;
+
+        }, error => {
+            console.error("Erreur lors du chargement du classement de la Tour:", error);
+            towerLeaderboardEl.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement de la Tour.</p>';
+            if (error.code === 'failed-precondition') {
+                towerLeaderboardEl.innerHTML += '<p class="text-yellow-400 text-center text-xs mt-2">Note: Un index Firestore pour `towerFloor` est peut-être requis. Vérifiez la console du navigateur pour un lien de création d\'index.</p>';
+            }
+            if (towerLeaderboardListener) {
+                towerLeaderboardListener();
+                towerLeaderboardListener = null;
+            }
+        });
+    }
 
     async function findOpponent() {
         resultElement.innerHTML = `<p class="text-yellow-400">Recherche d'un adversaire...</p>`;
@@ -6541,10 +6668,7 @@ function updateTowerLeaderboard() {
                 team: opponentTeam,
                 teamPower: opponentTeamPower
             };
-
-            resultElement.innerHTML = `<p class="text-green-400">Adversaire trouvé : ${currentPvpOpponent.name} (Puissance: ${currentPvpOpponent.teamPower})</p>`;
-            startPvpBattle();
-
+            resultElement.innerHTML = `<p class="text-green-400">Adversaire trouvé : ${currentPvpOpponent.name} (Puissance: ${currentPvpOpponent.teamPower})</p>`; startPvpBattle();
         } catch (error) {
             console.error("Erreur lors de la recherche d'un adversaire PvP:", error);
             resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la recherche d'un adversaire. Vérifiez la console.</p>`;
@@ -6552,43 +6676,48 @@ function updateTowerLeaderboard() {
         }
     }
 
-    function startPvpBattle() {
+    async function startPvpBattle() {
         if (!currentPvpOpponent) {
             resultElement.innerHTML = `<p class="text-red-500">Erreur : Pas d'adversaire PvP sélectionné.</p>`;
             return;
         }
         currentLevelId = 'pvp_battle';
         selectedBattleCharacters.clear();
+
+        // NOUVEAU: Vérifier si une équipe de défense valide est définie
+        if (defenseTeamIds && defenseTeamIds.length === 3) {
+            const defenseTeamChars = defenseTeamIds.map(id => ownedCharacters.find(c => c.id === id));
+
+            // Vérifier si tous les personnages de l'équipe de défense sont toujours possédés
+            if (defenseTeamChars.every(c => c)) {
+                console.log("[PvP] Équipe de défense valide trouvée. Lancement direct du combat.");
+
+                // Remplir selectedBattleCharacters avec les index des personnages de l'équipe de défense
+                defenseTeamIds.forEach(id => {
+                    const index = ownedCharacters.findIndex(c => c.id === id);
+                    if (index !== -1) {
+                        selectedBattleCharacters.add(index);
+                    }
+                });
+
+                // S'assurer que l'équipe est complète avant de continuer
+                if (selectedBattleCharacters.size === 3) {
+                    await confirmSelection(); // Lancer le combat directement
+                    return; // Quitter la fonction pour ne pas ouvrir la modale de sélection
+                } else {
+                    console.warn("[PvP] L'équipe de défense a été trouvée mais n'a pas pu être chargée correctement. Passage à la sélection manuelle.");
+                    selectedBattleCharacters.clear(); // Vider la sélection partielle
+                }
+            } else {
+                console.log("[PvP] Équipe de défense invalide (personnage manquant). Passage à la sélection manuelle.");
+            }
+        } else {
+            console.log("[PvP] Aucune équipe de défense définie. Passage à la sélection manuelle.");
+        }
+
+        // Comportement par défaut : ouvrir la sélection manuelle si aucune équipe de défense valide n'est trouvée
         openModal(characterSelectionModal);
         updateCharacterSelectionDisplay();
-    }
-
-    function openTeamSelectionModal(mode) {
-        currentTeamSelectionMode = mode; // 'preset' or 'defense'
-        selectedTeamCharacters.clear();
-        openModal(teamSelectionModal);
-        updateTeamSelectionDisplay();
-    }
-
-    function confirmTeamSelection() {
-        if (selectedTeamCharacters.size !== 3) {
-            resultElement.innerHTML = `<p class="text-red-400">Veuillez sélectionner exactement 3 personnages !</p>`;
-            return;
-        }
-
-        const selectedIds = Array.from(selectedTeamCharacters).map(index => ownedCharacters[index].id);
-
-        if (currentTeamSelectionMode === 'preset') {
-            characterPreset = selectedIds;
-            presetConfirmed = true;
-            resultElement.innerHTML = '<p class="text-green-400">Preset enregistré avec succès !</p>';
-        } else if (currentTeamSelectionMode === 'defense') {
-            defenseTeamIds = selectedIds;
-            resultElement.innerHTML = '<p class="text-green-400">Équipe de défense enregistrée avec succès !</p>';
-        }
-
-        closeModalHelper(teamSelectionModal);
-        scheduleSave();
     }
 
     function updatePvpLogsNotification() {
@@ -6597,7 +6726,11 @@ function updateTowerLeaderboard() {
         pvpLogsBadge.classList.toggle('hidden', !hasUnread);
     }
 
-    function openPvpLogsModal() {
+    async function openPvpLogsModal() {
+        // Étape 1 : On force le traitement des résultats en attente AVANT d'ouvrir la modale.
+        await processPendingPvpResults();
+
+        // Étape 2 : Maintenant que les logs sont à jour, on met à jour l'affichage et on marque comme lu.
         updatePvpLogsDisplay();
         
         let changed = false;
@@ -6631,6 +6764,290 @@ function updateTowerLeaderboard() {
             const pointsText = `${log.pointsChange > 0 ? '+' : ''}${log.pointsChange} points`;
             return `<div class="p-3 rounded-lg mb-2 ${log.read ? 'bg-gray-700 bg-opacity-40' : 'bg-blue-900 bg-opacity-50 border border-blue-500'}"><div class="flex justify-between items-center"><p class="font-bold ${isVictory ? 'text-green-400' : 'text-red-400'}">${outcomeText}</p><p class="text-xs text-gray-400">${date}</p></div><p class="text-white mt-1">${actionText}</p><p class="text-white text-sm">${pointsText}</p></div>`;
         }).join('');
+    }
+
+    // --- NOUVEAU: Fonctions de gestion d'équipe ---
+
+    function updateTeamsModalDisplay() {
+        const savedTeamsList = document.getElementById('saved-teams-list');
+        if (!savedTeamsList) return; savedTeamsList.innerHTML = "";
+        if (savedTeams.length === 0) {
+            savedTeamsList.innerHTML = '<p class="text-gray-400 text-center">Aucune équipe sauvegardée. Créez-en une !</p>';
+            return;
+        }
+
+        savedTeams.forEach(team => {
+            const teamCharacters = team.characterIds.map(id => ownedCharacters.find(c => c.id === id)).filter(Boolean);
+            const isDefenseTeam = defenseTeamIds.length === team.characterIds.length && defenseTeamIds.every(id => team.characterIds.includes(id));
+            const isDefaultTeam = team.id === defaultBattleTeamId; // NOUVEAU
+
+            const teamCard = document.createElement('div');
+            teamCard.className = `saved-team-card ${isDefenseTeam ? 'border-blue-500' : (isDefaultTeam ? 'default-team-card' : 'border-gray-600')}`; // MODIFIÉ
+            teamCard.innerHTML = `
+                <div class="saved-team-header">
+                    <h3 class="saved-team-name">${team.name}</h3>
+                    ${isDefaultTeam ? '<span class="text-xs bg-yellow-500 text-black font-bold py-1 px-2 rounded">Par Défaut</span>' : ''}
+                    ${isDefenseTeam ? '<span class="text-xs bg-blue-500 text-white font-bold py-1 px-2 rounded">Équipe de Défense</span>' : ''}
+                </div>
+                <div class="saved-team-characters">
+                    ${teamCharacters.map(char => `
+                        <img src="${char.image}" alt="${char.name}" title="${char.name} (Puissance: ${char.power})" class="saved-team-char-icon ${getRarityBorderClass(char.rarity)}">
+                    `).join('')}
+                    ${teamCharacters.length < team.characterIds.length ? '<p class="text-red-500 text-xs">Un ou plusieurs personnages de cette équipe ne sont plus possédés.</p>' : ''}
+                </div>
+                <div class="saved-team-actions">
+                    <button class="load-team-btn bg-blue-600 hover:bg-blue-700 text-white text-sm py-1 px-3 rounded" data-team-id="${team.id}">Charger</button>
+                    <button class="edit-team-btn bg-yellow-500 hover:bg-yellow-600 text-white text-sm py-1 px-3 rounded" data-team-id="${team.id}">Modifier</button>
+                    <button class="delete-team-btn bg-red-600 hover:bg-red-700 text-white text-sm py-1 px-3 rounded" data-team-id="${team.id}">Supprimer</button>
+                    <button class="set-default-btn bg-green-600 hover:bg-green-700 text-white text-sm py-1 px-3 rounded ${isDefaultTeam ? 'opacity-50 cursor-not-allowed' : ''}" data-team-id="${team.id}" ${isDefaultTeam ? 'disabled' : ''}>Par Défaut</button>
+                    <button class="set-defense-btn bg-purple-600 hover:bg-purple-700 text-white text-sm py-1 px-3 rounded ${isDefenseTeam ? 'opacity-50 cursor-not-allowed' : ''}" data-team-id="${team.id}" ${isDefenseTeam ? 'disabled' : ''}>Définir en Défense</button>
+                </div>
+            `;
+            savedTeamsList.appendChild(teamCard);
+        });
+    }
+
+    function openTeamEditor(teamId) {
+        editingTeamId = teamId;
+        teamEditorSelectedCharacters.clear();
+        const nameInput = document.getElementById('team-editor-name-input');
+
+        if (teamId) {
+            const team = savedTeams.find(t => t.id === teamId);
+            if (team) {
+                nameInput.value = team.name;
+                team.characterIds.forEach(id => {
+                    if (ownedCharacters.some(c => c.id === id)) {
+                        teamEditorSelectedCharacters.add(id);
+                    }
+                });
+            }
+        } else {
+            nameInput.value = "";
+        }
+        updateTeamEditorDisplay();
+        openModal(teamEditorModal);
+    }
+
+    function updateTeamEditorDisplay() {
+        const characterList = document.getElementById('team-editor-character-list');
+        characterList.innerHTML = "";
+        const teamBeingEdited = editingTeamId ? savedTeams.find(t => t.id === editingTeamId) : null;
+
+        let charactersToDisplay = [...ownedCharacters];
+        if (teamEditorSearchName) {
+            charactersToDisplay = charactersToDisplay.filter(char => char.name.toLowerCase().includes(teamEditorSearchName));
+        }
+        if (teamEditorFilterRarity !== "all") {
+            charactersToDisplay = charactersToDisplay.filter(char => char.rarity === teamEditorFilterRarity);
+        }
+
+        const sortedCharacters = charactersToDisplay.sort((a, b) => {
+            if (teamEditorSortCriteria === "power") return b.power - a.power;
+            if (teamEditorSortCriteria === "rarity") return rarityOrder[b.rarity] - rarityOrder[a.rarity];
+            if (teamEditorSortCriteria === "level") return b.level - a.level;
+            return 0;
+        });
+
+        const selectedCharacterNames = new Set(
+            Array.from(teamEditorSelectedCharacters).map(id => ownedCharacters.find(c => c.id === id)?.name).filter(Boolean)
+        );
+
+        const fragment = document.createDocumentFragment();
+        sortedCharacters.forEach(char => {
+            const card = document.createElement('div');
+            const isSelected = teamEditorSelectedCharacters.has(char.id);
+            const isLocked = char.locked;
+            const isPartOfCurrentlyEditedTeam = teamBeingEdited ? teamBeingEdited.characterIds.includes(char.id) : false;
+
+            const isDisabled = isLocked || 
+                (!isSelected && teamEditorSelectedCharacters.size >= 3) || 
+                (!isSelected && selectedCharacterNames.has(char.name));
+            
+            card.className = `relative p-2 rounded-lg border cursor-pointer ${getRarityBorderClass(char.rarity)} ${isSelected ? 'selected-for-battle' : ''} ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`;
+            card.innerHTML = `
+                <img src="${char.image}" alt="${char.name}" class="w-full h-24 object-contain rounded mb-2">
+                <p class="${char.color} font-semibold text-xs text-center">${char.name}</p>
+                <p class="text-white text-xs text-center">P: ${char.power}</p>
+            `;
+            if (!isDisabled) {
+                card.addEventListener('click', () => selectTeamEditorCharacter(char.id));
+            }
+            fragment.appendChild(card);
+        });
+        characterList.appendChild(fragment);
+
+        document.getElementById('team-editor-selected-count').textContent = `${teamEditorSelectedCharacters.size}/3`;
+        const name = document.getElementById('team-editor-name-input').value.trim();
+        const saveButton = document.getElementById('save-team-button');
+        saveButton.disabled = teamEditorSelectedCharacters.size !== 3 || !name;
+        saveButton.classList.toggle('opacity-50', saveButton.disabled);
+        saveButton.classList.toggle('cursor-not-allowed', saveButton.disabled);
+    }
+
+    function selectTeamEditorCharacter(charId) {
+        const char = ownedCharacters.find(c => c.id === charId);
+        if (!char) return;
+
+        const teamBeingEdited = editingTeamId ? savedTeams.find(t => t.id === editingTeamId) : null;
+        const isPartOfCurrentlyEditedTeam = teamBeingEdited ? teamBeingEdited.characterIds.includes(char.id) : false;
+        if (char.locked && !isPartOfCurrentlyEditedTeam) {
+            resultElement.innerHTML = `<p class="text-yellow-400">Ce personnage est verrouillé (probablement dans l'équipe de défense) et ne peut pas être ajouté à une autre équipe.</p>`;
+            return;
+        }
+
+        if (teamEditorSelectedCharacters.has(charId)) {
+            teamEditorSelectedCharacters.delete(charId);
+        } else {
+            if (teamEditorSelectedCharacters.size < 3) {
+                const selectedNames = new Set(Array.from(teamEditorSelectedCharacters).map(id => ownedCharacters.find(c => c.id === id)?.name));
+                if (!selectedNames.has(char.name)) {
+                    teamEditorSelectedCharacters.add(charId);
+                }
+            }
+        }
+        updateTeamEditorDisplay();
+    }
+
+    function saveTeam() {
+        const nameInput = document.getElementById('team-editor-name-input');
+        const name = nameInput.value.trim();
+
+        if (!name) {
+            resultElement.innerHTML = '<p class="text-red-400">Veuillez donner un nom à votre équipe.</p>';
+            return;
+        }
+        if (teamEditorSelectedCharacters.size !== 3) {
+            resultElement.innerHTML = '<p class="text-red-400">Une équipe doit contenir exactement 3 personnages.</p>';
+            return;
+        }
+
+        const characterIds = Array.from(teamEditorSelectedCharacters);
+
+        if (editingTeamId) {
+            // Update existing team
+            const team = savedTeams.find(t => t.id === editingTeamId);
+            if (team) {
+                team.name = name;
+                team.characterIds = characterIds;
+            }
+        } else {
+            // Create new team
+            const newTeam = {
+                id: `team_${Date.now()}`,
+                name: name,
+                characterIds: characterIds
+            };
+            savedTeams.push(newTeam);
+        }
+
+        editingTeamId = null;
+        closeModalHelper(teamEditorModal);
+        updateTeamsModalDisplay();
+        scheduleSave();
+    }
+
+    // NOUVEAU: Définir une équipe par défaut pour les combats
+    function setDefaultBattleTeam(teamId) {
+        const team = savedTeams.find(t => t.id === teamId);
+        if (!team) return;
+        defaultBattleTeamId = teamId;
+        resultElement.innerHTML = `<p class="text-green-400">L'équipe "${team.name}" est maintenant votre équipe par défaut pour les combats.</p>`;
+        updateTeamsModalDisplay();
+        scheduleSave();
+    }
+
+    function loadTeamForBattle(teamId) {
+        const team = savedTeams.find(t => t.id === teamId);
+        if (!team) {
+            resultElement.innerHTML = '<p class="text-red-400">Équipe non trouvée.</p>';
+            return;
+        }
+
+        const teamCharacters = team.characterIds.map(id => ownedCharacters.find(c => c.id === id));
+        if (teamCharacters.some(c => !c)) {
+            resultElement.innerHTML = '<p class="text-red-400">Cette équipe contient des personnages que vous ne possédez plus.</p>';
+            return;
+        }
+
+        lastUsedBattleTeamIds = [...team.characterIds];
+        resultElement.innerHTML = `<p class="text-green-400">L'équipe "${team.name}" est prête pour le prochain combat.</p>`;
+        closeModalHelper(teamsModal);
+        showTab('play');
+    }
+
+    function deleteTeam(teamId) {
+        const teamIndex = savedTeams.findIndex(t => t.id === teamId);
+        if (teamIndex > -1) {
+            const deletedTeam = savedTeams[teamIndex];
+            savedTeams.splice(teamIndex, 1);
+
+            const isDefenseTeam = defenseTeamIds.length === deletedTeam.characterIds.length && defenseTeamIds.every(id => deletedTeam.characterIds.includes(id));
+            if (isDefenseTeam) {
+            // Déverrouiller les personnages de l'équipe de défense supprimée
+            deletedTeam.characterIds.forEach(charId => {
+                const charToUnlock = ownedCharacters.find(c => c.id === charId);
+                if (charToUnlock) charToUnlock.locked = false;
+            });
+                defenseTeamIds = [];
+            }
+            // NOUVEAU: Vérifier si l'équipe supprimée était l'équipe par défaut
+            if (deletedTeam.id === defaultBattleTeamId) {
+                defaultBattleTeamId = null;
+                resultElement.innerHTML = `<p class="text-yellow-400">L'équipe par défaut a été supprimée et désactivée.</p>`;
+            }
+
+            // NOUVEAU: Vérifier si l'équipe supprimée était la dernière équipe utilisée
+            const isLastUsedTeam = lastUsedBattleTeamIds.length === deletedTeam.characterIds.length && lastUsedBattleTeamIds.every(id => deletedTeam.characterIds.includes(id));
+            if (isLastUsedTeam) {
+                lastUsedBattleTeamIds = [];
+                console.log("L'équipe supprimée était la dernière équipe utilisée. Elle a été désélectionnée.");
+                resultElement.innerHTML = `<p class="text-yellow-400">L'équipe supprimée était votre dernière équipe utilisée et a été désélectionnée pour les prochains combats.</p>`;
+            }
+
+            updateTeamsModalDisplay();
+            updateCharacterDisplay();
+            scheduleSave();
+        }
+    }
+
+    function setDefenseTeam(teamId) {
+        const team = savedTeams.find(t => t.id === teamId);
+        if (!team || team.characterIds.length !== 3) {
+            resultElement.innerHTML = '<p class="text-red-400">Cette équipe est invalide pour la défense.</p>';
+            return;
+        }
+        
+        const teamCharacters = team.characterIds.map(id => ownedCharacters.find(c => c.id === id));
+        if (teamCharacters.some(c => !c)) {
+            resultElement.innerHTML = '<p class="text-red-400">Cette équipe contient des personnages que vous ne possédez plus.</p>';
+            return;
+        }
+
+        // Déverrouiller les personnages de l'ancienne équipe de défense
+        defenseTeamIds.forEach(charId => {
+            if (!team.characterIds.includes(charId)) { // Ne pas déverrouiller s'il est aussi dans la nouvelle équipe
+                const charToUnlock = ownedCharacters.find(c => c.id === charId);
+                if (charToUnlock) {
+                    charToUnlock.locked = false;
+                }
+            }
+        });
+
+        defenseTeamIds = [...team.characterIds];
+
+        // Verrouiller les personnages de la nouvelle équipe de défense
+        defenseTeamIds.forEach(charId => {
+            const charToLock = ownedCharacters.find(c => c.id === charId);
+            if (charToLock) {
+                charToLock.locked = true;
+            }
+        });
+
+        resultElement.innerHTML = `<p class="text-green-400">L'équipe "${team.name}" est maintenant votre équipe de défense. Ses membres sont automatiquement verrouillés.</p>`;
+        updateTeamsModalDisplay();
+        updateCharacterDisplay();
+        scheduleSave();
     }
 
     function renderRaidBossView(raidData) {
@@ -8663,17 +9080,6 @@ function updateTowerLeaderboard() {
       localStorage.setItem("battleFilterRarity", battleFilterRarity);
       updateCharacterSelectionDisplay();
     });
-    // Filtres pour la modale de sélection d'équipe (Preset & Défense)
-    document.getElementById("team-search-name").addEventListener("input", (e) => {
-      teamSearchName = e.target.value.toLowerCase();
-      localStorage.setItem("teamSearchName", teamSearchName);
-      updateTeamSelectionDisplay();
-    });
-    document.getElementById("team-filter-rarity").addEventListener("change", (e) => {
-      teamFilterRarity = e.target.value;
-      localStorage.setItem("teamFilterRarity", teamFilterRarity);
-      updateTeamSelectionDisplay();
-    });
     // Filtres pour la modale de fusion
     document.getElementById("fusion-search-name").addEventListener("input", (e) => {
       fusionSearchName = e.target.value.toLowerCase();
@@ -8705,15 +9111,12 @@ function updateTowerLeaderboard() {
     cancelResetButton.addEventListener("click", cancelReset);
     cancelGiveItemsButton.addEventListener("click", cancelGiveItems);
     confirmGiveItemsButton.addEventListener("click", confirmGiveItems);
-    cancelEvolutionButton.addEventListener("click", cancelEvolution);
-    confirmEvolutionButton.addEventListener("click", confirmEvolution);
-    document.getElementById("open-preset-modal-button").addEventListener("click", () => openTeamSelectionModal('preset'));
+    cancelEvolutionButton.addEventListener("click", cancelEvolution); confirmEvolutionButton.addEventListener("click", confirmEvolution);
     document.getElementById("apply-stat-change-button").addEventListener("click", applyStatChange);
     document.getElementById("stat-change-search").addEventListener("input", updateStatChangeTabDisplay);
     document.getElementById("curse-char-search").addEventListener("input", updateCurseTabDisplay);
     statRankInfoButton.addEventListener("click", openStatRankProbabilitiesModal);
     closeStatRankProbabilitiesModalButton.addEventListener("click", closeStatRankProbabilitiesModal);
-    setDefenseTeamButton.addEventListener("click", () => openTeamSelectionModal('defense'));
     viewPvpLogsButton.addEventListener('click', async () => {
         // Étape 1 : On force le traitement des résultats en attente AVANT d'ouvrir la modale.
         // L'utilisation de "await" garantit que nous attendons que ce soit terminé.
@@ -8937,14 +9340,56 @@ function updateTowerLeaderboard() {
     }
 
     applyCurseButton.addEventListener("click", applyCurse);
-    document.getElementById("load-preset-button").addEventListener("click", loadPreset); // Reste pour charger le preset en combat
-    confirmTeamSelectionButton.addEventListener("click", confirmTeamSelection);
-    cancelTeamSelectionButton.addEventListener("click", () => closeModalHelper(teamSelectionModal));
-    document.getElementById("team-sort-criteria").addEventListener("change", () => {
-      teamSortCriteria = document.getElementById("team-sort-criteria").value;
-      localStorage.setItem("teamSortCriteria", teamSortCriteria);
-      updateTeamSelectionDisplay();
+    // NOUVEAU: Écouteurs pour la gestion d'équipe
+    // CORRECTION: Ajout de vérifications pour éviter les erreurs si un bouton est manquant dans le HTML
+    if (createNewTeamButton) createNewTeamButton.addEventListener("click", () => openTeamEditor(null));
+    if (manageTeamsButton) manageTeamsButton.addEventListener("click", () => {
+        openModal(teamsModal);
+        updateTeamsModalDisplay();
     });
+    if (closeTeamsModalButton) closeTeamsModalButton.addEventListener("click", () => {
+        closeModalHelper(teamsModal);
+    });
+    if (cancelTeamEditorButton) cancelTeamEditorButton.addEventListener("click", () => closeModalHelper(teamEditorModal));
+    if (saveTeamButton) saveTeamButton.addEventListener("click", saveTeam);
+
+    if (savedTeamsList) savedTeamsList.addEventListener('click', (e) => {
+        const button = e.target.closest('button');
+        if (!button) return;
+        const teamId = button.dataset.teamId;
+        if (!teamId) return;
+
+        if (button.classList.contains('load-team-btn')) {
+            loadTeamForBattle(teamId);
+        } else if (button.classList.contains('edit-team-btn')) {
+            openTeamEditor(teamId);
+        } else if (button.classList.contains('delete-team-btn')) {
+            deleteTeam(teamId);
+        } else if (button.classList.contains('set-defense-btn')) {
+            setDefenseTeam(teamId);
+        } else if (button.classList.contains('set-default-btn')) { // NOUVEAU
+            setDefaultBattleTeam(teamId);
+        }
+    });
+
+    document.getElementById("team-editor-sort-criteria").addEventListener("change", (e) => {
+        teamEditorSortCriteria = e.target.value;
+        updateTeamEditorDisplay();
+    });
+    document.getElementById("team-editor-search-name").addEventListener("input", (e) => {
+        teamEditorSearchName = e.target.value.toLowerCase();
+        updateTeamEditorDisplay();
+    });
+    document.getElementById("team-editor-filter-rarity").addEventListener("change", (e) => {
+        teamEditorFilterRarity = e.target.value;
+        updateTeamEditorDisplay();
+    });
+    // CORRECTION : Ajout de l'écouteur pour le champ de nom de l'équipe
+    const teamEditorNameInput = document.getElementById('team-editor-name-input');
+    if (teamEditorNameInput) {
+        teamEditorNameInput.addEventListener('input', updateTeamEditorDisplay);
+    }
+
     document.getElementById('start-raid-button').addEventListener('click', startRaid);
 
     // NOUVEAU: Écouteurs d'événements pour la guilde
