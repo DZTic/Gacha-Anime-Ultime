@@ -54,11 +54,17 @@
     
     <!-- MODIFIÉ: Le conteneur du jeu est maintenant caché par défaut -->
     <div id="game-container" class="hidden bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-4 sm:p-8 max-w-full mx-auto shadow-2xl">
-      <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+      <div class="flex flex-col sm:flex-row justify-end items-center mb-4 gap-4">
         <!-- L'ancien H1 a été déplacé en haut -->
-        <!-- Le bouton Paramètres reste ici -->
+        <button id="mailbox-button" class="relative bg-gray-500 hover:bg-gray-600 text-white font-bold p-2 rounded-lg transition transform hover:scale-105">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+          <span id="mailbox-badge" class="absolute -top-1 -right-1 flex h-4 w-4 hidden"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-4 w-4 bg-red-500 justify-center items-center text-xs">!</span></span>
+        </button>
         <button id="settings-button" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105">
           Paramètres
+        </button>
+        <button id="bug-report-button" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg transition transform hover:scale-105">
+          Rapport de bug
         </button>
       </div>
 
@@ -180,6 +186,13 @@
                 </div>
               </div>
               <div id="pvp" class="hidden p-4 text-white">
+                <!-- NOUVEAU: Section pour la saison PvP -->
+                <div class="text-center mb-6 p-3 bg-gray-900 bg-opacity-30 rounded-lg">
+                    <p class="text-lg text-yellow-300">Saison PvP en cours</p>
+                    <p class="text-sm text-gray-400">Se termine dans : <span id="pvp-season-timer">Chargement...</span></p>
+                    <p class="text-sm text-gray-400">Plus haut rang atteint : <span id="pvp-highest-league">Non classé</span></p>
+                </div>
+
                 <h3 class="text-2xl font-bold mb-4">Arène PvP</h3>
                 <div class="grid md:grid-cols-2 gap-6">
                     <!-- Left Column: Player Info & Actions -->
@@ -203,6 +216,18 @@
                             <h4 class="text-xl font-semibold mb-2">Classement PvP (Saisonnier)</h4>
                             <div id="pvp-leaderboard"><p class="text-gray-400">Classement bientôt disponible.</p></div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- NOUVEAU: Section pour le mode Brawl -->
+                <div id="pvp-brawl-section" class="mt-8 p-4 bg-purple-900 bg-opacity-40 rounded-lg border-2 border-purple-500">
+                    <h4 class="text-2xl font-bold text-purple-300 mb-2 text-center">Brawl de la Semaine</h4>
+                    <p id="brawl-mode-name" class="text-xl text-white font-semibold text-center"></p>
+                    <p id="brawl-mode-description" class="text-gray-300 text-center my-3"></p>
+                    <div class="text-center">
+                        <button id="play-brawl-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg transition transform hover:scale-105">
+                            Jouer au Brawl
+                        </button>
                     </div>
                 </div>
               </div>
@@ -480,8 +505,21 @@
             <p class="text-xs text-gray-400 mt-2">Augmente le niveau maximum du personnage de 5. Nécessite que le personnage soit à son niveau maximum actuel. Le cap ultime est de 100.</p>
           </div>
           <div id="leaderboard" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
-            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Classement par Niveau</h2>
-            <div id="leaderboard-content"></div>
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Classements</h2>
+            <div class="flex border-b border-gray-600 mb-4">
+              <button class="px-4 py-2 text-white font-semibold border-b-2 border-blue-500 subtab-button" data-subtab="leaderboard-player">Joueurs</button>
+              <button class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 subtab-button" data-subtab="leaderboard-guild">Guildes</button>
+            </div>
+            <div id="subtab-content-leaderboard">
+              <div id="leaderboard-player">
+                <h3 class="text-lg text-white font-semibold mb-2">Classement par Niveau</h3>
+                <div id="leaderboard-content"></div>
+              </div>
+              <div id="leaderboard-guild" class="hidden">
+                <h3 class="text-lg text-white font-semibold mb-2">Classement par EXP de Guilde</h3>
+                <div id="guild-leaderboard-content"></div>
+              </div>
+            </div>
           </div>
           <!-- NOUVEAU: Onglet Guilde -->
           <div id="guild" class="hidden p-4 bg-gray-800 bg-opacity-50 rounded-lg">
@@ -502,28 +540,95 @@
             </div>
 
             <!-- Vue affichée si le joueur est dans une guilde -->
-            <div id="guild-main-view" class="hidden">
-              <div id="guild-raid-boss-view" class="my-6 p-4 bg-black bg-opacity-20 rounded-lg border-2 border-purple-500 hidden">
-                <!-- This view is shown when a raid is active -->
-              </div>
-              <div id="guild-no-raid-view" class="my-6 p-4 bg-black bg-opacity-20 rounded-lg text-center">
-                <p class="text-gray-400 mb-4">Aucun Boss de Guilde n'est actif pour le moment.</p>
-                <button id="start-raid-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                    Lancer un Raid (Propriétaire)
-                </button>
-              </div>
+            <div id="guild-main-view" class="hidden relative">
               <div class="flex justify-between items-start mb-4">
-                <div>
-                  <h2 id="guild-name-display" class="text-3xl text-white font-bold">Nom de la Guilde</h2>
-                  <p id="guild-level-exp-display" class="text-gray-300">Niveau <span id="guild-level-display">1</span> (<span id="guild-exp-display">0</span> / <span id="guild-exp-needed-display">1000</span> EXP)</p>
-                </div>
-                <button id="leave-guild-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg text-sm">Quitter</button>
+                  <div>
+                      <h2 id="guild-name-display" class="text-3xl text-white font-bold">Nom de la Guilde</h2>
+                      <p id="guild-level-exp-display" class="text-gray-300">Niveau <span id="guild-level-display">1</span> (<span id="guild-exp-display">0</span> / <span id="guild-exp-needed-display">1000</span> EXP)</p>
+                  </div>
+                  <button id="leave-guild-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg text-sm absolute top-0 right-0">Quitter</button>
               </div>
-              
-              <div id="guild-content-grid" class="guild-grid">
-                <!-- Le contenu (membres, chat, perks, etc.) sera injecté ici par JS -->
+          
+              <div class="flex border-b border-gray-600 mb-4">
+                  <button class="px-4 py-2 text-white font-semibold border-b-2 border-blue-500 focus:outline-none guild-subtab-button" data-subtab="guild-main">Général</button>
+                  <button class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none guild-subtab-button" data-subtab="guild-raid">Raid</button>
+                  <button class="px-4 py-2 text-white font-semibold border-b-2 border-transparent hover:border-blue-500 focus:outline-none guild-subtab-button" data-subtab="guild-gvg">Guerre</button>
               </div>
-
+          
+              <div id="guild-subtab-content">
+                  <div id="guild-main-subtab">
+                      <div id="guild-content-grid" class="guild-grid"></div>
+                  </div>
+                  <div id="guild-raid-subtab" class="hidden">
+                      <div id="guild-raid-boss-view" class="my-6 p-4 bg-black bg-opacity-20 rounded-lg border-2 border-purple-500 hidden"></div>
+                      <div id="guild-no-raid-view" class="my-6 p-4 bg-black bg-opacity-20 rounded-lg text-center">
+                          <p class="text-gray-400 mb-4">Aucun Boss de Guilde n'est actif pour le moment.</p>
+                          <button id="open-raid-selection-button" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">Lancer un Raid (Propriétaire)</button>
+                      </div>
+                  </div>
+                  <div id="guild-gvg-subtab" class="hidden">
+                    <div id="gvg-view-container">
+                        <!-- Vue pour quand aucune guerre n'est active -->
+                        <div id="gvg-peace-view" class="hidden text-center p-4">
+                            <h3 class="text-2xl text-white font-bold mb-4">Guerres de Guildes</h3>
+                            <p class="text-gray-300 mb-6">Affrontez d'autres guildes pour la gloire et des récompenses exclusives !</p>
+                            <div class="mb-6">
+                                <h4 class="text-lg font-semibold text-white">Stats GvG</h4>
+                                <p class="text-gray-400">Victoires: <span id="gvg-wins">0</span> | Défaites: <span id="gvg-losses">0</span></p>
+                            </div>
+                            <button id="gvg-matchmaking-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                Lancer le Matchmaking (Propriétaire)
+                            </button>
+                        </div>
+                
+                        <!-- Vue pour la phase de préparation -->
+                        <div id="gvg-preparation-view" class="hidden">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-2xl text-white font-bold">Phase de Préparation</h3>
+                                <div class="text-right">
+                                    <p class="text-gray-300">Se termine dans :</p>
+                                    <p id="gvg-prep-timer" class="text-yellow-300 font-bold text-lg">23:59:59</p>
+                                </div>
+                            </div>
+                            <p class="text-gray-300 mb-6">Placez votre équipe de défense sur le champ de bataille. Une fois placée, elle ne pourra plus être modifiée avant la fin de la guerre.</p>
+                            
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <!-- Champ de bataille allié -->
+                                <div><h4 id="gvg-friendly-guild-name" class="text-xl text-blue-300 font-semibold mb-3 text-center">Notre Guilde</h4><div id="gvg-friendly-battlefield" class="gvg-battlefield p-4 bg-blue-900 bg-opacity-20 border-blue-500"></div></div>
+                                <!-- Champ de bataille ennemi -->
+                                <div><h4 id="gvg-enemy-guild-name" class="text-xl text-red-400 font-semibold mb-3 text-center">Guilde Adverse</h4><div id="gvg-enemy-battlefield" class="gvg-battlefield p-4 bg-red-900 bg-opacity-20 border-red-500"></div></div>
+                            </div>
+                        </div>
+                
+                        <!-- Vue pour la phase de combat -->
+                        <div id="gvg-combat-view" class="hidden">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-2xl text-white font-bold">Phase de Combat</h3>
+                                <div class="text-right">
+                                    <p class="text-gray-300">Se termine dans :</p>
+                                    <p id="gvg-combat-timer" class="text-yellow-300 font-bold text-lg">23:59:59</p>
+                                </div>
+                            </div>
+                            <div class="text-center mb-4">
+                                <p class="text-white">Jetons d'Attaque Restants : <span id="gvg-attack-tokens" class="font-bold text-xl text-yellow-400">3</span></p>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <!-- Champ de bataille allié -->
+                                <div>
+                                    <h4 id="gvg-combat-friendly-guild-name" class="text-xl text-blue-300 font-semibold mb-3 text-center">Notre Guilde</h4>
+                                    <div id="gvg-combat-friendly-battlefield" class="gvg-battlefield p-4 bg-blue-900 bg-opacity-20 border-blue-500"></div>
+                                </div>
+                                <!-- Champ de bataille ennemi -->
+                                <div>
+                                    <h4 id="gvg-combat-enemy-guild-name" class="text-xl text-red-400 font-semibold mb-3 text-center">Guilde Adverse</h4>
+                                    <div id="gvg-combat-enemy-battlefield" class="gvg-battlefield p-4 bg-red-900 bg-opacity-20 border-red-500"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+              </div>
             </div>
           </div>
         </div>
@@ -629,7 +734,7 @@
 
     <!-- Modal for Character Selection in Story Mode -->
     <div id="character-selection-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden game-modal">
-      <div class="modal-content-wrapper bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div class="modal-content-wrapper bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh]">
         <h2 id="character-selection-title" class="text-xl sm:text-2xl text-white font-bold mb-4">Sélectionner 3 Personnages pour le Combat</h2>
         
         <div class="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-4 gap-3">
@@ -860,9 +965,12 @@
 
         <div id="team-editor-character-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto"></div>
         <p class="text-white mb-4 text-sm sm:text-base">Personnages sélectionnés: <span id="team-editor-selected-count">0/3</span></p>
-        <div class="flex gap-4 sticky bottom-0 bg-gray-800 bg-opacity-90 p-4 -mx-4 -mb-4 rounded-b-lg">
-          <button id="save-team-button" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Sauvegarder l'Équipe</button>
-          <button id="cancel-team-editor-button" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+        <div class="flex justify-between items-center gap-4 sticky bottom-0 bg-gray-800 bg-opacity-90 p-4 -mx-4 -mb-4 rounded-b-lg">
+          <button id="delete-team-in-editor-btn" class="bg-red-800 hover:bg-red-700 text-white py-2 px-4 rounded-lg text-sm sm:text-base hidden">Supprimer</button>
+          <div class="flex gap-4">
+            <button id="save-team-button" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base" disabled>Sauvegarder l'Équipe</button>
+            <button id="cancel-team-editor-button" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Annuler</button>
+          </div>
         </div>
       </div>
     </div>
@@ -878,6 +986,21 @@
           <button id="close-pvp-logs-button" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">Fermer</button>
         </div>
       </div>
+    </div>
+
+    <!-- NOUVEAU: Modal for PvP Replay -->
+    <div id="pvp-replay-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden game-modal z-[8100]">
+        <div class="bg-gray-800 p-4 sm:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <h2 class="text-xl sm:text-2xl text-white font-bold mb-4 flex-shrink-0">Replay du Combat</h2>
+            <div id="pvp-replay-content" class="flex-grow overflow-y-auto pr-2 text-white">
+                <!-- Replay content will be injected here -->
+            </div>
+            <div class="flex justify-end mt-4 flex-shrink-0">
+                <button id="close-pvp-replay-button" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm sm:text-base">
+                    Fermer
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Modal for Autofusion -->
@@ -938,6 +1061,8 @@
     <div id="coop-battle-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden game-modal z-[9800]">
         <div class="bg-gray-900 p-4 sm:p-6 rounded-lg w-full max-w-4xl text-center shadow-lg border-4 border-purple-500" style="background-image: url('https://i.pinimg.com/originals/a1/81/d7/a181d76a163158485de067262b947c2b.gif'); background-size: cover; background-position: center;">
             <h2 id="coop-battle-boss-name" class="text-3xl text-yellow-300 font-bold drop-shadow-lg mb-2">Boss de Co-op</h2>
+            <!-- NOUVEAU: Zone d'alerte pour les mécaniques -->
+            <div id="coop-battle-mechanic-alert" class="text-center text-2xl font-bold p-4 mb-4 rounded-lg hidden"></div>
             <!-- Boss Health Bar -->
             <div class="w-full bg-gray-700 rounded-full h-8 border-2 border-gray-500 mt-2 relative mb-4">
                 <div id="coop-battle-boss-health-bar" class="bg-red-600 h-full rounded-full transition-all duration-100 ease-linear" style="width: 100%;"></div>
@@ -1157,6 +1282,36 @@
         <div class="flex justify-end gap-4 mt-6">
           <button id="cancel-create-guild-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Annuler</button>
           <button id="confirm-create-guild-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Créer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOUVEAU: Modale pour la sélection de Raid -->
+    <div id="raid-selection-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden game-modal z-[8700]">
+      <div class="bg-gray-800 p-6 rounded-lg w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Lancer un Raid de Guilde</h2>
+        <p class="text-gray-300 mb-4">Choisissez un boss à affronter. Le coût sera déduit des ressources de la guilde.</p>
+        <div id="raid-boss-selection-list" class="space-y-4">
+          <!-- Les boss disponibles seront injectés ici par JS -->
+        </div>
+        <div class="flex justify-end mt-6">
+          <button id="cancel-raid-selection-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOUVEAU: Modale pour la boîte aux lettres -->
+    <div id="mailbox-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden game-modal z-[8800]">
+      <div class="bg-gray-800 p-6 rounded-lg w-full max-w-2xl shadow-xl max-h-[90vh] flex flex-col">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4">Boîte aux lettres</h2>
+        <div id="mailbox-list" class="flex-grow space-y-3 overflow-y-auto pr-2">
+          <!-- Les messages seront injectés ici -->
+        </div>
+        <div class="flex justify-between items-center mt-6">
+          <button id="claim-all-mail-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50" disabled>
+            Tout Réclamer
+          </button>
+          <button id="close-mailbox-button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Fermer</button>
         </div>
       </div>
     </div>

@@ -53,8 +53,9 @@ function createEvolutionData(baseName, evolutionName, powerIncrease, options = {
 const standardCharacters = [
     { name: "Goku", rarity: "Rare", color: "text-gray-400", image: "./images/perso/goku.png", power: 350, level: 1 },
     { name: "Naruto", rarity: "Rare", color: "text-gray-400", image: "./images/perso/naruto.png", power: 370, level: 1 },
-    { name: "Luffy", rarity: "Rare", color: "text-gray-400", image: "./images/perso/luffy.png", power: 370, level: 1 },
-    { name: "Ichigo", rarity: "Rare", color: "text-gray-400", image: "./images/perso/ichigo.png", power: 360, level: 1 },
+    { name: "Luffy", rarity: "Rare", color: "text-gray-400", image: "./images/perso/luffy.png", power: 370, level: 1, essence: "Yellow" },
+    // MODIFICATION: Ajout de la propriété 'essence' pour la mécanique de vulnérabilité en Co-op
+    { name: "Ichigo", rarity: "Rare", color: "text-gray-400", image: "./images/perso/ichigo.png", power: 360, level: 1, essence: "Red" },
     { name: "Sanji", rarity: "Rare", color: "text-gray-400", image: "./images/perso/sanji.png", power: 355, level: 1 },
     { name: "Crocodile", rarity: "Épique", color: "text-purple-400", image: "./images/perso/crocodile.png", power: 550, level: 1 },
     { name: "Killua", rarity: "Épique", color: "text-purple-400", image: "./images/perso/killua.png", power: 550, level: 1 },
@@ -62,8 +63,8 @@ const standardCharacters = [
     { name: "Zenitsu", rarity: "Épique", color: "text-purple-400", image: "./images/perso/zenitsu.png", power: 570, level: 1 },
     { name: "Goku Black", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/goku black.png", power: 800, level: 1 },
     { name: "Gon", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/gon.png", power: 820, level: 1 },
-    { name: "Kizaru", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/kizaru.png", power: 820, level: 1 },
-    { name: "Itachi", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/itachi.png", power: 820, level: 1 },
+    { name: "Kizaru", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/kizaru.png", power: 820, level: 1, essence: "Yellow" },
+    { name: "Itachi", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/itachi.png", power: 820, level: 1, essence: "Red" },
     { name: "Pain", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/pain.png", power: 850, level: 1 },
     { name: "Toge", rarity: "Légendaire", color: "text-yellow-400", image: "./images/perso/toge.png", power: 860, level: 1 },
     {
@@ -74,7 +75,7 @@ const standardCharacters = [
         power: 1250,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Shadow Tracer", 3, 50000, {
-            essenceQuantities: { Green: 20, Yellow: 20, Pink: 20, Rainbow: 10, Blue: 0, Purple: 0, Red: 0 } // Désactive celles non listées explicitement avant
+            essenceQuantities: { Green: 20, Yellow: 20, Pink: 20, Rainbow: 10, Blue: 0, Purple: 0, Red: 0 }
         }),
         evolutionData: createEvolutionData("Sung Jin Wu", "Monarch", 500)
     },
@@ -88,7 +89,8 @@ const standardCharacters = [
         evolutionRequirements: createEvolutionRequirements("Six Eyes", 5, 100000, {
             essenceQuantities: { Green: 40, Blue: 30, Red: 30, Rainbow: 10, Yellow: 0, Purple: 0, Pink: 0 }
         }),
-        evolutionData: createEvolutionData("Satoru Gojo", "Infinity", 800, { newRarity: "Secret", newColor: "text-secret" })
+        evolutionData: createEvolutionData("Satoru Gojo", "Infinity", 800, { newRarity: "Secret", newColor: "text-secret" }),
+        essence: "Blue"
     },
     {
         name: "Archer",
@@ -112,7 +114,8 @@ const standardCharacters = [
         evolutionRequirements: createEvolutionRequirements("Broken Sword", 5, 75000, {
             essenceQuantities: { Green: 20, Blue: 20, Purple: 20, Rainbow: 10, Yellow: 0, Pink: 0, Red: 0 }
         }),
-        evolutionData: createEvolutionData("Cha Hae-In", "Sword Dance", 500)
+        evolutionData: createEvolutionData("Cha Hae-In", "Sword Dance", 500),
+        essence: "Yellow"
     },
     {
         name: "Kenpachi Zaraki",
@@ -124,7 +127,8 @@ const standardCharacters = [
         evolutionRequirements: createEvolutionRequirements("Chipped Blade", 5, 75000, {
             essenceQuantities: { Green: 20, Yellow: 20, Red: 20, Purple: 20, Rainbow: 10, Blue: 0, Pink: 0 }
         }),
-        evolutionData: createEvolutionData("Kenpachi Zaraki", "Shikai", 500)
+        evolutionData: createEvolutionData("Kenpachi Zaraki", "Shikai", 500),
+        essence: "Red"
     },
     {
         name: "Choso",
@@ -134,7 +138,8 @@ const standardCharacters = [
         power: 1180,
         level: 1,
         evolutionRequirements: createEvolutionRequirements("Hardened Blood", 5, 75000), // Utilise les valeurs par défaut pour les essences
-        evolutionData: createEvolutionData("Choso", "Blood Curse", 590)
+        evolutionData: createEvolutionData("Choso", "Blood Curse", 590),
+        essence: "Red"
     },
     {
         name: "Yuji Itadori",
@@ -718,7 +723,7 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
     { id: 12, description: "Gagner 1000 EXP de joueur", type: "exp_gain", goal: 1000, reward: { gems: 200 } },
     { id: 13, description: "Acheter 3 objets dans la boutique", type: "shop_purchase", goal: 3, reward: { gems: 240 } },
     // NOUVELLES MISSIONS
-    { id: 14, description: "Faire évoluer un personnage", type: "evolve_char", goal: 1, reward: { gems: 500 } },
+    { id: 14, description: "Faire évoluer un personnage", type: "evolve_char", goal: 1, reward: { gems: 500 } }, 
     { id: 15, description: "Terminer 5 niveaux du mode Histoire", type: "complete_story_levels", goal: 5, reward: { gems: 250 } },
     { id: 16, description: "Dépenser 5000 gemmes", type: "spend_gems", goal: 5000, reward: { gems: 300 } },
     { id: 17, description: "Fusionner 10 personnages", type: "fuse_chars", goal: 10, reward: { gems: 150 } },
@@ -732,9 +737,10 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
     { id: 25, description: "Dépenser 10 000 pièces", type: "spend_coins", goal: 10000, reward: { gems: 150 } },
     // NOUVELLES MISSIONS DE GUILDE
     { id: 26, description: "Rejoindre ou créer une guilde", type: "join_guild", goal: 1, reward: { gems: 200 } },
-    { id: 27, description: "Contribuer 10,000 pièces à sa guilde", type: "contribute_to_guild", goal: 10000, reward: { gems: 250 } },
-    { id: 28, description: "Gagner 3 combats en Arène PvP", type: "pvp_wins", goal: 3, reward: { gems: 300 } },
-    { id: 29, description: "Participer à 10 combats en Arène PvP", type: "pvp_fights", goal: 10, reward: { gems: 150 } }
+    { id: 27, description: "Contribuer 10,000 pièces à sa guilde", type: "contribute_to_guild", goal: 10000, reward: { gems: 250 } }, 
+    { id: 28, description: "Gagner 3 combats en Arène PvP", type: "pvp_wins", goal: 3, reward: { gems: 300 } }, 
+    { id: 29, description: "Participer à 10 combats en Arène PvP", type: "pvp_fights", goal: 10, reward: { gems: 150 } },
+    { id: 30, description: "Gagner 5 combats en Guerre de Guilde", type: "gvg_wins", goal: 5, reward: { gems: 500 } }
 ];
 
     const baseStoryLevels = [
@@ -865,8 +871,6 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
       { id: 101, world: "Ruines Oubliées du Temps", name: "Niveau 4: Oracle des Âges", enemy: { name: "Saeculum Oraculum", power: 15450}, rewards: { gems: 80, coins: 100, exp: 1040 }, unlocked: false, completed: false, type: 'story' },
       { id: 102, world: "Ruines Oubliées du Temps", name: "Niveau 5: Titan Oublié", enemy: { name: "Oblitus Titan", power: 15600}, rewards: { gems: 80, coins: 100, exp: 1050 }, unlocked: false, completed: false, type: 'story' },
       { id: 103, world: "Ruines Oubliées du Temps", name: "Niveau 6: Seigneur du Temps", enemy: { name: "Dominus Temporis", power: 15750}, rewards: { gems: 80, coins: 100, exp: 1060 }, unlocked: false, completed: false, type: 'story' },
-
-      { id: 120, world: "Abîme Infini", name: "Niveau Infini: Abîme Éternel", enemy: { name: "Entité Infinie", power: 7500}, rewards: { gemsPerMinute: 10 }, unlocked: false, completed: false, isInfinite: true }
     ];
     const legendaryStoryLevels = [
         { id: 1001, world: "Royaume des Ombres", name: "Défi Légendaire: Roi des Ombres Éveillé", enemy: { name: "Rex Umbra Validus", power: 5000}, rewards: { gems: 500, coins: 250, exp: 1000, itemChance: { item: "Green Essence", probability: 0.01, minQuantity: 1, maxQuantity: 3 } }, type: 'legendary', unlocked: false, completed: false },
@@ -889,41 +893,89 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
     ];
     const storyLevels = [...baseStoryLevels, ...legendaryStoryLevels];
 
+    // MODIFICATION: Remplacement de l'ancienne structure des donjons Co-op par la nouvelle avec les difficultés.
     const coopDungeons = [
-      {
-          id: 501,
-          name: "Gardien Gémellaire",
-          maxPlayers: 2,
-          enemy: { name: "Les Jumeaux Astraux", power: 50000 },
-          rewards: {
-              gems: 500,
-              coins: 1000,
-              exp: 2000,
-              itemChance: [
-                  { item: "Plume Céleste", probability: 0.5, minQuantity: 1, maxQuantity: 2 },
-                  { item: "Divin Wish", probability: 0.05, minQuantity: 1, maxQuantity: 1 }
-              ]
-          },
-          type: 'coop',
-          unlocked: true
-      },
-      {
-          id: 502,
-          name: "Titan à Trois Têtes",
-          maxPlayers: 3,
-          enemy: { name: "Hydre du Vide", power: 150000 },
-          rewards: {
-              gems: 1500,
-              coins: 3000,
-              exp: 5000,
-              itemChance: [
-                  { item: "Sablier Ancien", probability: 0.5, minQuantity: 1, maxQuantity: 2 },
-                  { item: "Divin Wish", probability: 0.1, minQuantity: 1, maxQuantity: 2 }
-              ]
-          },
-          type: 'coop',
-          unlocked: true
-      }
+        {
+            id: 501,
+            name: "Gardien Gémellaire",
+            maxPlayers: 2,
+            type: 'coop',
+            unlocked: true,
+            difficulties: [
+                {
+                    level: "Normal",
+                    enemy: { name: "Les Jumeaux Astraux", power: 50000 },
+                    rewards: {
+                        gems: 250, coins: 500, exp: 1000,
+                        itemChance: [
+                            { item: "Plume Céleste", probability: 0.25, minQuantity: 1, maxQuantity: 1 }
+                        ]
+                    },
+                    mechanics: [
+                        { type: 'targeted_attack', triggerInterval: 20, duration: 10, breakThreshold: 20000 },
+                        { type: 'summon_adds', triggerInterval: 30, count: 2, addPower: 5000 }
+                    ]
+                },
+                {
+                    level: "Difficile",
+                    enemy: { name: "Les Jumeaux Astraux en Furie", power: 250000 },
+                    rewards: {
+                        gems: 750, coins: 1500, exp: 3000,
+                        itemChance: [
+                            { item: "Plume Céleste", probability: 0.5, minQuantity: 1, maxQuantity: 2 },
+                            { item: "Fragment Étoilé", probability: 0.1, minQuantity: 1, maxQuantity: 1 }
+                        ]
+                    },
+                    mechanics: [
+                        { type: 'targeted_attack', triggerInterval: 15, duration: 8, breakThreshold: 100000 },
+                        { type: 'summon_adds', triggerInterval: 25, count: 2, addPower: 25000 }
+                    ]
+                },
+                {
+                    level: "Cauchemar",
+                    enemy: { name: "Les Jumeaux Astraux Divins", power: 1000000 },
+                    rewards: {
+                        gems: 2000, coins: 5000, exp: 10000,
+                        itemChance: [
+                            { item: "Plume Céleste", probability: 1, minQuantity: 1, maxQuantity: 2 },
+                            { item: "Fragment Étoilé", probability: 0.25, minQuantity: 1, maxQuantity: 2 }
+                        ]
+                    },
+                    mechanics: [
+                        { type: 'targeted_attack', triggerInterval: 12, duration: 7, breakThreshold: 400000 },
+                        { type: 'vulnerability_phase', triggerInterval: 20, duration: 10, damageMultiplier: 5 },
+                        { type: 'summon_adds', triggerInterval: 20, count: 3, addPower: 100000 }
+                    ]
+                }
+            ]
+        },
+        {
+            id: 502,
+            name: "Titan à Trois Têtes",
+            maxPlayers: 3,
+            type: 'coop',
+            unlocked: true,
+            difficulties: [
+                {
+                    level: "Normal",
+                    enemy: { name: "Hydre du Vide", power: 150000 },
+                    rewards: { gems: 750, coins: 1500, exp: 3000, itemChance: [{ item: "Sablier Ancien", probability: 0.25, minQuantity: 1, maxQuantity: 1 }] },
+                    mechanics: [ { type: 'vulnerability_phase', triggerInterval: 25, duration: 12, damageMultiplier: 3 }, { type: 'summon_adds', triggerInterval: 35, count: 3, addPower: 15000 } ]
+                },
+                {
+                    level: "Difficile",
+                    enemy: { name: "Hydre du Vide Affamée", power: 750000 },
+                    rewards: { gems: 2250, coins: 4500, exp: 9000, itemChance: [{ item: "Sablier Ancien", probability: 0.5, minQuantity: 1, maxQuantity: 2 }, { item: "Coeur de Nébuleuse", probability: 0.1, minQuantity: 1, maxQuantity: 1 }] },
+                    mechanics: [ { type: 'targeted_attack', triggerInterval: 20, duration: 10, breakThreshold: 300000 }, { type: 'vulnerability_phase', triggerInterval: 20, duration: 10, damageMultiplier: 4 }, { type: 'summon_adds', triggerInterval: 30, count: 3, addPower: 75000 } ]
+                },
+                {
+                    level: "Cauchemar",
+                    enemy: { name: "Hydre du Vide Cosmique", power: 3000000 },
+                    rewards: { gems: 6000, coins: 15000, exp: 30000, itemChance: [{ item: "Sablier Ancien", probability: 1, minQuantity: 1, maxQuantity: 2 }, { item: "Coeur de Nébuleuse", probability: 0.25, minQuantity: 1, maxQuantity: 2 }] },
+                    mechanics: [ { type: 'targeted_attack', triggerInterval: 15, duration: 8, breakThreshold: 1200000 }, { type: 'vulnerability_phase', triggerInterval: 18, duration: 8, damageMultiplier: 6 }, { type: 'summon_adds', triggerInterval: 25, count: 4, addPower: 300000 } ]
+                }
+            ]
+        }
     ];
 
     const challengeLevels = [
@@ -1304,30 +1356,76 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         }
     };
 
-    const PVP_RANKS = [
-        { name: "Non classé", minPoints: 0, color: "text-gray-400" },
-        { name: "Combattant", minPoints: 100, color: "text-white" },
-        { name: "Guerrier d'Élite", minPoints: 500, color: "text-green-400" },
-        { name: "Maître", minPoints: 1000, color: "text-blue-400" },
-        { name: "Grand Maître", minPoints: 2500, color: "text-purple-400" },
-        { name: "Légende", minPoints: 5000, color: "text-yellow-400" },
-        { name: "Mythe Vivant", minPoints: 10000, color: "rainbow-text" }
+    // MODIFIÉ: Renommé en PVP_LEAGUES et ajout des récompenses de saison
+    const PVP_LEAGUES = [
+        { name: "Non classé", minPoints: 0, color: "text-gray-400", seasonRewards: { gems: 50, coins: 1000 } },
+        { name: "Combattant", minPoints: 100, color: "text-white", seasonRewards: { gems: 100, coins: 2500 } },
+        { name: "Guerrier d'Élite", minPoints: 500, color: "text-green-400", seasonRewards: { gems: 250, coins: 5000, items: [{ item: "Stat Chip", quantity: 1 }] } },
+        { name: "Maître", minPoints: 1000, color: "text-blue-400", seasonRewards: { gems: 500, coins: 10000, items: [{ item: "Stat Chip", quantity: 2 }] } },
+        { name: "Grand Maître", minPoints: 2500, color: "text-purple-400", seasonRewards: { gems: 1000, coins: 25000, items: [{ item: "Reroll Token", quantity: 1 }] } },
+        { name: "Légende", minPoints: 5000, color: "text-yellow-400", seasonRewards: { gems: 2500, coins: 50000, items: [{ item: "Reroll Token", quantity: 2 }, { item: "Divin Wish", quantity: 1 }] } },
+        { name: "Mythe Vivant", minPoints: 10000, color: "rainbow-text", seasonRewards: { gems: 5000, coins: 100000, items: [{ item: "Divin Wish", quantity: 2 }] } }
     ];
 
-    const raidBosses = [
+    // NOUVEAU: Définition des modes de Brawl hebdomadaires
+    const BRAWL_MODES = [
         {
-            id: "raid_boss_1",
-            name: "Titan des Abysses Primordial",
-            image: "./images/perso/titan-tapper.png", // Placeholder
-            totalHealth: 500000000, // 500 Million HP
-            durationDays: 7,
-            rewards: [
-                { rank: 1, gems: 10000, coins: 50000, items: [{ item: "Divin Wish", quantity: 1 }] },
-                { rank: 10, gems: 5000, coins: 25000, items: [{ item: "Rainbow Essence", quantity: 10 }] }, // Top 10
-                { rank: -1, gems: 1000, coins: 5000, items: [{ item: "Rainbow Essence", quantity: 2 }] } // All other participants
-            ]
+            id: 'limited_rarity',
+            name: "Rareté Limitée",
+            description: "Seuls les personnages de rareté Épique ou inférieure sont autorisés.",
+            rules: { maxRarity: "Épique" }
+        },
+        {
+            id: 'team_cost',
+            name: "Coût d'Équipe",
+            description: "Chaque personnage a un coût basé sur sa rareté. Votre équipe ne doit pas dépasser 10 points.",
+            rules: {
+                maxTotalCost: 10,
+                costs: { "Rare": 1, "Épique": 2, "Légendaire": 4, "Mythic": 6, "Secret": 8, "Vanguard": 10 }
+            }
+        },
+        {
+            id: 'trait_war_strength',
+            name: "Guerre des Traits : Force",
+            description: "Seuls les personnages avec le trait 'Force' (n'importe quel grade) peuvent participer.",
+            rules: { requiredTrait: 'strength' }
         }
     ];
+
+    const rarityOrder = {
+        "Rare": 1,
+        "Épique": 2,
+        "Légendaire": 3,
+        "Mythic": 4,
+        "Secret": 5,
+        "Vanguard": 6
+    };
+
+const raidBosses = [
+    {
+        id: "raid_boss_1",
+        name: "Titan des Abysses Primordial",
+        image: "./images/perso/titan-tapper.png",
+        totalHealth: 500000000, // 500 Million HP
+        durationDays: 7,
+        cost: 100, // Coût en Jetons de Guilde pour l'invoquer
+        rewards: {
+            participation: { // Pour tous ceux qui ont infligé > 0 dégâts, si le boss est vaincu
+                coins: 5000,
+                gems: 250
+            },
+            victory: { // Si le boss est vaincu, pour TOUS les membres de la guilde
+                guildTokens: 50,
+                items: [{ item: "Rainbow Essence", quantity: 5 }]
+            },
+            ranking: [ // Bonus pour les meilleurs contributeurs, si le boss est vaincu
+                { rank: 1, rewards: { gems: 10000, items: [{ item: "Divin Wish", quantity: 1 }] } }, // Uniquement le rang 1
+                { rank: 3, rewards: { gems: 5000, items: [{ item: "Rainbow Essence", quantity: 10 }] } }, // Rangs 2-3
+                { rank: 10, rewards: { gems: 2500, items: [{ item: "Rainbow Essence", quantity: 5 }] } }  // Rangs 4-10
+            ]
+        }
+    }
+];
 
     const dailyLoginRewards = [
         { day: 1, reward: { gems: 100 }, description: "100 Gemmes", image: "./images/items/Gem.webp" },
@@ -1368,14 +1466,6 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         { rank: "SSS", probability: 0.0005 }  // 0.05%
     ];
     
-    const rarityOrder = {
-      "Rare": 1,
-      "Épique": 2,
-      "Légendaire": 3,
-      "Mythic": 4,
-      "Secret": 5,
-      "Vanguard": 6
-    };
     const rarityExpMultipliers = {
       "Rare": 1.0,
       "Épique": 1.5,
@@ -1510,4 +1600,18 @@ const allCharacters = [...standardCharacters, ...specialCharacters];
         8: 1500000,
         9: 2000000,
         10: 3000000
+    };
+
+    const GVG_CONFIG = {
+        ATTACK_TOKENS_PER_WAR: 3,
+        PREPARATION_DURATION_HOURS: 24,
+        COMBAT_DURATION_HOURS: 24,
+        WINNER_GUILD_REWARDS: {
+            exp: 50000,
+            guildTokens: 200
+        },
+        PARTICIPANT_REWARDS_PER_WIN: {
+            gems: 50,
+            coins: 1000
+        }
     };

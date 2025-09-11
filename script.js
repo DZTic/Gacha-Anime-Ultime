@@ -342,21 +342,6 @@
               }
           }
       }
-      
-      const infiniteLevelId = 49; 
-      const infiniteLevelProgress = currentProgress.find(p => p.id === infiniteLevelId);
-      const infiniteLevelDef = allGameLevels.find(l => l.id === infiniteLevelId && l.isInfinite);
-      if (infiniteLevelProgress && infiniteLevelDef && !infiniteLevelProgress.unlocked) {
-          const allStandardStoryLevels = baseStoryLevels.filter(l => l.type === 'story' && !l.isInfinite);
-          const allStandardStoryLevelsCompleted = allStandardStoryLevels.every(stdLevel => {
-              const progress = currentProgress.find(p => p.id === stdLevel.id);
-              return progress && progress.completed;
-          });
-          if (allStandardStoryLevelsCompleted) {
-              console.log(`[MIGRATION PROGRESSION] Déblocage de ${infiniteLevelDef.name} (ID ${infiniteLevelId}) car tous les mondes d'histoire standard sont complétés.`);
-              infiniteLevelProgress.unlocked = true;
-          }
-      }
 
       const uniqueStoryWorldNames = [...new Set(baseStoryLevels.filter(l => l.type === 'story' && !l.isInfinite).map(l => l.world))];
       uniqueStoryWorldNames.forEach(worldName => {
@@ -412,6 +397,7 @@
     const defaultInventoryData = {
         "Haricots": 0, "Fluide mystérieux": 0, "Wisteria Flower": 0, "Pass XP": 0,
         "Cursed Token": 0, "Shadow Tracer": 0, "Stat Chip": 0, "Reroll Token": 0, "Divin Wish": 0,
+        "Jeton de Guilde": 0,
         "Hellsing Arms": 0, "Green Essence": 0, "Yellow Essence": 0, "Blue Essence": 0,
         "Pink Essence": 0, "Rainbow Essence": 0, "Crystal": 0, "Magic Pendant": 0,
         "Chocolate Bar's": 0, "Head Captain's Coat": 0, "Broken Sword": 0, "Chipped Blade": 0,
@@ -429,6 +415,9 @@
         "Ring of Friendship": 0, "Red Jewel": 0, "Majan Essence": 0, "Donut": 0, "Atomic Essence": 0,
         "Plume Céleste": 0, "Sablier Ancien": 0, "Restricting Headband": 0, "Toil Ribbon": 0, "Red Essence": 0, "Purple Essence": 0,
     };
+    // NOUVEAU: Ajout des objets exclusifs au Co-op
+    defaultInventoryData["Fragment Étoilé"] = 0;
+    defaultInventoryData["Coeur de Nébuleuse"] = 0;
     let inventory = safeJsonParse("inventory", { ...defaultInventoryData }, (inv) => {
         if (typeof inv !== 'object' || inv === null) return false;
         for (const key in defaultInventoryData) {
@@ -473,6 +462,13 @@
     let defenseTeamIds = safeJsonParse("defenseTeamIds", [], isValidStringArray);
     let playerPvpPoints = getNumberFromStorage("playerPvpPoints", 0);
     let pvpLogs = [];
+    // NOUVEAU: Variables pour les saisons PvP et le mode Brawl
+    let playerSeasonData = { highestLeagueName: 'Non classé', seasonId: null };
+    let seasonEndDate = null;
+    let seasonTimerIntervalId = null;
+    let currentBrawlMode = null;
+    let currentBattleMode = 'standard'; // 'standard' ou 'brawl'
+
 
     let selectedTeamCharacters = new Set();
     let teamEditorSelectedCharacters = new Set();
@@ -561,6 +557,7 @@
     let leaderboardListener = null;
     let pvpLeaderboardListener = null;
     let towerLeaderboardListener = null;
+    let guildLeaderboardListener = null;
 
     let miniGameState = {
         isActive: false, bossMaxHealth: 0, bossCurrentHealth: 0, damagePerClick: 0,
@@ -578,6 +575,11 @@
     // NOUVEAU: Variables pour le bonus de connexion
     let lastLoginDate = null; // Format 'YYYY-MM-DD'
     let loginStreak = 0; // 1-7
+    // NOUVEAU: Variables pour les raids
+    let raidAttempts = 3;
+    let lastRaidAttemptDate = null;
+    let mailListener = null;
+    let unreadMailCount = 0;
 
     // NOUVEAU: Variables de Guilde
     let playerGuildId = null;
@@ -585,6 +587,15 @@
     let guildDataListener = null; // Pour les données de la guilde
     let guildChatListener = null; // Pour le chat
     const GUILD_MEMBER_LIMIT = 20;
+    let activeGuildSubTabId = 'guild-main';
+    // NOUVEAU: Variables GvG
+    let gvgWarDataListener = null;
+    let gvgWarData = null;
+    let currentSelectionContext = 'battle'; // 'battle', 'gvg_defense', etc.
+    let gvgTimerIntervalId = null;
+    // NOUVEAU: Variables pour la phase de combat GvG
+    let gvgAttackTokens = 0;
+    let currentGvgTargetUid = null;
 
     // Existing DOM elements
     const gemsElement = document.getElementById("gems");
@@ -622,6 +633,7 @@
     let activeTabId = "play"; // Onglet actif par défaut
     let activePlaySubTabId = "story"; // Sous-onglet actif par défaut pour "play"
     let activeInventorySubTabId = "units"; // Sous-onglet actif par défaut pour "inventory"
+    let activeLeaderboardSubTabId = "leaderboard-player";
     const fuseButton = document.getElementById("fuse-button");
     const closeModalButton = document.getElementById("close-modal");
     const characterSelectionModal = document.getElementById("character-selection-modal");
@@ -690,6 +702,7 @@
     const pvpLogsModal = document.getElementById('pvp-logs-modal');
     const pvpLogsListContainer = document.getElementById('pvp-logs-list-container');
     const closePvpLogsButton = document.getElementById('close-pvp-logs-button');
+    const closePvpReplayButton = document.getElementById('close-pvp-replay-button'); // NOUVEAU: Ajout de la référence au bouton
     const pvpLogsBadge = document.getElementById('pvp-logs-badge');
 
     const pullWithGemsButton = document.getElementById("pull-with-gems");
@@ -819,6 +832,12 @@
     const guildActionConfirmMessageElement = document.getElementById('guild-action-confirm-message');
     const guildConfirmYesButton = document.getElementById('guild-confirm-yes-button');
     const guildConfirmNoButton = document.getElementById('guild-confirm-no-button');
+    // NOUVEAU: Éléments pour la sélection de raid
+    const openRaidSelectionButton = document.getElementById('open-raid-selection-button');
+    const raidSelectionModal = document.getElementById('raid-selection-modal');
+    const raidBossSelectionList = document.getElementById('raid-boss-selection-list');
+    const cancelRaidSelectionButton = document.getElementById('cancel-raid-selection-button');
+
     // NOUVEAU: Éléments DOM pour le Co-op
     const coopTab = document.getElementById('coop');
     const coopLobbyView = document.getElementById('coop-lobby-view');
@@ -954,6 +973,23 @@
                     statRankEl.style.display = 'block';
                 }
                 break;
+            case 'battleSelection':
+                cardDiv.classList.add(getRarityBorderClass(char.rarity));
+                nameEl.textContent = char.name;
+                powerEl.textContent = `Puissance: ${char.power}`;
+                powerEl.style.display = 'block';
+
+                // Appliquer le style de sélection
+                if (selectedBattleCharacters.has(originalIndex)) {
+                    cardDiv.classList.add('selected-for-battle');
+                }
+
+                // Griser les personnages non sélectionnables (doublons de nom, verrouillés)
+                const selectedCharacterNames = new Set(Array.from(selectedBattleCharacters).map(idx => ownedCharacters[idx]?.name).filter(Boolean));
+                if (char.locked || (!selectedBattleCharacters.has(originalIndex) && selectedCharacterNames.has(char.name))) {
+                    cardDiv.classList.add('non-selectable-for-battle');
+                }
+                break;
             // Other contexts can be added here to replicate the original function's behavior
             default: // Fallback to a simple display, similar to inventory
                 cardDiv.classList.add(getRarityBorderClass(char.rarity));
@@ -1075,6 +1111,8 @@
             pvpLogs = [];
             standardPityCount = 0;
             specialPityCount = 0;
+            raidAttempts = 3; // NOUVEAU
+            lastRaidAttemptDate = null; // NOUVEAU
             lastUsedBattleTeamIds = [];
             playerGuildId = null; // NOUVEAU
             towerFloor = 1;
@@ -1139,6 +1177,8 @@
             pvpLogs = saveData.pvpLogs || [];
             standardPityCount = saveData.standardPityCount || 0;
             specialPityCount = saveData.specialPityCount || 0;
+            raidAttempts = saveData.raidAttempts ?? 3; // NOUVEAU
+            lastRaidAttemptDate = saveData.lastRaidAttemptDate || null; // NOUVEAU
             lastUsedBattleTeamIds = saveData.lastUsedBattleTeamIds || [];
             playerGuildId = saveData.playerGuildId || null; // NOUVEAU
             towerFloor = saveData.towerFloor || 1;
@@ -1229,6 +1269,13 @@
             }
             showDailyLoginModal();
         }
+        // NOUVEAU: Reset des tentatives de raid
+        if (isNewDay(lastRaidAttemptDate)) {
+            console.log("Nouveau jour pour les raids, réinitialisation des tentatives.");
+            raidAttempts = 3;
+            lastRaidAttemptDate = new Date().toISOString().split('T')[0];
+            // Pas besoin de sauvegarder ici, ce sera fait à la prochaine action
+        }
     }
 
     async function handleLogin(e) {
@@ -1307,14 +1354,13 @@
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            // NOUVELLE PARTIE : Créer l'entrée initiale dans le classement public
             const leaderboardRef = db.collection('leaderboard').doc(user.uid);
             await leaderboardRef.set({
                 username: username,
                 playerPvpPoints: 0,
-                level: 1 // Score et niveau de départ
+                towerFloor: 1,
+                level: 1 
             });
-            // FIN DE LA NOUVELLE PARTIE
 
         } catch (error) {
             console.error("Erreur d'inscription:", error);
@@ -1740,12 +1786,6 @@
             </div>
           </div>`;
       }).join("");
-          const groupedLevels = storyProgress.reduce((acc, level) => {
-            const world = level.id <= 6 ? "Royaume des Ombres" : level.id <= 12 ? "Empire de Cristal" : level.id <= 18 ? "Profondeurs Abyssales" : level.id <= 24 ? "Pics Célestes" : level.id <= 30 ? "Déserts du Vide" : level.id <= 36 ? "Éclipse Éternelle" : "Abîme Infini";
-            acc[world] = acc[world] || [];
-            acc[world].push(level);
-            return acc;
-          }, {});
     }
 
     function updateLegendeDisplay() {
@@ -2003,8 +2043,8 @@
             return;
         }
         
-        if (!presetConfirmed && lastUsedBattleTeamIds.length === 0) {
-            maLevelsStatus.textContent = "Erreur: Veuillez configurer un Preset ou jouer un niveau une fois manuellement pour définir une équipe.";
+        if (!defaultBattleTeamId && lastUsedBattleTeamIds.length === 0) {
+            maLevelsStatus.textContent = "Erreur: Veuillez définir une équipe par défaut ou jouer un niveau une fois manuellement pour définir une équipe.";
             return;
         }
 
@@ -2131,7 +2171,7 @@
           autofuseCharacterGrid.innerHTML = '<p class="text-gray-400 col-span-full">Aucun personnage éligible (niveau inférieur à son cap actuel) disponible.</p>';
       } else {
           eligibleForAutofuseBase.forEach(char => {
-              const cardElement = createCharacterCardHTML(char, -1, 'autofuseGrid');
+              const cardElement = createCharacterCard(char, -1, 'autofuseGrid');
               autofuseFragment.appendChild(cardElement);
           });
           autofuseCharacterGrid.appendChild(autofuseFragment);
@@ -2237,17 +2277,14 @@
         // Supprimer les personnages fusionnés en utilisant leurs IDs
         ownedCharacters = ownedCharacters.filter(c => !characterIdsToFuse.includes(c.id));
 
-        // Nettoyer les IDs des personnages fusionnés de lastUsedBattleTeamIds et characterPreset
+        // Nettoyer les IDs des personnages fusionnés des équipes
         characterIdsToFuse.forEach(deletedId => {
             lastUsedBattleTeamIds = lastUsedBattleTeamIds.filter(id => id !== deletedId);
-            characterPreset = characterPreset.filter(id => id !== deletedId);
+            savedTeams.forEach(team => {
+                team.characterIds = team.characterIds.filter(id => id !== deletedId);
+            });
         });
         localStorage.setItem("lastUsedBattleTeamIds", JSON.stringify(lastUsedBattleTeamIds));
-        localStorage.setItem("characterPreset", JSON.stringify(characterPreset));
-        // Si le preset a été affecté et était confirmé, il faudrait peut-être le marquer comme non confirmé
-        // ou informer l'utilisateur, mais pour l'instant, on nettoie juste les IDs.
-        // presetConfirmed reste tel quel, il sera réévalué au prochain usage du preset si la taille a changé.
-
 
         addExp(totalExpGained); // Ajouter l'EXP au joueur
 
@@ -2357,7 +2394,7 @@
                 const originalIndex = ownedCharacters.findIndex(c => c.id === char.id);
                 if (originalIndex === -1) return; 
 
-                const cardElement = createCharacterCardHTML(char, originalIndex, 'teamSelection');
+                const cardElement = createCharacterCard(char, originalIndex, 'teamSelection');
                 fragment.appendChild(cardElement);
             });
             teamSelectionList.appendChild(fragment);
@@ -2476,12 +2513,12 @@
 
     function getPvpRank(points) {
         // Itérer à partir du rang le plus élevé pour trouver le premier pour lequel le joueur se qualifie.
-        for (let i = PVP_RANKS.length - 1; i >= 0; i--) {
-            if (points >= PVP_RANKS[i].minPoints) {
-                return PVP_RANKS[i];
+        for (let i = PVP_LEAGUES.length - 1; i >= 0; i--) {
+            if (points >= PVP_LEAGUES[i].minPoints) {
+                return PVP_LEAGUES[i];
             }
         }
-        return PVP_RANKS[0]; // Retourner le rang le plus bas par défaut
+        return PVP_LEAGUES[0]; // Retourner le rang le plus bas par défaut
     }
 
     function updatePvpDisplay() {
@@ -2489,6 +2526,17 @@
         pvpRankDisplay.textContent = rank.name;
         pvpRankDisplay.className = `text-4xl font-bold my-4 ${rank.color}`;
         pvpPointsDisplay.textContent = `Points: ${playerPvpPoints}`;
+
+        // Mettre à jour le plus haut rang de la saison
+        const currentLeagueIndex = PVP_LEAGUES.findIndex(l => l.name === rank.name);
+        const highestLeagueIndex = PVP_LEAGUES.findIndex(l => l.name === playerSeasonData.highestLeagueName);
+        if (currentLeagueIndex > highestLeagueIndex) {
+            playerSeasonData.highestLeagueName = rank.name;
+        }
+        document.getElementById('pvp-highest-league').textContent = playerSeasonData.highestLeagueName;
+
+        // Mettre à jour le classement public avec la nouvelle ligue
+        if (currentUser) { db.collection('leaderboard').doc(currentUser.uid).update({ playerPvpPoints: playerPvpPoints, pvpLeague: rank.name }).catch(e => {}); }
     }
 
     let autosellSettings = JSON.parse(localStorage.getItem("autosellSettings")) || {
@@ -2517,208 +2565,189 @@
     }
 
     async function confirmSelection() {
-        // NOUVEAU: Gérer le callback de sélection de personnage pour le mode co-op
-        if (coopCharacterSelectionCallback) {
-            if (selectedBattleCharacters.size !== 1) {
-                resultElement.innerHTML = `<p class="text-red-400">Veuillez sélectionner 1 personnage pour le combat co-op.</p>`;
-                // On ne ferme pas la modale, on laisse l'utilisateur corriger
-                return;
-            }
-            // L'ensemble contient des index, il faut récupérer le premier (et unique)
-            const selectedIndex = selectedBattleCharacters.values().next().value;
-            const selectedChar = ownedCharacters[selectedIndex];
-            
-            coopCharacterSelectionCallback(selectedChar); // Envoyer le personnage sélectionné
-            coopCharacterSelectionCallback = null; // Réinitialiser le callback
-            selectedBattleCharacters.clear(); // Vider la sélection
-            closeModalHelper(characterSelectionModal); // Fermer la modale
-            return; // Important: arrêter l'exécution ici pour ne pas lancer un combat normal
-        }
-
-        let levelData;
-        if (typeof currentLevelId === 'string' && currentLevelId.startsWith('tower_')) {
-            levelData = window.currentTowerLevelData;
-        } else if (currentLevelId === 'pvp_battle') {
-            // Create a dummy levelData for PvP
-            levelData = { id: 'pvp_battle', name: 'Arène PvP', enemy: { name: `l'équipe de ${currentPvpOpponent.name}`, power: currentPvpOpponent.teamPower }, type: 'pvp' };
-        } else {
-            levelData = allGameLevels.find(l => l.id === currentLevelId);
-        }
-
-        let teamForSelection = selectedBattleCharacters;
-        // For tower, we might use a different selection set if we implement that later
-        // For now, it's the same.
-
-        const currentMaxTeamSize = calculateMaxTeamSize(); // Based on selectedBattleCharacters
-
-        if (selectedBattleCharacters.size !== currentMaxTeamSize) {
-            console.warn("Tentative de confirmation avec une sélection invalide. Taille attendue:", currentMaxTeamSize, "Taille actuelle:", selectedBattleCharacters.size);
-            if (!characterSelectionModal.classList.contains("hidden")) {
-                return;
-            }
-            characterSelectionModal.classList.remove("hidden");
-            enableNoScroll();
-            updateCharacterSelectionDisplay();
+    // Gérer le callback de sélection de personnage pour le mode co-op
+    if (coopCharacterSelectionCallback) {
+        if (selectedBattleCharacters.size !== 1) {
+            resultElement.innerHTML = `<p class="text-red-400">Veuillez sélectionner 1 personnage pour le combat co-op.</p>`;
             return;
         }
-
-        lastUsedBattleTeamIds = Array.from(selectedBattleCharacters).map(index => ownedCharacters[index].id);
+        const selectedIndex = selectedBattleCharacters.values().next().value;
+        const selectedChar = ownedCharacters[selectedIndex];
         
-        if (!characterSelectionModal.classList.contains("hidden")) {
-            characterSelectionModal.classList.add("hidden");
-            disableNoScroll();
-        }
+        coopCharacterSelectionCallback(selectedChar);
+        coopCharacterSelectionCallback = null;
+        selectedBattleCharacters.clear();
+        closeModalHelper(characterSelectionModal);
+        return;
+    }
 
+    // Réinitialiser le mode de combat par défaut
+    currentBattleMode = 'standard';
+
+
+    // Gérer le contexte de la GvG
+    if (currentSelectionContext === 'gvg_defense') {
+        if (selectedBattleCharacters.size !== 3) {
+            resultElement.innerHTML = `<p class="text-red-400">Une équipe de défense GvG doit contenir exactement 3 personnages.</p>`;
+            return;
+        }
         const selectedCharsObjects = Array.from(selectedBattleCharacters).map(index => ownedCharacters[index]);
-        
-        // AJOUT : Aiguillage vers le mini-jeu si le type de niveau correspond
-        if (levelData && levelData.type === 'minigame') {
-            launchMiniGame(levelData, selectedCharsObjects);
-            return; // Important : arrête l'exécution pour ne pas lancer le combat automatique
-        }
+        await setGvgDefense(selectedCharsObjects);
+        closeModalHelper(characterSelectionModal);
+        currentSelectionContext = 'battle';
+        return;
+    }
 
-        let progress;
-        if (levelData && (levelData.type === 'tower' || levelData.type === 'pvp')) {
-            // Pour les niveaux de la tour et pvp, la progression n'est pas dans storyProgress.
-            // On crée un objet factice pour passer la vérification.
-            progress = { unlocked: true, completed: false };
-        } else {
-            progress = storyProgress.find(p => p.id === currentLevelId);
-            if (!progress && levelData && (levelData.type === 'challenge' || levelData.type === 'daily')) {
-                progress = { id: currentLevelId, unlocked: true, completed: false };
-                storyProgress.push(progress);
-            }
-        }
-
-        if (!levelData || !progress) {
-            console.error("Données de niveau ou de progression introuvables dans confirmSelection. Level ID:", currentLevelId);
-            resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+    // NOUVEAU: Gérer le contexte d'attaque GvG
+    if (currentSelectionContext === 'gvg_attack') {
+        if (selectedBattleCharacters.size !== 3) {
+            resultElement.innerHTML = `<p class="text-red-400">Une équipe d'attaque GvG doit contenir exactement 3 personnages.</p>`;
             return;
         }
-        
-        if (selectedCharsObjects.some(char => char === undefined)) {
-            console.error("Un ou plusieurs personnages sélectionnés sont undefined. Indices:", Array.from(selectedBattleCharacters), "OwnedChars:", ownedCharacters.length);
-            selectedBattleCharacters.clear();
-            lastUsedBattleTeamIds = [];
-            characterSelectionModal.classList.remove("hidden");
-            enableNoScroll();
-            updateCharacterSelectionDisplay();
-            resultElement.innerHTML = '<p class="text-red-500">Erreur de sélection d\'équipe. Veuillez réessayer.</p>';
-            return;
-        }
+        const attackerTeam = Array.from(selectedBattleCharacters).map(index => ownedCharacters[index]);
+        await executeGvgAttack(attackerTeam);
+        closeModalHelper(characterSelectionModal);
+        currentSelectionContext = 'battle';
+        return;
+    }
 
-        resultElement.innerHTML = `<p class="text-white">${levelData.isInfinite ? 'Plongée dans l\'Abîme Infini...' : 'Combat en cours contre ' + levelData.enemy.name + '...'}</p>`;
-        if (animationsEnabled) {
-            resultElement.classList.add("animate-pulse");
-        }
-        if (soundEnabled) battleSound.play();
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        resultElement.classList.remove("animate-pulse");
 
-        let playerPower = 0;
-        selectedCharsObjects.forEach(char => {
-            let battlePower = char.power;
-            if (char.trait && char.trait.id && char.trait.grade > 0) {
-                const traitDef = TRAIT_DEFINITIONS[char.trait.id];
-                if (traitDef && traitDef.grades) {
-                    const gradeDef = traitDef.grades.find(g => g.grade === char.trait.grade);
-                    if (gradeDef) {
-                        if (levelData.isInfinite && typeof gradeDef.powerMultiplierInfinite === 'number') {
-                            battlePower *= (1 + gradeDef.powerMultiplierInfinite);
-                        } else if (levelData.type === 'legendary' && typeof gradeDef.powerMultiplierLegend === 'number') {
-                            battlePower *= (1 + gradeDef.powerMultiplierLegend);
-                        } else if (levelData.type === 'challenge' && typeof gradeDef.powerMultiplierChallenge === 'number') {
-                            battlePower *= (1 + gradeDef.powerMultiplierChallenge);
-                        }
+    let levelData;
+    if (typeof currentLevelId === 'string' && currentLevelId.startsWith('tower_')) {
+        levelData = window.currentTowerLevelData;
+    } else if (currentLevelId === 'pvp_battle') {
+        levelData = { id: 'pvp_battle', name: 'Arène PvP', enemy: { name: `l'équipe de ${currentPvpOpponent.name}`, power: currentPvpOpponent.teamPower }, type: 'pvp' };
+    } else {
+        levelData = allGameLevels.find(l => l.id === currentLevelId);
+    }
+
+    const currentMaxTeamSize = calculateMaxTeamSize();
+
+    if (selectedBattleCharacters.size !== currentMaxTeamSize) {
+        resultElement.innerHTML = `<p class="text-red-400">Veuillez sélectionner exactement ${currentMaxTeamSize} personnage(s) pour ce combat.</p>`;
+        return;
+    }
+
+    lastUsedBattleTeamIds = Array.from(selectedBattleCharacters).map(index => ownedCharacters[index].id);
+    
+    closeModalHelper(characterSelectionModal);
+
+    const selectedCharsObjects = Array.from(selectedBattleCharacters).map(index => ownedCharacters[index]);
+    
+    if (levelData && levelData.type === 'minigame') {
+        launchMiniGame(levelData, selectedCharsObjects);
+        return;
+    }
+
+    if (currentLevelId === 'raid_battle') {
+        executeRaidAttack(selectedCharsObjects);
+        return;
+    }
+
+    let progress;
+    // On ne cherche la progression que pour les niveaux qui en ont une (pas pour le PvP ou la Tour)
+    if (levelData && levelData.type !== 'tower' && levelData.type !== 'pvp') {
+    progress = storyProgress.find(p => p.id === currentLevelId);
+    }
+    
+    if (!levelData || (levelData.type !== 'tower' && levelData.type !== 'pvp' && !progress)) {
+        console.error("Données de niveau ou de progression introuvables. Level ID:", currentLevelId);
+        resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+        return;
+    }
+    
+    if (selectedCharsObjects.some(char => char === undefined)) {
+        console.error("Un ou plusieurs personnages sélectionnés sont undefined. Indices:", Array.from(selectedBattleCharacters));
+        selectedBattleCharacters.clear();
+        lastUsedBattleTeamIds = [];
+        openModal(characterSelectionModal);
+        updateCharacterSelectionDisplay();
+        resultElement.innerHTML = '<p class="text-red-500">Erreur de sélection d\'équipe. Veuillez réessayer.</p>';
+        return;
+    }
+
+    resultElement.innerHTML = `<p class="text-white">${levelData.isInfinite ? 'Plongée dans l\'Abîme Infini...' : 'Combat en cours contre ' + levelData.enemy.name + '...'}</p>`;
+    if (animationsEnabled) resultElement.classList.add("animate-pulse");
+    if (soundEnabled) battleSound.play();
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    resultElement.classList.remove("animate-pulse");
+
+    let playerPower = 0;
+    selectedCharsObjects.forEach(char => {
+        let battlePower = char.power;
+        if (char.trait && char.trait.id && char.trait.grade > 0) {
+            const traitDef = TRAIT_DEFINITIONS[char.trait.id];
+            if (traitDef && traitDef.grades) {
+                const gradeDef = traitDef.grades.find(g => g.grade === char.trait.grade);
+                if (gradeDef) {
+                    if (levelData.isInfinite && typeof gradeDef.powerMultiplierInfinite === 'number') {
+                        battlePower *= (1 + gradeDef.powerMultiplierInfinite);
+                    } else if (levelData.type === 'legendary' && typeof gradeDef.powerMultiplierLegend === 'number') {
+                        battlePower *= (1 + gradeDef.powerMultiplierLegend);
+                    } else if (levelData.type === 'challenge' && typeof gradeDef.powerMultiplierChallenge === 'number') {
+                        battlePower *= (1 + gradeDef.powerMultiplierChallenge);
                     }
                 }
             }
-            playerPower += Math.floor(battlePower);
-        });
-
-        let enemyPower;
-        let enemyName;
-        if (currentLevelId === 'pvp_battle' && currentPvpOpponent) {
-            enemyPower = currentPvpOpponent.teamPower;
-            enemyName = `l'équipe de ${currentPvpOpponent.name}`;
-        } else {
-            enemyPower = levelData.enemy.power;
-            enemyName = levelData.enemy.name;
         }
-        const playerScore = playerPower * (1 + (Math.random() * 0.1));
-        const enemyScore = enemyPower * (1 + (Math.random() * 0.1));
+        playerPower += Math.floor(battlePower);
+    });
 
-        let battleOutcomeMessage = "";
+    const enemyPower = levelData.enemy.power;
+    const playerScore = playerPower * (1 + (Math.random() * 0.1));
+    const enemyScore = enemyPower * (1 + (Math.random() * 0.1));
+    let battleOutcomeMessage = "";
 
-        if (levelData.isInfinite) {
-            // Logique pour le niveau infini... (inchangée)
-            const timeSurvived = Math.floor((Date.now() - infiniteLevelStartTime) / 1000);
-            const baseGemsEarnedInfinite = Math.floor(timeSurvived / 60) * levelData.rewards.gemsPerMinute;
-            let golderBonusGemsInfinite = 0;
-            let golderMessagePartInfinite = "";
+    if (playerScore > enemyScore) {
+        if (levelData.type === 'tower') {
+            const floorReward = TOWER_CONFIG.rewards.perFloor;
+            addGems(floorReward.gems);
+            coins += floorReward.coins;
+            addExp(floorReward.exp);
+            let rewardMessage = `<p>Étage ${towerFloor} terminé ! +${floorReward.gems}G, +${floorReward.coins}P, +${floorReward.exp}EXP.</p>`;
 
-            selectedCharsObjects.forEach(char => {
-                if (char.trait && char.trait.id === 'golder' && char.trait.grade > 0) {
-                    const traitDef = TRAIT_DEFINITIONS['golder'];
-                    const gradeDef = traitDef.grades.find(g => g.grade === char.trait.grade);
-                    if (gradeDef && typeof gradeDef.gemBonusPercentageAllModes === 'number') {
-                        golderBonusGemsInfinite += Math.floor(baseGemsEarnedInfinite * gradeDef.gemBonusPercentageAllModes);
+            if (towerFloor > 0 && towerFloor % TOWER_CONFIG.rewards.milestoneFloors === 0) {
+                const milestoneReward = TOWER_CONFIG.rewards.milestoneRewards;
+                addGems(milestoneReward.gems);
+                rewardMessage += `<p class="text-yellow-300">Palier atteint ! +${milestoneReward.gems} Gemmes bonus !</p>`;
+                milestoneReward.itemChance.forEach(chance => {
+                    if (Math.random() < chance.probability) {
+                        const quantity = Math.floor(Math.random() * (chance.maxQuantity - chance.minQuantity + 1)) + chance.minQuantity;
+                        inventory[chance.item] = (inventory[chance.item] || 0) + quantity;
+                        rewardMessage += `<p class="text-green-400">Vous avez trouvé x${quantity} ${chance.item} !</p>`;
                     }
-                }
-            });
-            const totalGemsEarnedInfinite = baseGemsEarnedInfinite + golderBonusGemsInfinite;
-            if (golderBonusGemsInfinite > 0) {
-                golderMessagePartInfinite = ` (dont +${golderBonusGemsInfinite} grâce au trait Golder)`;
+                });
+            }
+            battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire !</p>${rewardMessage}`;
+            towerFloor++;
+
+            // --- MODIFICATION ICI ---
+            // Mettre à jour le classement public avec le nouvel étage atteint
+            if (currentUser) {
+                const leaderboardRef = db.collection('leaderboard').doc(currentUser.uid);
+                leaderboardRef.update({
+                    towerFloor: towerFloor
+                }).catch(e => console.error("Erreur de mise à jour du classement Tour:", e));
             }
 
-            gems = Math.min(gems + totalGemsEarnedInfinite, 10000000);
-
-            const expEarned = Math.floor(timeSurvived / 10);
-            addExp(expEarned);
-            selectedCharsObjects.forEach(char => {
-                addCharacterExp(char, expEarned);
-            });
-            battleOutcomeMessage = `
-                <p class="text-green-400 text-2xl font-bold mb-2">Survie Réussie !</p>
-                <p class="text-white">Vous avez survécu ${timeSurvived} secondes dans l'Abîme Infini !</p>
-                <p class="text-white">Récompenses: +${totalGemsEarnedInfinite} gemmes${golderMessagePartInfinite}, +${expEarned} EXP</p>`;
-            if (animationsEnabled) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-            infiniteLevelStartTime = null;
-
-        } else {
-            if (levelData.type === 'tower') {
-                // VICTOIRE DANS LA TOUR
-                const floorReward = TOWER_CONFIG.rewards.perFloor;
-                addGems(floorReward.gems);
-                coins += floorReward.coins;
-                addExp(floorReward.exp);
-                let rewardMessage = `<p>Étage ${towerFloor} terminé ! +${floorReward.gems}G, +${floorReward.coins}P, +${floorReward.exp}EXP.</p>`;
-
-                // Milestone rewards
-                if (towerFloor > 0 && towerFloor % TOWER_CONFIG.rewards.milestoneFloors === 0) {
-                    const milestoneReward = TOWER_CONFIG.rewards.milestoneRewards;
-                    addGems(milestoneReward.gems);
-                    rewardMessage += `<p class="text-yellow-300">Palier atteint ! +${milestoneReward.gems} Gemmes bonus !</p>`;
-                    milestoneReward.itemChance.forEach(chance => {
-                        if (Math.random() < chance.probability) {
-                            const quantity = Math.floor(Math.random() * (chance.maxQuantity - chance.minQuantity + 1)) + chance.minQuantity;
-                            inventory[chance.item] = (inventory[chance.item] || 0) + quantity;
-                            rewardMessage += `<p class="text-green-400">Vous avez trouvé x${quantity} ${chance.item} !</p>`;
-                        }
-                    });
-                }
-
-                battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire !</p>${rewardMessage}`;
-                towerFloor++; // Advance to the next floor
             } else {
             // Logique pour les niveaux normaux et PvP...
                 if (currentLevelId === 'pvp_battle') {
                     let pointsChange = 0; // NOUVEAU
                     if (playerScore > enemyScore) { // VICTOIRE PvP
                         const pointsGained = 10; const pointsLostByDefender = -3;
+
+                        // NOUVEAU: Création du rapport de combat pour le replay
+                        const battleReport = {
+                            attackerTeam: selectedCharsObjects.map(c => ({ name: c.name, power: c.power, image: c.image, rarity: c.rarity, color: c.color })),
+                            defenderTeam: currentPvpOpponent.team,
+                            attackerScore: playerScore,
+                            defenderScore: enemyScore,
+                            outcome: 'victory'
+                        };
                         pointsChange = pointsGained; // NOUVEAU
                         playerPvpPoints += pointsGained;
-                        battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire PvP !</p><p class="text-white">Vous avez vaincu ${enemyName} !</p><p class="text-white">Récompenses: +${pointsGained} Points PvP</p>`;
+                        battleOutcomeMessage = `<p class="text-green-400 text-2xl font-bold mb-2">Victoire PvP !</p><p class="text-white">Vous avez vaincu ${currentPvpOpponent.name} !</p><p class="text-white">Récompenses: +${pointsGained} Points PvP</p>`;
                         missions.forEach(m => { if (m.type === "pvp_wins" && !m.completed) m.progress++; if (m.type === "pvp_fights" && !m.completed) m.progress++; });
 
                         pvpLogs.unshift({ id: `log_${Date.now()}_${Math.random()}`, type: 'attack', opponentName: currentPvpOpponent.name, outcome: 'victory', pointsChange: pointsGained, timestamp: Date.now(), read: true });
@@ -2732,17 +2761,26 @@
                                 attackerId: currentUser.uid,
                                 attackerName: currentUser.email.split('@')[0],
                                 outcome: 'defeat', // Le défenseur a perdu
-                                pointsChange: pointsLostByDefender, // Conserver pour le log
-                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                                pointsChange: pointsLostByDefender,
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                battleReport: battleReport // NOUVEAU: Ajout du rapport de combat
                         });
                         batch.commit().catch(e => console.error("Erreur lors de l'écriture du résultat pour le défenseur :", e));
 
                     } else { // DÉFAITE PvP
                         const pointsLost = -5; const pointsGainedByDefender = 3;
+                        // NOUVEAU: Création du rapport de combat pour le replay
+                        const battleReport = {
+                            attackerTeam: selectedCharsObjects.map(c => ({ name: c.name, power: c.power, image: c.image, rarity: c.rarity, color: c.color })),
+                            defenderTeam: currentPvpOpponent.team,
+                            attackerScore: playerScore,
+                            defenderScore: enemyScore,
+                            outcome: 'defeat'
+                        };
                         const oldPoints = playerPvpPoints; // NOUVEAU
                         playerPvpPoints = Math.max(0, playerPvpPoints + pointsLost); // Add negative value
                         pointsChange = playerPvpPoints - oldPoints; // NOUVEAU
-                        battleOutcomeMessage = `<p class="text-red-400 text-2xl font-bold mb-2">Défaite PvP !</p><p class="text-white">Vous avez été vaincu par ${enemyName} !</p><p class="text-white">Récompenses: ${pointsLost} Points PvP</p>`;
+                    battleOutcomeMessage = `<p class="text-red-400 text-2xl font-bold mb-2">Défaite PvP !</p><p class="text-white">Vous avez été vaincu par ${currentPvpOpponent.name} !</p><p class="text-white">Récompenses: ${pointsLost} Points PvP</p>`;
                         missions.forEach(m => { if (m.type === "pvp_fights" && !m.completed) m.progress++; });
 
                         pvpLogs.unshift({ id: `log_${Date.now()}_${Math.random()}`, type: 'attack', opponentName: currentPvpOpponent.name, outcome: 'defeat', pointsChange: pointsLost, timestamp: Date.now(), read: true });
@@ -2756,20 +2794,27 @@
                             attackerId: currentUser.uid,
                             attackerName: currentUser.email.split('@')[0],
                             outcome: 'victory', // Le défenseur a gagné
-                            pointsChange: pointsGainedByDefender, // Conserver pour le log
-                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                            pointsChange: pointsGainedByDefender,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                            battleReport: battleReport // NOUVEAU: Ajout du rapport de combat
                         });
                         batch.commit().catch(e => console.error("Erreur lors de l'écriture du résultat pour le défenseur :", e));
                     }
 
                     // NOUVEAU: Mettre à jour le classement pour l'attaquant
                     if (pointsChange !== 0 && currentUser) {
-                        const leaderboardRef = db.collection('leaderboard').doc(currentUser.uid);
-                        const username = currentUser.email.split('@')[0];
-                        leaderboardRef.set({
-                            username: username,
-                            playerPvpPoints: firebase.firestore.FieldValue.increment(pointsChange)
-                        }, { merge: true }).catch(e => console.error("Erreur de mise à jour du classement PvP pour l'attaquant:", e));
+                        const leaderboardRef = db.collection('leaderboard').doc(currentUser.uid);                        
+                        // Utiliser une transaction pour éviter les scores négatifs sur le serveur
+                        db.runTransaction(async (transaction) => {
+                            const leaderboardDoc = await transaction.get(leaderboardRef);
+                            const currentDbPoints = leaderboardDoc.exists ? (leaderboardDoc.data().playerPvpPoints || 0) : 0;
+                            const newPoints = Math.max(0, currentDbPoints + pointsChange);
+                            transaction.set(leaderboardRef, { 
+                                username: currentUser.email.split('@')[0],
+                                playerPvpPoints: newPoints,
+                                pvpLeague: getPvpRank(newPoints).name
+                            }, { merge: true });
+                        }).catch(e => console.error("Erreur de mise à jour transactionnelle du classement PvP pour l'attaquant:", e));
                     }
 
                     findOpponentButton.disabled = false;
@@ -2989,61 +3034,69 @@
     async function processPendingPvpResults() {
         if (!currentUser) return;
 
-        const playerDocRef = db.collection('playerSaves').doc(currentUser.uid);
-        const resultsRef = playerDocRef.collection('pendingPvpResults').orderBy('timestamp', 'asc');
+        const playerSavesRef = db.collection('playerSaves').doc(currentUser.uid);
+        const resultsRef = playerSavesRef.collection('pendingPvpResults').orderBy('timestamp', 'asc');
 
         try {
             const querySnapshot = await resultsRef.get();
-            if (querySnapshot.empty) {
-                return;
-            }
+            if (querySnapshot.empty) return;
 
             console.log(`[PvP] ${querySnapshot.size} résultat(s) en attente trouvé(s). Traitement en cours...`);
-            const batch = db.batch();
-            let hasNewLogs = false;
+            
             let totalPointsChange = 0;
+            const docsToDelete = [];
+            const newLogs = [];
 
             querySnapshot.forEach(doc => {
-                hasNewLogs = true;
                 const data = doc.data();
                 const logTimestamp = data.timestamp ? data.timestamp.toDate() : new Date();
                 totalPointsChange += (data.pointsChange || 0);
 
-                const newLog = {
+                newLogs.unshift({
                     id: `log_${logTimestamp.getTime()}_${Math.random()}`,
                     type: 'defense',
                     opponentName: data.attackerName || 'Un joueur',
                     outcome: data.outcome,
+                    battleReport: data.battleReport || null, // NOUVEAU: Sauvegarder le rapport de combat
                     pointsChange: data.pointsChange,
                     timestamp: logTimestamp.getTime(),
                     read: false
-                };
-                pvpLogs.unshift(newLog);
-
-                batch.delete(doc.ref);
+                });
+                docsToDelete.push(doc.ref);
             });
 
-            if (!hasNewLogs) return;
+            if (newLogs.length === 0) return;
 
+            // Mettre à jour les logs locaux en premier
+            pvpLogs.unshift(...newLogs);
             if (pvpLogs.length > 50) {
                 pvpLogs.length = 50;
             }
 
-            batch.update(playerDocRef, {
-                playerPvpPoints: firebase.firestore.FieldValue.increment(totalPointsChange),
-                pvpLogs: pvpLogs
-            });
-            
+            // Utiliser une transaction pour mettre à jour les points en toute sécurité sur le serveur
             const leaderboardRef = db.collection('leaderboard').doc(currentUser.uid);
-            const username = currentUser.email.split('@')[0];
-            batch.set(leaderboardRef, {
-                username: username,
-                playerPvpPoints: firebase.firestore.FieldValue.increment(totalPointsChange)
-            }, { merge: true });
+            await db.runTransaction(async (transaction) => {
+                const playerSavesDoc = await transaction.get(playerSavesRef);
+                
+                const currentPoints = playerSavesDoc.exists ? (playerSavesDoc.data().playerPvpPoints || 0) : 0;
+                const newPoints = Math.max(0, currentPoints + totalPointsChange);
 
-            await batch.commit();
+                // Mettre à jour les deux documents dans la transaction
+                transaction.update(playerSavesRef, { 
+                    playerPvpPoints: newPoints,
+                    pvpLogs: pvpLogs // Sauvegarder le tableau de logs mis à jour
+                });
+                transaction.set(leaderboardRef, { playerPvpPoints: newPoints }, { merge: true });
+            });
+
+            // Supprimer les résultats traités dans un batch séparé
+            const deleteBatch = db.batch();
+            docsToDelete.forEach(ref => deleteBatch.delete(ref));
+            await deleteBatch.commit();
             
-            playerPvpPoints += totalPointsChange;
+            // Mettre à jour la variable de points locale
+            playerPvpPoints = Math.max(0, playerPvpPoints + totalPointsChange);
+            
             console.log(`[PvP] Traitement des résultats terminé. Nouveaux points : ${playerPvpPoints}`);
             updatePvpDisplay();
             updatePvpLogsNotification();
@@ -3152,7 +3205,7 @@
             return `
                 <div class="p-3 rounded-lg ${isAvailableToday ? 'bg-gray-700 border-2 border-cyan-500' : 'bg-gray-800 opacity-60'}">
                     <h4 class="text-lg font-bold ${isAvailableToday ? 'text-cyan-300' : 'text-gray-400'}">${level.name}</h4>
-                    <p class="text-sm text-gray-400 mb-2">Disponible le: ${days[level.dayOfWeek]}</p>
+                    <p class="text-sm text-gray-400 mb-2">Disponible le : ${days[level.dayOfWeek]}</p>
                     <div class="text-xs text-gray-300 mb-3">
                         <p>Ennemi: ${level.enemy.name} (Puissance: ${level.enemy.power.toLocaleString()})</p>
                         <p>Drops Principaux: ${itemDrops}</p>
@@ -3390,7 +3443,6 @@
         teamEditorFilterRarity = "all";
         fusionSearchName = "";
         fusionFilterRarity = "all";
-        inventoryFilterName = "";
         inventoryFilterRarity = "all";
         inventoryFilterEvolvable = false;
         inventoryFilterLimitBreak = false;
@@ -3544,6 +3596,7 @@
         "Shadow Tracer": "./images/items/Shadow_Tracer.webp",
         "Blood-Red Armor": "./images/items/Blood_Red_Armor.webp",
         "Reroll Token": "./images/items/Trait_Reroll.webp",
+        "Jeton de Guilde": "./images/items/Guild_Token.webp",
         "Divin Wish": "./images/items/Divin_Wish.webp",
         "Hellsing Arms": "./images/items/Hellsing_Arms.webp",
         "Green Essence": "./images/items/Green_Essence.webp",
@@ -3608,6 +3661,8 @@
         "Atomic Essence": "./images/items/Atomic_Essence.webp",
         "Plume Céleste": "./images/items/Plume_Celeste.webp",
         "Sablier Ancien": "./images/items/Sablier_Ancien.webp",
+        "Fragment Étoilé": "./images/items/Fragment_Etoile.webp",
+        "Coeur de Nébuleuse": "./images/items/Coeur_Nebuleuse.webp",
         "Restricting Headband": "./images/items/Restricting_Headband.webp",
         "Toil Ribbon" : "./images/items/Toil_Ribbon.webp",
     };
@@ -3667,11 +3722,13 @@
         const saveData = {
             username: currentUser.email.split('@')[0],
             characterIdCounter, gems, coins, pullCount, ownedCharacters, level, exp, pullTickets,
+            playerSeasonData, // NOUVEAU
             missions, shopOffers, shopRefreshTime, storyProgress, inventory, playerGuildId, towerFloor, defaultBattleTeamId,
             playerPvpPoints, // AJOUT: Sauvegarde des points PvP
             savedTeams, pvpLogs, standardPityCount, specialPityCount,
             lastUsedBattleTeamIds, autosellSettings, expMultiplier, expBoostEndTime, discoveredCharacters, // `characterPreset` et `presetConfirmed` sont supprimés
-            everOwnedCharacters,
+            everOwnedCharacters, raidAttempts, // NOUVEAU
+            lastRaidAttemptDate, // NOUVEAU
             defenseTeamIds, // <-- AJOUTEZ CETTE LIGNE !
             lastLoginDate, // NOUVEAU
             loginStreak,   // NOUVEAU
@@ -3704,18 +3761,40 @@
         try {
             const doc = await docRef.get();
             if (doc.exists) {
-                initializeGameData(doc.data());
-                
-                // ### AJOUTEZ CETTE LIGNE ICI ###
+                const saveData = doc.data();
+                initializeGameData(saveData);
+
+                // --- AJOUT : Vérification et création du document de classement ---
+                const leaderboardRef = db.collection('leaderboard').doc(userId);
+                const leaderboardDoc = await leaderboardRef.get();
+                if (!leaderboardDoc.exists) {
+                    console.log("Migration: Le document de classement n'existe pas pour cet utilisateur. Création en cours...");
+                    await leaderboardRef.set({
+                        username: saveData.username || currentUser.email.split('@')[0],
+                        level: saveData.level || 1,
+                        exp: saveData.exp || 0,
+                        playerPvpPoints: saveData.playerPvpPoints || 0,
+                        towerFloor: saveData.towerFloor || 1
+                    });
+                }
+                // --- FIN DE L'AJOUT ---
+
                 processPendingPvpResults(); 
-                
+                // NOUVEAU: Initialisation des systèmes de saison et de brawl
+                initializeSeason();
+                initializeBrawlMode();
+
+                checkMailbox();
                 setupPvpResultsListener(userId);
                 
-                if (doc.data().playerGuildId) {
-                    loadAndDisplayGuildData(doc.data().playerGuildId);
+                if (saveData.playerGuildId) {
+                    loadAndDisplayGuildData(saveData.playerGuildId);
                 }
             } else {
                 initializeGameData(null);
+                // NOUVEAU: Initialisation pour un nouveau joueur
+                initializeSeason();
+                initializeBrawlMode();
             }
             checkDailyLogin();
         } catch (error) {
@@ -3855,31 +3934,47 @@
 
 
     function addExp(amount) {
-      exp += Math.floor(amount * expMultiplier);
-      missions.forEach(mission => {
-        if (mission.type === "exp_gain" && !mission.completed) {
-          mission.progress += amount;
-        }
-      });
-      let leveledUp = false;
-      while (exp >= 50 * level * level) {
-        exp -= 50 * level * level;
-        level++;
-        leveledUp = true;
-        gems = Math.min(gems + 100, 1000000000); // Plafond harmonisé pour les gemmes
-        coins = Math.min(coins + 20, 10000000);   // Plafond harmonisé pour les pièces
-        resultElement.innerHTML = `<p class="text-green-400">Niveau ${level} atteint ! +100 gemmes, +20 pièces</p>`;
-      }
-      if (leveledUp) {
+        exp += Math.floor(amount * expMultiplier);
         missions.forEach(mission => {
-          if (mission.type === "level_up" && !mission.completed) {
-            mission.progress++;
-          }
+            if (mission.type === "exp_gain" && !mission.completed) {
+            mission.progress += amount;
+            }
         });
-      }
-      checkMissions();
-      updateUI();
-    }
+        
+        let leveledUp = false;
+        let newLevel = level; // Variable temporaire pour suivre le niveau
+        
+        // Utiliser newLevel pour le calcul dans la boucle
+        while (exp >= 50 * newLevel * newLevel) { 
+            exp -= 50 * newLevel * newLevel;
+            newLevel++; // Incrémenter le niveau temporaire
+            leveledUp = true;
+            gems = Math.min(gems + 100, 1000000000); 
+            coins = Math.min(coins + 20, 10000000);   
+            resultElement.innerHTML = `<p class="text-green-400">Niveau ${newLevel} atteint ! +100 gemmes, +20 pièces</p>`;
+        }
+        
+        if (leveledUp) {
+            level = newLevel; // Appliquer le nouveau niveau à la variable globale
+            missions.forEach(mission => {
+                if (mission.type === "level_up" && !mission.completed) {
+                    mission.progress++;
+                }
+            });
+        }
+
+        // Mettre à jour le classement public avec le nouveau niveau ET l'EXP actuelle
+        if (currentUser) {
+            const leaderboardRef = db.collection('leaderboard').doc(currentUser.uid);
+            // Utiliser set avec merge:true pour créer le document s'il n'existe pas, ou le mettre à jour sinon.
+            leaderboardRef.set({ level: level, exp: exp }, { merge: true })
+                .catch(e => console.error("Erreur de mise à jour du classement Niveau/EXP:", e));
+        }
+
+        checkMissions();
+        updateUI();
+        // La sauvegarde (scheduleSave) sera appelée par l'action parente (combat, etc.)
+        }
 
     function getCharacterFromSpecialBanner(characters) {
       const totalChance = characters.reduce((sum, char) => sum + char.chance, 0);
@@ -5036,15 +5131,31 @@
     function updateCharacterSelectionDisplay() {
         characterSelectionList.innerHTML = ""; // Clear existing content
 
-        // NOUVELLE LOGIQUE: Déterminer la taille de l'équipe en fonction du contexte
+        // MODIFIÉ: Gérer les différents contextes de sélection (Combat, GvG, Co-op)
+        const isGvgDefenseSelection = currentSelectionContext === 'gvg_defense';
         const isCoopSelection = coopCharacterSelectionCallback !== null;
-        const currentMaxTeamSize = isCoopSelection ? 1 : calculateMaxTeamSize();
+        let currentMaxTeamSize = 3; // Taille par défaut
+        let teamCost = 0; // NOUVEAU: Pour le mode Brawl
+        if (isCoopSelection) {
+            currentMaxTeamSize = 1;
+        } else if (isGvgDefenseSelection) {
+            currentMaxTeamSize = 3;
+        } else {
+            currentMaxTeamSize = calculateMaxTeamSize();
+        }
+        // NOUVEAU: Ajuster la taille max pour le mode Brawl si nécessaire (ici, on garde la même)
+        if (currentBattleMode === 'brawl' && currentBrawlMode.rules.maxTeamSize) {
+            currentMaxTeamSize = currentBrawlMode.rules.maxTeamSize;
+        }
 
         const modalTitle = document.getElementById("character-selection-title");
         if (modalTitle) {
-            // MODIFIÉ: Titre dynamique
             if (isCoopSelection) {
                 modalTitle.textContent = `Sélectionner 1 Personnage pour le Combat Co-op`;
+            } else if (isGvgDefenseSelection) {
+                modalTitle.textContent = `Sélectionner 3 Personnages pour la Défense GvG`;
+            } else if (currentBattleMode === 'brawl') {
+                modalTitle.textContent = `Brawl : ${currentBrawlMode.name}`;
             } else {
                 modalTitle.textContent = `Sélectionner ${currentMaxTeamSize} Personnage(s) pour le Combat`;
             }
@@ -5062,6 +5173,21 @@
         }
         if (battleFilterRarity !== "all") {
             charactersToDisplay = charactersToDisplay.filter(char => char.rarity === battleFilterRarity);
+        }
+
+        // NOUVEAU: Filtres spécifiques au mode Brawl
+        if (currentBattleMode === 'brawl' && currentBrawlMode) {
+            if (currentBrawlMode.rules.maxRarity) {
+                const maxRarityOrder = rarityOrder[currentBrawlMode.rules.maxRarity];
+                charactersToDisplay = charactersToDisplay.filter(char => rarityOrder[char.rarity] <= maxRarityOrder);
+            }
+            if (currentBrawlMode.rules.requiredTrait) {
+                charactersToDisplay = charactersToDisplay.filter(char => char.trait && char.trait.id === currentBrawlMode.rules.requiredTrait);
+            }
+        }
+
+        if (currentBattleMode === 'brawl' && currentBrawlMode.rules.maxTotalCost) {
+            teamCost = Array.from(selectedBattleCharacters).reduce((sum, index) => sum + (currentBrawlMode.rules.costs[ownedCharacters[index].rarity] || 0), 0);
         }
 
         const sortedCharacters = charactersToDisplay.sort((a, b) => {
@@ -5091,8 +5217,18 @@
             characterSelectionList.appendChild(fragment);
         }
         
-        selectedCountElement.textContent = `${selectedBattleCharacters.size}/${currentMaxTeamSize}`;
-        confirmSelectionButton.disabled = selectedBattleCharacters.size !== currentMaxTeamSize;
+        let countText = `${selectedBattleCharacters.size}/${currentMaxTeamSize}`;
+        let isSelectionInvalid = selectedBattleCharacters.size !== currentMaxTeamSize;
+
+        if (currentBattleMode === 'brawl' && currentBrawlMode.rules.maxTotalCost) {
+            countText += ` | Coût: ${teamCost}/${currentBrawlMode.rules.maxTotalCost}`;
+            if (teamCost > currentBrawlMode.rules.maxTotalCost) {
+                isSelectionInvalid = true;
+            }
+        }
+
+        selectedCountElement.textContent = countText;
+        confirmSelectionButton.disabled = isSelectionInvalid;
         confirmSelectionButton.classList.toggle("opacity-50", confirmSelectionButton.disabled);
         confirmSelectionButton.classList.toggle("cursor-not-allowed", confirmSelectionButton.disabled);
         
@@ -5128,6 +5264,13 @@
                 const hasNameDuplicate = Array.from(selectedBattleCharacters).some(idx => ownedCharacters[idx].name === characterToAdd.name);
 
                 if (potentialTeam.size <= potentialMaxSize && !hasNameDuplicate) {
+                    // NOUVEAU: Vérification du coût pour le mode Brawl
+                    if (currentBattleMode === 'brawl' && currentBrawlMode.rules.maxTotalCost) {
+                        const newCost = Array.from(potentialTeam).reduce((sum, index) => sum + (currentBrawlMode.rules.costs[ownedCharacters[index].rarity] || 0), 0);
+                        if (newCost > currentBrawlMode.rules.maxTotalCost) {
+                            return; // Ne pas ajouter si le coût dépasse
+                        }
+                    }
                     selectedBattleCharacters.add(index);
                 }
             }
@@ -5734,6 +5877,110 @@
       scheduleSave();
     }
 
+    // NOUVEAU: Fonctions pour les Saisons et Ligues PvP
+    function initializeSeason() {
+        if (seasonTimerIntervalId) clearInterval(seasonTimerIntervalId);
+
+        const now = new Date();
+        const currentSeasonId = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+        
+        seasonEndDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59));
+
+        if (playerSeasonData.seasonId && playerSeasonData.seasonId !== currentSeasonId) {
+            console.log(`Nouvelle saison détectée ! Fin de la saison ${playerSeasonData.seasonId}.`);
+            processSeasonEnd();
+        }
+        
+        playerSeasonData.seasonId = currentSeasonId;
+
+        const timerElement = document.getElementById('pvp-season-timer');
+        const updateTimer = () => {
+            const timeLeft = seasonEndDate.getTime() - Date.now();
+            if (timeLeft <= 0) {
+                timerElement.textContent = "Saison terminée !";
+                clearInterval(seasonTimerIntervalId);
+            } else {
+                const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                timerElement.textContent = `${days}j ${hours}h`;
+            }
+        };
+        updateTimer();
+        seasonTimerIntervalId = setInterval(updateTimer, 60 * 60 * 1000);
+    }
+
+    async function processSeasonEnd() {
+        const league = PVP_LEAGUES.find(l => l.name === playerSeasonData.highestLeagueName) || PVP_LEAGUES[0];
+        const rewards = league.seasonRewards;
+
+        let rewardMessage = `Récompenses pour avoir atteint la ligue ${league.name} :`;
+        let rewardsForMail = {};
+
+        if (rewards.gems) { rewardMessage += ` +${rewards.gems} gemmes`; rewardsForMail.gems = rewards.gems; }
+        if (rewards.coins) { rewardMessage += ` +${rewards.coins} pièces`; rewardsForMail.coins = rewards.coins; }
+        if (rewards.items) {
+            rewardMessage += rewards.items.map(i => ` +${i.quantity} ${i.item}`).join(',');
+            rewardsForMail.items = rewards.items;
+        }
+
+        if (currentUser) {
+            const mailRef = db.collection('playerSaves').doc(currentUser.uid).collection('mailbox').doc();
+            await mailRef.set({
+                subject: `Fin de la Saison PvP ${playerSeasonData.seasonId}`,
+                body: rewardMessage,
+                rewards: rewardsForMail,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        playerPvpPoints = 0;
+        playerSeasonData = { highestLeagueName: 'Non classé', seasonId: null };
+        
+        updatePvpDisplay();
+        scheduleSave();
+    }
+
+    // NOUVEAU: Fonctions pour le mode Brawl
+    function initializeBrawlMode() {
+        const now = new Date();
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const weekNumber = Math.ceil((((now - startOfYear) / 86400000) + startOfYear.getDay() + 1) / 7);
+        currentBrawlMode = BRAWL_MODES[weekNumber % BRAWL_MODES.length];
+
+        document.getElementById('brawl-mode-name').textContent = currentBrawlMode.name;
+        document.getElementById('brawl-mode-description').textContent = currentBrawlMode.description;
+    }
+
+    // NOUVEAU: Fonction pour afficher le replay PvP
+    function showPvpReplay(battleReport) {
+        const contentEl = document.getElementById('pvp-replay-content');
+        if (!battleReport) {
+            contentEl.innerHTML = `<p class="text-center text-red-400">Données de replay non disponibles pour ce combat.</p>`;
+            openModal(document.getElementById('pvp-replay-modal'));
+            return;
+        }
+
+        const renderTeam = (team) => team.map(char => `
+            <div class="replay-char-card border-2 ${getRarityBorderClass(char.rarity)}">
+                <img src="${char.image}" alt="${char.name}" class="w-12 h-12 rounded">
+                <div><p class="${char.color} font-semibold">${char.name}</p><p class="text-xs text-gray-300">Puissance: ${char.power.toLocaleString()}</p></div>
+            </div>`).join('');
+
+        contentEl.innerHTML = `
+            <div class="replay-grid mb-4">
+                <div class="replay-team attacker">${renderTeam(battleReport.attackerTeam)}</div>
+                <div class="replay-vs">VS</div>
+                <div class="replay-team defender">${renderTeam(battleReport.defenderTeam)}</div>
+            </div>
+            <div class="text-center border-t border-gray-600 pt-4">
+                <p>Score Attaquant: <span class="font-bold">${Math.round(battleReport.attackerScore).toLocaleString()}</span></p>
+                <p>Score Défenseur: <span class="font-bold">${Math.round(battleReport.defenderScore).toLocaleString()}</span></p>
+                <p class="text-2xl font-bold mt-4 ${battleReport.outcome === 'victory' ? 'text-green-400' : 'text-red-400'}">${battleReport.outcome === 'victory' ? 'VICTOIRE DE L\'ATTAQUANT' : 'DÉFAITE DE L\'ATTAQUANT'}</p>
+            </div>
+        `;
+        openModal(document.getElementById('pvp-replay-modal'));
+    }
+
     function updateLimitBreakTabDisplay() {
       console.log("--- updateLimitBreakTabDisplay ---");
 
@@ -6274,6 +6521,111 @@
       }).join("");
     }
 
+    function updateStatChangeTabDisplay() {
+        const statChipCountElement = document.getElementById("stat-chip-count");
+        if (statChipCountElement) {
+            statChipCountElement.textContent = inventory["Stat Chip"] || 0;
+        }
+
+        const selectedCharDisplay = document.getElementById("stat-change-selected-char-display");
+        const charSelectionGrid = document.getElementById("stat-change-char-selection-grid");
+        const applyButton = document.getElementById("apply-stat-change-button");
+        const searchInput = document.getElementById("stat-change-search");
+        const searchTerm = searchInput.value.toLowerCase();
+
+        let disableApplyButton = !currentStatChangeCharacterId || (inventory["Stat Chip"] || 0) < 1;
+        let char = null;
+
+        clearTimeout(statChangeInfoTimeoutId);
+        statChangeInfoTimeoutId = null;
+
+        if (resultElement.innerHTML.includes("Info: Le personnage") || resultElement.innerHTML.includes("Info:")) {
+            resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+        }
+
+        if (currentStatChangeCharacterId) {
+            char = ownedCharacters.find(c => c.id === currentStatChangeCharacterId);
+            if (char) {
+                selectedCharDisplay.innerHTML = `
+                    <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${statRanks[char.statRank]?.borderColor || 'border-gray-400'} w-full max-w-xs mx-auto">
+                        <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2" loading="lazy" decoding="async">
+                        <p class="${char.color} font-semibold text-center">${char.name} (${char.rarity}) ${char.locked ? '🔒' : ''}</p>
+                        <p class="text-white text-center">Niv: ${char.level}, P: ${char.power}</p>
+                        <p class="text-center font-bold ${statRanks[char.statRank]?.color || 'text-white'}">Stat Actuel: ${char.statRank}</p>
+                    </div>
+                `;
+
+                const currentRankIsSSS = (char.statRank === "SSS");
+                const currentSelectedTargetRanks = Array.from(statTargetRanksSelectionElement.querySelectorAll(".stat-target-rank-checkbox:checked")).map(cb => cb.value);
+                
+                let infoMsgContent = "";
+
+                if (currentRankIsSSS) {
+                    infoMsgContent = `Info: ${char.name} a le rang SSS. "Changer Stat" demandera confirmation.`;
+                } else if (statKeepBetterToggle.checked && currentSelectedTargetRanks.length > 0 && currentSelectedTargetRanks.includes(char.statRank)) {
+                    infoMsgContent = `Info: ${char.name} a le rang cible coché "${char.statRank}". "Changer Stat" demandera confirmation pour continuer à chercher d'autres cibles (ou le même rang).`;
+                }
+                // Si aucune des conditions ci-dessus n'est remplie, aucun message d'info spécifique lié à une cible atteinte ou SSS.
+                // Le bouton reste actif tant qu'il y a des chips.
+
+                if (infoMsgContent && (inventory["Stat Chip"] || 0) >= 1 && !disableApplyButton) {
+                     if (!resultElement.innerHTML.includes("Changement de Stat pour") && 
+                         !resultElement.innerHTML.includes("Changement de stat annulé") &&
+                         !resultElement.innerHTML.includes("malédiction") && 
+                         !resultElement.innerHTML.includes("a été maudit")) {
+                        resultElement.innerHTML = `<p class="text-blue-400">${infoMsgContent}</p>`;
+                        statChangeInfoTimeoutId = setTimeout(() => {
+                            if (resultElement.innerHTML.includes("Info:")) {
+                                resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
+                            }
+                            statChangeInfoTimeoutId = null;
+                        }, 7000);
+                    }
+                }
+            } else { // char non trouvé
+                selectedCharDisplay.innerHTML = '<p class="text-gray-400">Personnage non trouvé.</p>';
+                currentStatChangeCharacterId = null;
+                disableApplyButton = true;
+            }
+        } else { // Aucun perso sélectionné
+            selectedCharDisplay.innerHTML = '<p class="text-gray-400">Aucun personnage sélectionné.</p>';
+            disableApplyButton = true;
+        }
+
+        charSelectionGrid.innerHTML = "";
+        const availableCharacters = ownedCharacters
+            .filter(c => c.name.toLowerCase().includes(searchTerm));
+
+        if (availableCharacters.length === 0) {
+            charSelectionGrid.innerHTML = `<p class="text-gray-400 col-span-full">${searchTerm ? 'Aucun personnage trouvé pour "' + searchTerm + '".' : 'Aucun personnage disponible.'}</p>`;
+        } else {
+            const fragment = document.createDocumentFragment();
+            availableCharacters.sort((a,b) => (statRanks[b.statRank]?.order || 0) - (statRanks[a.statRank]?.order || 0) || b.power - a.power)
+            .forEach(c => {
+                // MODIFICATION: Utiliser la nouvelle fonction createCharacterCard
+                const cardElement = createCharacterCard(c, -1, 'statChangeSelection');
+                fragment.appendChild(cardElement);
+            });
+            charSelectionGrid.appendChild(fragment);
+        }
+
+        // La logique de disableApplyButton est maintenant plus simple:
+        // elle est vraie si pas de perso sélectionné ou pas de chips.
+        // Les confirmations dans applyStatChange gèrent les cas SSS ou cible cochée.
+        applyButton.disabled = disableApplyButton;
+        applyButton.classList.toggle("opacity-50", disableApplyButton);
+        applyButton.classList.toggle("cursor-not-allowed", disableApplyButton);
+
+        const checkboxesDisabled = !statKeepBetterToggle.checked;
+        statTargetRanksSelectionElement.classList.toggle("stat-target-ranks-disabled", checkboxesDisabled);
+        statTargetRanksSelectionElement.querySelectorAll(".stat-target-rank-checkbox").forEach(cb => {
+            cb.disabled = checkboxesDisabled;
+            if (checkboxesDisabled) {
+                cb.checked = false; 
+            }
+        });
+    }
+
     function toggleLockCharacter(id) {
         const charIndex = ownedCharacters.findIndex(c => c.id === id);
         if (charIndex === -1) return;
@@ -6344,9 +6696,17 @@
 
         // --- NOUVEAU: Détacher les listeners des classements en temps réel ---
         // Si on quitte l'onglet "leaderboard"
-        if (activeTabId === 'leaderboard' && leaderboardListener) {
-            console.log("[Listener] Détachement du listener du classement général."); leaderboardListener();
-            leaderboardListener = null;
+        if (activeTabId === 'leaderboard') {
+            if (leaderboardListener) {
+                console.log("[Listener] Détachement du listener du classement joueur.");
+                leaderboardListener();
+                leaderboardListener = null;
+            }
+            if (guildLeaderboardListener) {
+                console.log("[Listener] Détachement du listener du classement guilde.");
+                guildLeaderboardListener();
+                guildLeaderboardListener = null;
+            }
         }
         // Si on quitte l'onglet "play" ET que le sous-onglet "pvp" était actif
         if (activeTabId === 'play' && activePlaySubTabId === 'pvp' && pvpLeaderboardListener) {
@@ -6399,10 +6759,11 @@
         } else if (tabId === "play") {
             // Restaurer le dernier sous-onglet actif de "jouer" ou afficher "story" par défaut
             showSubTab(activePlaySubTabId || "story");
+        } else if (tabId === "leaderboard") {
+            // Restaurer le dernier sous-onglet actif de "classement" ou afficher "joueurs" par défaut
+            showSubTab(activeLeaderboardSubTabId || "leaderboard-player");
         } else if (tabId === "index") {
             updateIndexDisplay();
-        } else if (tabId === "pvp") { // MODIFICATION ICI
-            updatePvpDisplay();
         } else if (tabId === "evolution") {
             updateEvolutionDisplay();
         } else if (tabId === "stat-change") {
@@ -6416,8 +6777,6 @@
             updateTraitTabDisplay();
         } else if (tabId === "limit-break") {
             updateLimitBreakTabDisplay();
-        } else if (tabId === "leaderboard") {
-            updateLeaderboard();
         } else if (tabId === "guild") {
             updateGuildDisplay();
         } else {
@@ -6434,65 +6793,157 @@
         const leaderboardContent = document.getElementById("leaderboard-content");
         leaderboardContent.innerHTML = '<p class="text-white text-center">Chargement du classement...</p>';
 
-        try {
-            // 1. Récupérer les 100 meilleurs joueurs depuis Firestore
-            const querySnapshot = await db.collection('playerSaves')
-                .orderBy('level', 'desc')
-                .orderBy('exp', 'desc')
-                .limit(100)
-                .get();
+        // Détacher l'ancien listener s'il existe
+        if (leaderboardListener) {
+            leaderboardListener();
+            leaderboardListener = null;
+        }
 
-            const players = [];
-            querySnapshot.forEach(doc => {
-                const data = doc.data();
-                // S'assurer que les données nécessaires sont présentes
-                if (data.username && typeof data.level === 'number' && typeof data.exp === 'number') {
-                    players.push({
-                        uid: doc.id,
-                        name: data.username,
-                        level: data.level,
-                        exp: data.exp
-                    });
+        try {
+            // --- MODIFICATION MAJEURE ICI ---
+            // Interroger la collection 'leaderboard' publique, pas 'playerSaves'
+            const query = db.collection('leaderboard')
+                .orderBy('level', 'desc') // Trier par niveau
+                .orderBy('exp', 'desc')   // Puis par EXP (pour départager)
+                .limit(100);
+
+            // Utiliser onSnapshot pour un classement en temps réel
+            leaderboardListener = query.onSnapshot(querySnapshot => {
+                const players = [];
+                querySnapshot.forEach(doc => {
+                    const data = doc.data();
+                    // S'assurer que les données nécessaires sont présentes
+                    if (data.username && typeof data.level === 'number' && typeof data.exp === 'number') {
+                        players.push({
+                            uid: doc.id,
+                            name: data.username,
+                            level: data.level,
+                            exp: data.exp
+                        });
+                    }
+                });
+
+                if (players.length === 0) {
+                    leaderboardContent.innerHTML = '<p class="text-white text-center">Le classement est vide pour le moment.</p>';
+                    return;
+                }
+
+                // Construire le tableau HTML
+                leaderboardContent.innerHTML = `
+                    <table class="w-full text-white">
+                        <thead>
+                            <tr class="text-left">
+                                <th class="p-2">Rang</th>
+                                <th class="p-2">Nom</th>
+                                <th class="p-2">Niveau</th>
+                                <th class="p-2">EXP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${players.map((p, index) => `
+                                <tr class="${p.uid === currentUser?.uid ? 'bg-yellow-500 text-black' : ''}">
+                                    <td class="p-2">${index + 1}</td>
+                                    <td class="p-2">${p.name}</td>
+                                    <td class="p-2">${p.level}</td>
+                                    <td class="p-2">${p.exp.toLocaleString()}</td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                `;
+            }, (error) => { // Gérer les erreurs du listener
+                console.error("Erreur lors du chargement du classement:", error);
+                leaderboardContent.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement. Veuillez réessayer plus tard.</p>';
+                if (error.code === 'failed-precondition') {
+                    leaderboardContent.innerHTML += '<p class="text-yellow-400 text-center text-sm mt-2">Note: Un index Firestore est requis. Vérifiez la console du navigateur pour un lien de création d\'index (level desc, exp desc).</p>';
+                }
+                if (leaderboardListener) {
+                    leaderboardListener(); // Détacher le listener en cas d'erreur
+                    leaderboardListener = null;
                 }
             });
-
-            if (players.length === 0) {
-                leaderboardContent.innerHTML = '<p class="text-white text-center">Le classement est vide pour le moment.</p>';
-                return;
-            }
-
-            // 2. Construire le tableau HTML
-            leaderboardContent.innerHTML = `
-                <table class="w-full text-white">
-                    <thead>
-                        <tr class="text-left">
-                            <th class="p-2">Rang</th>
-                            <th class="p-2">Nom</th>
-                            <th class="p-2">Niveau</th>
-                            <th class="p-2">EXP</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${players.map((p, index) => `
-                            <tr class="${p.uid === currentUser?.uid ? 'bg-yellow-500 text-black' : ''}">
-                                <td class="p-2">${index + 1}</td>
-                                <td class="p-2">${p.name}</td>
-                                <td class="p-2">${p.level}</td>
-                                <td class="p-2">${p.exp.toLocaleString()}</td>
-                            </tr>
-                        `).join("")}
-                    </tbody>
-                </table>
-            `;
+            // --- FIN DE LA MODIFICATION ---
 
         } catch (error) {
-            console.error("Erreur lors du chargement du classement:", error);
-            leaderboardContent.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement. Veuillez réessayer plus tard.</p>';
-            // Il est possible que l'index composé (level, exp) ne soit pas créé sur Firestore.
-            // Firestore fournit généralement un lien dans le message d'erreur de la console pour le créer.
-            if (error.code === 'failed-precondition') {
-                leaderboardContent.innerHTML += '<p class="text-yellow-400 text-center text-sm mt-2">Note: Un index Firestore est peut-être requis. Vérifiez la console du navigateur pour un lien de création d\'index.</p>';
-            }
+            console.error("Erreur lors de la configuration du listener de classement:", error);
+            leaderboardContent.innerHTML = '<p class="text-red-500 text-center">Erreur de configuration du classement.</p>';
+        }
+    }
+
+    async function updateGuildLeaderboard() {
+        const guildLeaderboardContent = document.getElementById("guild-leaderboard-content");
+        if (!guildLeaderboardContent) return;
+    
+        guildLeaderboardContent.innerHTML = '<p class="text-white text-center">Chargement du classement des guildes...</p>';
+    
+        if (guildLeaderboardListener) {
+            guildLeaderboardListener();
+            guildLeaderboardListener = null;
+        }
+    
+        try {
+            const query = db.collection('guilds')
+                .orderBy('exp', 'desc')
+                .limit(100);
+    
+            guildLeaderboardListener = query.onSnapshot(querySnapshot => {
+                const guilds = [];
+                querySnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.name && typeof data.exp === 'number') {
+                        guilds.push({
+                            id: doc.id,
+                            name: data.name,
+                            exp: data.exp,
+                            level: getGuildLevelFromExp(data.exp),
+                            members: Object.keys(data.members || {}).length
+                        });
+                    }
+                });
+    
+                if (guilds.length === 0) {
+                    guildLeaderboardContent.innerHTML = '<p class="text-white text-center">Le classement des guildes est vide.</p>';
+                    return;
+                }
+    
+                guildLeaderboardContent.innerHTML = `
+                    <table class="w-full text-white">
+                        <thead>
+                            <tr class="text-left">
+                                <th class="p-2">Rang</th>
+                                <th class="p-2">Nom</th>
+                                <th class="p-2">Niveau</th>
+                                <th class="p-2">EXP</th>
+                                <th class="p-2">Membres</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${guilds.map((g, index) => `
+                                <tr class="${g.id === playerGuildId ? 'bg-yellow-500 text-black' : ''}">
+                                    <td class="p-2">${index + 1}</td>
+                                    <td class="p-2">${g.name}</td>
+                                    <td class="p-2">${g.level}</td>
+                                    <td class="p-2">${g.exp.toLocaleString()}</td>
+                                    <td class="p-2">${g.members}/${GUILD_MEMBER_LIMIT}</td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                `;
+            }, (error) => {
+                console.error("Erreur lors du chargement du classement des guildes:", error);
+                guildLeaderboardContent.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement des guildes.</p>';
+                if (error.code === 'failed-precondition') {
+                    guildLeaderboardContent.innerHTML += '<p class="text-yellow-400 text-center text-sm mt-2">Note: Un index Firestore pour `exp` dans la collection `guilds` est peut-être requis.</p>';
+                }
+                if (guildLeaderboardListener) {
+                    guildLeaderboardListener();
+                    guildLeaderboardListener = null;
+                }
+            });
+        } catch (error) {
+            console.error("Erreur de configuration du listener de classement de guilde:", error);
+            guildLeaderboardContent.innerHTML = '<p class="text-red-500 text-center">Erreur de configuration du classement.</p>';
         }
     }
 
@@ -6547,18 +6998,18 @@
         });
     }
 
-    function updateTowerLeaderboard() {
+    async function updateTowerLeaderboard() {
         const towerLeaderboardEl = document.getElementById('tower-leaderboard');
         if (!towerLeaderboardEl) return;
 
         towerLeaderboardEl.innerHTML = '<p class="text-white text-center">Chargement du classement de la Tour...</p>';
 
-        // Détacher l'ancien listener s'il existe
         if (towerLeaderboardListener) {
             towerLeaderboardListener();
         }
-
-        const query = db.collection('playerSaves')
+        
+        // --- MODIFICATION ICI : On interroge la collection 'leaderboard' ---
+        const query = db.collection('leaderboard')
                 .orderBy('towerFloor', 'desc')
                 .limit(100);
 
@@ -6566,6 +7017,7 @@
             const players = [];
             querySnapshot.forEach(doc => {
                 const data = doc.data();
+                // On vérifie que les données nécessaires sont présentes
                 if (data.username && typeof data.towerFloor === 'number') {
                     players.push({
                         uid: doc.id,
@@ -6605,7 +7057,7 @@
             console.error("Erreur lors du chargement du classement de la Tour:", error);
             towerLeaderboardEl.innerHTML = '<p class="text-red-500 text-center">Impossible de charger le classement de la Tour.</p>';
             if (error.code === 'failed-precondition') {
-                towerLeaderboardEl.innerHTML += '<p class="text-yellow-400 text-center text-xs mt-2">Note: Un index Firestore pour `towerFloor` est peut-être requis. Vérifiez la console du navigateur pour un lien de création d\'index.</p>';
+                towerLeaderboardEl.innerHTML += '<p class="text-yellow-400 text-center text-xs mt-2">Note: Un index Firestore pour `towerFloor` est peut-être requis. Vérifiez la console du navigateur pour un lien.</p>';
             }
             if (towerLeaderboardListener) {
                 towerLeaderboardListener();
@@ -6616,70 +7068,80 @@
 
     async function findOpponent() {
         resultElement.innerHTML = `<p class="text-yellow-400">Recherche d'un adversaire...</p>`;
+        
+        // MODIFICATION: Désactiver les deux boutons et créer une fonction pour les réactiver
+        const brawlButton = document.getElementById('play-brawl-button');
         findOpponentButton.disabled = true;
-        console.log("[PvP] Lancement de la recherche d'adversaire...");
+        if (brawlButton) brawlButton.disabled = true;
+
+        const reEnableButtons = () => {
+            findOpponentButton.disabled = false;
+            if (brawlButton) brawlButton.disabled = false;
+        };
 
         try {
-            // Pour l'instant, on prend un joueur au hasard qui n'est pas nous-même et qui a une équipe de défense.
-            // Une logique plus complexe pourrait filtrer par niveau/points PvP.
-            const querySnapshot = await db.collection('playerSaves').get();
-            const potentialOpponents = [];
-            console.log(`[PvP] ${querySnapshot.size} sauvegardes de joueurs trouvées dans la base de données.`);
+            let query;
+
+            if (currentBattleMode === 'brawl') {
+                // Pour le Brawl, on cherche des joueurs de manière plus aléatoire
+                const randomId = db.collection('leaderboard').doc().id;
+                query = db.collection('leaderboard')
+                    .where(firebase.firestore.FieldPath.documentId(), '>=', randomId)
+                    .limit(20);
+            } else {
+                // Logique de matchmaking standard
+                const points = playerPvpPoints;
+                const range = 500;
+                const minPoints = Math.max(0, points - range);
+                const maxPoints = points + range;
+
+                query = db.collection('leaderboard')
+                    .where('playerPvpPoints', '>=', minPoints)
+                    .where('playerPvpPoints', '<=', maxPoints)
+                    .limit(20);
+            }
+
+            let querySnapshot = await query.get();
+            let potentialOpponents = [];
 
             querySnapshot.forEach(doc => {
-                const data = doc.data();
-                const username = data.username || doc.id;
-
-                if (doc.id === currentUser.uid) {
-                    // console.log(`[PvP] Ignoré: ${username} (c'est vous-même).`);
-                    return; // On s'ignore soi-même
-                }
-
-                if (data.defenseTeamIds && data.defenseTeamIds.length === 3) {
-                    potentialOpponents.push({ id: doc.id, ...data });
-                    console.log(`[PvP] Adversaire potentiel VALIDE trouvé: ${username}`);
-                } else {
-                    console.log(`[PvP] Ignoré: ${username} (équipe de défense invalide ou incomplète. Trouvé: ${JSON.stringify(data.defenseTeamIds)})`);
+                if (doc.id !== currentUser.uid && doc.data().defenseTeam) {
+                    potentialOpponents.push({ id: doc.id, ...doc.data() });
                 }
             });
 
+            // Fallback pour le mode brawl si la première requête aléatoire ne donne rien
+            if (currentBattleMode === 'brawl' && potentialOpponents.length < 1) {
+                const fallbackQuery = db.collection('leaderboard').limit(20);
+                querySnapshot = await fallbackQuery.get();
+                querySnapshot.forEach(doc => {
+                    if (doc.id !== currentUser.uid && doc.data().defenseTeam && !potentialOpponents.some(p => p.id === doc.id)) {
+                        potentialOpponents.push({ id: doc.id, ...doc.data() });
+                    }
+                });
+            }
+
             if (potentialOpponents.length === 0) {
-                resultElement.innerHTML = `<p class="text-gray-400">Aucun adversaire avec une équipe de défense valide n'a été trouvé. Réessayez plus tard.</p>`;
-                findOpponentButton.disabled = false;
+                resultElement.innerHTML = `<p class="text-gray-400">Aucun adversaire trouvé. Réessayez dans un instant.</p>`;
+                reEnableButtons();
                 return;
             }
 
             const opponentData = potentialOpponents[Math.floor(Math.random() * potentialOpponents.length)];
-            
-            // Construire les objets personnages de l'équipe de défense
-            const opponentTeam = opponentData.defenseTeamIds.map(charId => {
-                return opponentData.ownedCharacters.find(c => c.id === charId);
-            }).filter(Boolean); // Filtrer les persos non trouvés
+            const opponentTeamPower = opponentData.defenseTeam.reduce((sum, char) => sum + (char.power || 0), 0);
 
-            if (opponentTeam.length !== 3) {
-                 resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la récupération de l'équipe de l'adversaire. Veuillez réessayer.</p>`;
-                 findOpponentButton.disabled = false;
-                 return;
-            }
+            currentPvpOpponent = { id: opponentData.id, name: opponentData.username, team: opponentData.defenseTeam, teamPower: opponentTeamPower };
 
-            // Recalculer la puissance de chaque personnage de l'adversaire pour être sûr
-            let opponentTeamPower = 0;
-            opponentTeam.forEach(char => {
-                recalculateCharacterPower(char);
-                opponentTeamPower += char.power;
-            });
+            resultElement.innerHTML = `<p class="text-green-400">Adversaire trouvé : ${currentPvpOpponent.name} (Puissance: ${currentPvpOpponent.teamPower})</p>`;
+            await startPvpBattle();
 
-            currentPvpOpponent = {
-                id: opponentData.id,
-                name: opponentData.username,
-                team: opponentTeam,
-                teamPower: opponentTeamPower
-            };
-            resultElement.innerHTML = `<p class="text-green-400">Adversaire trouvé : ${currentPvpOpponent.name} (Puissance: ${currentPvpOpponent.teamPower})</p>`; startPvpBattle();
         } catch (error) {
             console.error("Erreur lors de la recherche d'un adversaire PvP:", error);
-            resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la recherche d'un adversaire. Vérifiez la console.</p>`;
-            findOpponentButton.disabled = false;
+            resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la recherche d'un adversaire.</p>`;
+            reEnableButtons();
+            if (error.code === 'failed-precondition') {
+                resultElement.innerHTML += '<p class="text-yellow-400 text-xs">Un index Firestore est peut-être requis. Vérifiez la console.</p>';
+            }
         }
     }
 
@@ -6768,8 +7230,14 @@
             const isVictory = log.outcome === 'victory';
             const actionText = log.type === 'attack' ? `Vous avez attaqué <strong>${log.opponentName}</strong>` : `<strong>${log.opponentName}</strong> vous a attaqué`;
             const outcomeText = isVictory ? 'Victoire' : 'Défaite';
-            const pointsText = `${log.pointsChange > 0 ? '+' : ''}${log.pointsChange} points`;
-            return `<div class="p-3 rounded-lg mb-2 ${log.read ? 'bg-gray-700 bg-opacity-40' : 'bg-blue-900 bg-opacity-50 border border-blue-500'}"><div class="flex justify-between items-center"><p class="font-bold ${isVictory ? 'text-green-400' : 'text-red-400'}">${outcomeText}</p><p class="text-xs text-gray-400">${date}</p></div><p class="text-white mt-1">${actionText}</p><p class="text-white text-sm">${pointsText}</p></div>`;
+            const pointsText = `${log.pointsChange > 0 ? '+' : ''}${log.pointsChange} points`;            
+            // NOUVEAU: Ajout du bouton Replay
+            const replayButtonHtml = log.battleReport ? `<button class="view-replay-button bg-blue-700 hover:bg-blue-800 text-white text-xs py-1 px-2 rounded mt-2" data-log-id="${log.id}">Replay</button>` : '';
+
+            return `<div class="p-3 rounded-lg mb-2 ${log.read ? 'bg-gray-700 bg-opacity-40' : 'bg-blue-900 bg-opacity-50 border border-blue-500'}">
+                        <div class="flex justify-between items-center"><p class="font-bold ${isVictory ? 'text-green-400' : 'text-red-400'}">${outcomeText}</p><p class="text-xs text-gray-400">${date}</p></div>
+                        <p class="text-white mt-1">${actionText}</p><p class="text-white text-sm">${pointsText}</p>${replayButtonHtml}
+                    </div>`;
         }).join('');
     }
 
@@ -6789,14 +7257,15 @@
             const isDefaultTeam = team.id === defaultBattleTeamId; // NOUVEAU
 
             const teamCard = document.createElement('div');
-            teamCard.className = `saved-team-card ${isDefenseTeam ? 'border-blue-500' : (isDefaultTeam ? 'default-team-card' : 'border-gray-600')}`; // MODIFIÉ
+            teamCard.className = `saved-team-card ${isDefenseTeam ? 'border-blue-500' : (isDefaultTeam ? 'default-team-card' : 'border-gray-600')} cursor-pointer hover:bg-gray-700 transition-colors duration-200`;
+            teamCard.dataset.teamId = team.id;
             teamCard.innerHTML = `
-                <div class="saved-team-header">
+                <div class="saved-team-header pointer-events-none">
                     <h3 class="saved-team-name">${team.name}</h3>
                     ${isDefaultTeam ? '<span class="text-xs bg-yellow-500 text-black font-bold py-1 px-2 rounded">Par Défaut</span>' : ''}
                     ${isDefenseTeam ? '<span class="text-xs bg-blue-500 text-white font-bold py-1 px-2 rounded">Équipe de Défense</span>' : ''}
                 </div>
-                <div class="saved-team-characters">
+                <div class="saved-team-characters pointer-events-none">
                     ${teamCharacters.map(char => `
                         <img src="${char.image}" alt="${char.name}" title="${char.name} (Puissance: ${char.power})" class="saved-team-char-icon ${getRarityBorderClass(char.rarity)}">
                     `).join('')}
@@ -6804,8 +7273,6 @@
                 </div>
                 <div class="saved-team-actions">
                     <button class="load-team-btn bg-blue-600 hover:bg-blue-700 text-white text-sm py-1 px-3 rounded" data-team-id="${team.id}">Charger</button>
-                    <button class="edit-team-btn bg-yellow-500 hover:bg-yellow-600 text-white text-sm py-1 px-3 rounded" data-team-id="${team.id}">Modifier</button>
-                    <button class="delete-team-btn bg-red-600 hover:bg-red-700 text-white text-sm py-1 px-3 rounded" data-team-id="${team.id}">Supprimer</button>
                     <button class="set-default-btn bg-green-600 hover:bg-green-700 text-white text-sm py-1 px-3 rounded ${isDefaultTeam ? 'opacity-50 cursor-not-allowed' : ''}" data-team-id="${team.id}" ${isDefaultTeam ? 'disabled' : ''}>Par Défaut</button>
                     <button class="set-defense-btn bg-purple-600 hover:bg-purple-700 text-white text-sm py-1 px-3 rounded ${isDefenseTeam ? 'opacity-50 cursor-not-allowed' : ''}" data-team-id="${team.id}" ${isDefenseTeam ? 'disabled' : ''}>Définir en Défense</button>
                 </div>
@@ -6818,6 +7285,7 @@
         editingTeamId = teamId;
         teamEditorSelectedCharacters.clear();
         const nameInput = document.getElementById('team-editor-name-input');
+        const deleteButton = document.getElementById('delete-team-in-editor-btn');
 
         if (teamId) {
             const team = savedTeams.find(t => t.id === teamId);
@@ -6829,8 +7297,14 @@
                     }
                 });
             }
+            deleteButton.classList.remove('hidden');
+            deleteButton.onclick = () => {
+                deleteTeam(teamId);
+                closeModalHelper(teamEditorModal);
+            };
         } else {
             nameInput.value = "";
+            deleteButton.classList.add('hidden');
         }
         updateTeamEditorDisplay();
         openModal(teamEditorModal);
@@ -7031,27 +7505,38 @@
             return;
         }
 
-        // Déverrouiller les personnages de l'ancienne équipe de défense
+        // Déverrouiller l'ancienne équipe
         defenseTeamIds.forEach(charId => {
-            if (!team.characterIds.includes(charId)) { // Ne pas déverrouiller s'il est aussi dans la nouvelle équipe
+            if (!team.characterIds.includes(charId)) {
                 const charToUnlock = ownedCharacters.find(c => c.id === charId);
-                if (charToUnlock) {
-                    charToUnlock.locked = false;
-                }
+                if (charToUnlock) charToUnlock.locked = false;
             }
         });
 
         defenseTeamIds = [...team.characterIds];
 
-        // Verrouiller les personnages de la nouvelle équipe de défense
+        // Verrouiller la nouvelle équipe
         defenseTeamIds.forEach(charId => {
             const charToLock = ownedCharacters.find(c => c.id === charId);
-            if (charToLock) {
-                charToLock.locked = true;
-            }
+            if (charToLock) charToLock.locked = true;
         });
 
-        resultElement.innerHTML = `<p class="text-green-400">L'équipe "${team.name}" est maintenant votre équipe de défense. Ses membres sont automatiquement verrouillés.</p>`;
+        // Sauvegarder une version simplifiée de l'équipe dans le classement public
+        if (currentUser) {
+            const defenseTeamForLeaderboard = teamCharacters.map(char => ({
+                name: char.name,
+                power: char.power,
+                image: char.image,
+                rarity: char.rarity,
+                color: char.color
+            }));
+            
+            db.collection('leaderboard').doc(currentUser.uid).update({
+                defenseTeam: defenseTeamForLeaderboard
+            }).catch(e => console.error("Erreur de mise à jour de l'équipe de défense dans le classement:", e));
+        }
+
+        resultElement.innerHTML = `<p class="text-green-400">L'équipe "${team.name}" est maintenant votre équipe de défense. Ses membres sont verrouillés.</p>`;
         updateTeamsModalDisplay();
         updateCharacterDisplay();
         scheduleSave();
@@ -7233,28 +7718,51 @@
     }
 
     async function updateGuildDisplay() {
-        if (playerGuildId && playerGuildData) {
-            const isOwner = playerGuildData.ownerId === currentUser.uid;
-            const raidBossView = document.getElementById('guild-raid-boss-view');
-            const noRaidView = document.getElementById('guild-no-raid-view');
-            const startRaidButton = document.getElementById('start-raid-button');
-
+        if (playerGuildId && playerGuildData) { 
             guildJoinCreateView.classList.add('hidden');
             guildMainView.classList.remove('hidden');
-            renderGuildView(playerGuildData);
-
-            if (playerGuildData.activeRaid) {
-                noRaidView.classList.add('hidden');
-                raidBossView.classList.remove('hidden');
-                renderRaidBossView(playerGuildData.activeRaid);
-            } else {
-                noRaidView.classList.remove('hidden');
-                raidBossView.classList.add('hidden');
-                startRaidButton.disabled = !isOwner;
-            }
+            showGuildSubTab(activeGuildSubTabId);
         } else {
             guildJoinCreateView.classList.remove('hidden');
             guildMainView.classList.add('hidden');
+        }
+    }
+
+    function showGuildSubTab(subtabId) {
+        activeGuildSubTabId = subtabId;
+
+        // Cacher tous les panneaux de sous-onglets de manière plus robuste
+        const subtabPanels = document.querySelectorAll('#guild-subtab-content > div');
+        subtabPanels.forEach(panel => {
+            if (panel) panel.classList.add('hidden');
+        });
+
+        // Construire le bon ID et vérifier son existence
+        const panelIdToShow = subtabId + '-subtab';
+        const panelToShow = document.getElementById(panelIdToShow);
+
+        if (panelToShow) {
+            panelToShow.classList.remove('hidden');
+        } else {
+            console.error(`Panneau de sous-onglet de guilde introuvable : ${panelIdToShow}. Affichage de l'onglet principal par défaut.`);
+            const mainPanel = document.getElementById('guild-main-subtab');
+            if (mainPanel) mainPanel.classList.remove('hidden');
+            activeGuildSubTabId = 'guild-main'; // Réinitialiser l'onglet actif en cas d'erreur
+        }
+
+        // Mettre à jour le style des boutons en utilisant la variable d'état (qui peut avoir été corrigée)
+        document.querySelectorAll('.guild-subtab-button').forEach(btn => {
+            btn.classList.toggle('border-blue-500', btn.dataset.subtab === activeGuildSubTabId);
+            btn.classList.toggle('border-transparent', btn.dataset.subtab !== activeGuildSubTabId);
+        });
+
+        // Appeler les fonctions de rendu spécifiques
+        if (activeGuildSubTabId === 'guild-main') {
+            renderGuildMainView(playerGuildData);
+        } else if (activeGuildSubTabId === 'guild-raid') {
+            renderGuildRaidView(playerGuildData);
+        } else if (activeGuildSubTabId === 'guild-gvg') {
+            renderGvgView(playerGuildData);
         }
     }
 
@@ -7264,7 +7772,7 @@
         listenForGuildChat(guildId);
     }
 
-    function renderGuildView(data) {
+    function renderGuildMainView(data) {
         const guildContentGrid = document.getElementById('guild-content-grid');
         const username = currentUser.email.split('@')[0];
         const isOwner = data.ownerId === currentUser.uid;
@@ -7333,6 +7841,23 @@
         // NOUVEAU: Écouteur pour quitter la guilde
         const leaveButton = document.getElementById('leave-guild-button');
         if (leaveButton) leaveButton.addEventListener('click', leaveGuild);
+    }
+
+    function renderGuildRaidView(data) {
+        const isOwner = data.ownerId === currentUser.uid;
+        const raidBossView = document.getElementById('guild-raid-boss-view');
+        const noRaidView = document.getElementById('guild-no-raid-view');
+        const openRaidBtn = document.getElementById('open-raid-selection-button');
+    
+        if (data.activeRaid) {
+            noRaidView.classList.add('hidden');
+            raidBossView.classList.remove('hidden');
+            renderRaidBossView(data.activeRaid);
+        } else {
+            noRaidView.classList.remove('hidden');
+            raidBossView.classList.add('hidden');
+            openRaidBtn.disabled = !isOwner;
+        }
     }
 
     async function searchGuilds() {
@@ -7437,6 +7962,8 @@
         const newGuildData = {
             name: guildName,
             ownerId: currentUser.uid,
+            gvg: { status: 'peace', wins: 0, losses: 0 }, // NOUVEAU
+            guildTokens: 0, // NOUVEAU
             exp: 0,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             members: {
@@ -7452,6 +7979,8 @@
             resultElement.innerHTML = `<p class="text-green-400">Guilde "${guildName}" créée avec succès !</p>`;
             closeModalHelper(createGuildModal);
             await loadAndDisplayGuildData(playerGuildId);
+
+            updateUI();
             scheduleSave();
 
         } catch (error) {
@@ -7496,7 +8025,12 @@
             return;
         }
 
-        const guildRef = db.collection('guilds').doc(playerGuildId);
+        const guildIdToLeave = playerGuildId; 
+
+        cleanupGuildListeners();
+        playerGuildId = null; // Mettre à jour l'état local
+
+        const guildRef = db.collection('guilds').doc(guildIdToLeave);
         const playerRef = db.collection('playerSaves').doc(currentUser.uid);
 
         try {
@@ -7527,29 +8061,729 @@
         }
     }
 
-    async function startRaid() {
-        // This function is complex and requires Firestore logic.
-        // 1. Check if user is owner.
-        // 2. Check if there's already a raid.
-        // 3. Check if guild has resources to start a raid (if any cost).
-        // 4. Create a transaction to update the guild document in Firestore:
-        //    - Set `activeRaid.bossId`, `activeRaid.currentHealth`, `activeRaid.startTime`, `activeRaid.contributors`.
-        // 5. This is a placeholder.
-        console.log("Placeholder: startRaid function called.");
-        resultElement.innerHTML = `<p class="text-yellow-400">Fonctionnalité de lancement de raid en cours de développement.</p>`;
+    function openRaidSelectionModal() {
+        if (!playerGuildData || playerGuildData.ownerId !== currentUser.uid) return;
+        if (playerGuildData.activeRaid) {
+            resultElement.innerHTML = `<p class="text-yellow-400">Un raid est déjà en cours !</p>`;
+            return;
+        }
+
+        raidBossSelectionList.innerHTML = raidBosses.map(boss => {
+            const canAfford = (playerGuildData.guildTokens || 0) >= boss.cost;
+            return `
+                <div class="bg-gray-700 p-4 rounded-lg flex items-center justify-between">
+                    <div>
+                        <h4 class="text-lg font-bold text-white">${boss.name}</h4>
+                        <p class="text-sm text-gray-300">Santé: ${boss.totalHealth.toLocaleString()}</p>
+                        <p class="text-sm text-gray-300">Coût: ${boss.cost} Jetons de Guilde</p>
+                    </div>
+                    <button class="start-raid-button bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg ${!canAfford ? 'opacity-50 cursor-not-allowed' : ''}" data-boss-id="${boss.id}" ${!canAfford ? 'disabled' : ''}>
+                        Lancer
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        openModal(raidSelectionModal);
+    }
+
+    async function startRaid(bossId) {
+        const bossDef = raidBosses.find(b => b.id === bossId);
+        if (!bossDef || !playerGuildId || !playerGuildData || playerGuildData.ownerId !== currentUser.uid) return;
+
+        if ((playerGuildData.guildTokens || 0) < bossDef.cost) {
+            resultElement.innerHTML = `<p class="text-red-400">La guilde n'a pas assez de Jetons de Guilde.</p>`;
+            return;
+        }
+
+        const guildRef = db.collection('guilds').doc(playerGuildId);
+        const newRaidData = {
+            bossId: bossId,
+            currentHealth: bossDef.totalHealth,
+            startTime: firebase.firestore.FieldValue.serverTimestamp(),
+            contributors: {},
+            status: 'active'
+        };
+
+        try {
+            await guildRef.update({
+                activeRaid: newRaidData,
+                guildTokens: firebase.firestore.FieldValue.increment(-bossDef.cost)
+            });
+            resultElement.innerHTML = `<p class="text-green-400">Le raid contre ${bossDef.name} a commencé !</p>`;
+            closeModalHelper(raidSelectionModal);
+        } catch (error) {
+            console.error("Erreur lors du lancement du raid:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur lors du lancement du raid.</p>`;
+        }
     }
 
     async function attackRaidBoss() {
-        // This function is also complex.
-        // 1. Player selects a team (or uses preset).
-        // 2. Calculate team power.
-        // 3. Create a transaction to update the guild document:
-        //    - Decrement `activeRaid.currentHealth` by team power.
-        //    - Increment `activeRaid.contributors.[playerUID].damage` by team power.
-        // 4. Handle player cooldown for attacking.
-        // 5. If health <= 0, trigger rewards distribution.
-        console.log("Placeholder: attackRaidBoss function called.");
-        resultElement.innerHTML = `<p class="text-yellow-400">Fonctionnalité d'attaque de raid en cours de développement.</p>`;
+        if (raidAttempts <= 0) {
+            resultElement.innerHTML = `<p class="text-red-400">Vous n'avez plus de tentatives de raid pour aujourd'hui.</p>`;
+            return;
+        }
+        currentLevelId = 'raid_battle';
+        openModal(characterSelectionModal);
+        updateCharacterSelectionDisplay();
+    }
+
+    async function executeRaidAttack(team) {
+        if (!playerGuildId || !playerGuildData.activeRaid) return;
+
+        const damage = team.reduce((sum, char) => sum + char.power, 0);
+        const guildRef = db.collection('guilds').doc(playerGuildId);
+        const username = currentUser.email.split('@')[0];
+
+        try {
+            await db.runTransaction(async (transaction) => {
+                const guildDoc = await transaction.get(guildRef);
+                if (!guildDoc.exists || !guildDoc.data().activeRaid) throw new Error("Le raid n'est plus actif.");
+
+                const currentRaid = guildDoc.data().activeRaid;
+                const newHealth = Math.max(0, currentRaid.currentHealth - damage);
+
+                transaction.update(guildRef, {
+                    [`activeRaid.currentHealth`]: newHealth,
+                    [`activeRaid.contributors.${currentUser.uid}.damage`]: firebase.firestore.FieldValue.increment(damage),
+                    [`activeRaid.contributors.${currentUser.uid}.name`]: username
+                });
+
+                if (newHealth <= 0 && currentRaid.status === 'active') {
+                    transaction.update(guildRef, { 'activeRaid.status': 'completed' });
+                }
+            });
+
+            raidAttempts--;
+            lastRaidAttemptDate = new Date().toISOString().split('T')[0];
+            resultElement.innerHTML = `<p class="text-green-400">Vous avez infligé ${damage.toLocaleString()} dégâts au boss !</p>`;
+            
+            const updatedGuildData = (await guildRef.get()).data();
+            if (updatedGuildData.activeRaid.status === 'completed') {
+                resultElement.innerHTML += `<p class="text-yellow-400 font-bold">VICTOIRE ! Le boss a été vaincu ! Distribution des récompenses...</p>`;
+                await processRaidRewards(updatedGuildData, updatedGuildData.activeRaid);
+            }
+
+        } catch (error) {
+            console.error("Erreur lors de l'attaque du raid:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur d'attaque: ${error.message}</p>`;
+        }
+        scheduleSave();
+    }
+
+    async function processRaidRewards(guildData, raidData) {
+        const bossDef = raidBosses.find(b => b.id === raidData.bossId);
+        if (!bossDef) return;
+
+        const batch = db.batch();
+        const contributors = Object.entries(raidData.contributors || {}).map(([uid, data]) => ({ uid, ...data })).sort((a, b) => b.damage - a.damage);
+
+        // 1. Récompenses de victoire pour tous les membres
+        for (const memberId in guildData.members) {
+            const mailRef = db.collection('playerSaves').doc(memberId).collection('mailbox').doc();
+            batch.set(mailRef, {
+                subject: `Victoire contre ${bossDef.name} !`,
+                body: `Votre guilde a vaincu le boss ! Voici vos récompenses de victoire.`,
+                rewards: bossDef.rewards.victory,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        // 2. Récompenses de participation pour les contributeurs
+        for (const contributor of contributors) {
+            const mailRef = db.collection('playerSaves').doc(contributor.uid).collection('mailbox').doc();
+            batch.set(mailRef, {
+                subject: `Participation au raid ${bossDef.name}`,
+                body: `Merci pour votre participation !`,
+                rewards: bossDef.rewards.participation,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        // 3. Récompenses de classement
+        const sortedRanks = bossDef.rewards.ranking.sort((a, b) => a.rank - b.rank);
+        let lastRankTier = 0;
+        for (const rankTier of sortedRanks) {
+            const topContributorsForTier = contributors.slice(lastRankTier, rankTier.rank);
+            for (const contributor of topContributorsForTier) {
+                const mailRef = db.collection('playerSaves').doc(contributor.uid).collection('mailbox').doc();
+                batch.set(mailRef, {
+                    subject: `Classement du raid ${bossDef.name}`,
+                    body: `Félicitations pour votre classement (Top ${rankTier.rank}) !`,
+                    rewards: rankTier.rewards,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            lastRankTier = rankTier.rank;
+        }
+
+        // 4. Nettoyer le raid actif
+        batch.update(db.collection('guilds').doc(playerGuildId), { activeRaid: firebase.firestore.FieldValue.delete() });
+
+        try {
+            await batch.commit();
+            console.log("Récompenses de raid distribuées avec succès.");
+        } catch (error) {
+            console.error("Erreur lors de la distribution des récompenses de raid:", error);
+        }
+    }
+
+    function checkMailbox() {
+        if (!currentUser) return;
+        if (mailListener) mailListener();
+
+        const mailRef = db.collection('playerSaves').doc(currentUser.uid).collection('mailbox');
+        mailListener = mailRef.onSnapshot(snapshot => {
+            unreadMailCount = snapshot.size;
+            const badge = document.getElementById('mailbox-badge');
+            if (badge) {
+                badge.classList.toggle('hidden', unreadMailCount === 0);
+            }
+        });
+    }
+
+    async function openMailbox() {
+        const mailList = document.getElementById('mailbox-list');
+        const claimAllBtn = document.getElementById('claim-all-mail-button');
+        mailList.innerHTML = '<p class="text-gray-400">Chargement...</p>';
+        openModal(document.getElementById('mailbox-modal'));
+
+        const mailRef = db.collection('playerSaves').doc(currentUser.uid).collection('mailbox').orderBy('timestamp', 'desc');
+        const snapshot = await mailRef.get();
+
+        if (snapshot.empty) {
+            mailList.innerHTML = '<p class="text-gray-400 text-center">Votre boîte aux lettres est vide.</p>';
+            claimAllBtn.disabled = true;
+            return;
+        }
+
+        mailList.innerHTML = snapshot.docs.map(doc => {
+            const mail = doc.data();
+            const rewards = mail.rewards;
+            let rewardText = [];
+            if (rewards.gems) rewardText.push(`${rewards.gems} Gemmes`);
+            if (rewards.coins) rewardText.push(`${rewards.coins.toLocaleString()} Pièces`);
+            if (rewards.guildTokens) rewardText.push(`${rewards.guildTokens} Jetons de Guilde`);
+            if (rewards.items) rewardText.push(...rewards.items.map(i => `${i.quantity}x ${i.item}`));
+
+            return `<div class="bg-gray-700 p-3 rounded-lg"><h5 class="font-bold text-white">${mail.subject}</h5><p class="text-sm text-gray-300">${mail.body}</p><p class="text-sm text-yellow-300 mt-1">Récompenses: ${rewardText.join(', ')}</p></div>`;
+        }).join('');
+        claimAllBtn.disabled = false;
+    }
+
+    async function claimAllMail() {
+        const mailRef = db.collection('playerSaves').doc(currentUser.uid).collection('mailbox');
+        const snapshot = await mailRef.get();
+        if (snapshot.empty) return;
+
+        const batch = db.batch();
+        let totalRewards = { gems: 0, coins: 0, guildTokens: 0, items: {} };
+
+        snapshot.docs.forEach(doc => {
+            const mail = doc.data();
+            const rewards = mail.rewards;
+            if (rewards.gems) totalRewards.gems += rewards.gems;
+            if (rewards.coins) totalRewards.coins += rewards.coins;
+            if (rewards.guildTokens) totalRewards.guildTokens += rewards.guildTokens;
+            if (rewards.items) {
+                rewards.items.forEach(item => {
+                    totalRewards.items[item.item] = (totalRewards.items[item.item] || 0) + item.quantity;
+                });
+            }
+            batch.delete(doc.ref);
+        });
+
+        addGems(totalRewards.gems);
+        coins += totalRewards.coins;
+        inventory["Jeton de Guilde"] = (inventory["Jeton de Guilde"] || 0) + totalRewards.guildTokens;
+        for (const [itemName, quantity] of Object.entries(totalRewards.items)) {
+            inventory[itemName] = (inventory[itemName] || 0) + quantity;
+        }
+
+        try {
+            await batch.commit();
+            resultElement.innerHTML = `<p class="text-green-400">Toutes les récompenses ont été réclamées !</p>`;
+            closeModalHelper(document.getElementById('mailbox-modal'));
+            updateUI();
+            updateItemDisplay();
+            scheduleSave();
+        } catch (error) {
+            console.error("Erreur lors de la réclamation des récompenses:", error);
+        }
+    }
+
+    // --- NOUVEAU: Fonctions pour la GvG ---
+
+    function renderGvgView(guildData) {
+        if (gvgTimerIntervalId) {
+            clearInterval(gvgTimerIntervalId);
+            gvgTimerIntervalId = null;
+        }
+
+        const peaceView = document.getElementById('gvg-peace-view');
+        const prepView = document.getElementById('gvg-preparation-view');
+        const combatView = document.getElementById('gvg-combat-view');
+        
+        peaceView.classList.add('hidden');
+        prepView.classList.add('hidden');
+        combatView.classList.add('hidden');
+    
+        const gvgState = guildData.gvg || { status: 'peace' };
+    
+        switch (gvgState.status) {
+            case 'preparation':
+                prepView.classList.remove('hidden');
+                listenForGvgWarData(gvgState.currentWarId);
+                break;
+            case 'combat':
+                combatView.classList.remove('hidden');
+                listenForGvgWarData(gvgState.currentWarId); // Décommenté pour la phase de combat
+                break;
+            case 'peace':
+            default:
+                peaceView.classList.remove('hidden');
+                const matchmakingButton = document.getElementById('gvg-matchmaking-button');
+                matchmakingButton.disabled = guildData.ownerId !== currentUser.uid;
+                document.getElementById('gvg-wins').textContent = guildData.gvg?.wins || 0;
+                document.getElementById('gvg-losses').textContent = guildData.gvg?.losses || 0;
+                break;
+        }
+    }
+
+    async function listenForGvgWarData(warId) {
+        if (gvgWarDataListener) gvgWarDataListener(); // Détache l'ancien listener
+
+        const warRef = db.collection('gvgWars').doc(warId);
+
+        try {
+            // Étape 1 : Essayer de récupérer le document une seule fois pour vérifier son existence
+            const initialDoc = await warRef.get();
+
+            if (!initialDoc.exists) {
+                // Le document n'existe pas. On nettoie immédiatement l'état de la guilde.
+                console.warn(`[GvG Listener] Le document de guerre (ID: ${warId}) n'a pas été trouvé. Réinitialisation de l'état de la guilde.`);
+                if (playerGuildId) {
+                    db.collection('guilds').doc(playerGuildId).update({
+                        'gvg.status': 'peace',
+                        'gvg.currentWarId': firebase.firestore.FieldValue.delete(),
+                        'gvg.opponentGuildId': firebase.firestore.FieldValue.delete(),
+                        'gvg.opponentGuildName': firebase.firestore.FieldValue.delete()
+                    }).catch(err => console.error("Échec de la réinitialisation de l'état GvG de la guilde:", err));
+                }
+                return; // On arrête la fonction ici, pas besoin de créer un listener qui échouerait
+            }
+
+            // Étape 2 : Si le document existe, on peut attacher le listener en toute sécurité
+            gvgWarDataListener = warRef.onSnapshot(doc => {
+                if (doc.exists) {
+                    gvgWarData = { id: doc.id, ...doc.data() };
+                    
+                    // Gérer la transition de phase si le temps est écoulé
+                    if (gvgWarData.status === 'preparation' && gvgWarData.prepEndTime && gvgWarData.prepEndTime.toDate() < new Date()) {
+                        if (playerGuildData.ownerId === currentUser.uid) {
+                            console.log("Phase de préparation terminée. Passage au combat.");
+                            switchToGvgCombatPhase(); // Assurez-vous que cette fonction existe et est correcte
+                        }
+                        return;
+                    }
+
+                    // Appeler la bonne fonction de rendu en fonction de l'état
+                    if (gvgWarData.status === 'preparation') {
+                        renderGvgPreparationView(gvgWarData);
+                    } else if (gvgWarData.status === 'combat') {
+                        const attacksMade = gvgWarData.battlefield[currentUser.uid]?.attacksMade || 0;
+                        gvgAttackTokens = GVG_CONFIG.ATTACK_TOKENS_PER_WAR - attacksMade;
+                        renderGvgCombatView(gvgWarData);
+                    }
+                } else {
+                    // Ce cas se produit si le document est supprimé PENDANT que l'on écoute
+                    console.warn(`[GvG Listener] Le document de guerre (ID: ${warId}) a été supprimé. Réinitialisation.`);
+                    if (playerGuildId) {
+                        db.collection('guilds').doc(playerGuildId).update({
+                            'gvg.status': 'peace',
+                            'gvg.currentWarId': firebase.firestore.FieldValue.delete(),
+                            'gvg.opponentGuildId': firebase.firestore.FieldValue.delete(),
+                            'gvg.opponentGuildName': firebase.firestore.FieldValue.delete()
+                        }).catch(err => console.error("Échec de la réinitialisation de l'état GvG:", err));
+                    }
+                }
+            }, error => {
+                // Ce bloc d'erreur est toujours utile pour d'autres types d'erreurs
+                console.error("Erreur d'écoute des données GvG:", error);
+            });
+
+        } catch (error) {
+            // Cette erreur se produira si le .get() initial échoue pour des raisons de permission
+            console.error(`[GvG Listener] Erreur initiale de permission/lecture pour la guerre (ID: ${warId}):`, error);
+            if (playerGuildId) {
+                db.collection('guilds').doc(playerGuildId).update({
+                    'gvg.status': 'peace',
+                    'gvg.currentWarId': firebase.firestore.FieldValue.delete(),
+                    'gvg.opponentGuildId': firebase.firestore.FieldValue.delete(),
+                    'gvg.opponentGuildName': firebase.firestore.FieldValue.delete()
+                }).catch(err => console.error("Échec de la réinitialisation de l'état GvG après erreur de get():", err));
+            }
+        }
+    }
+
+     function renderGvgPreparationView(warData) {
+         const friendlyBattlefield = document.getElementById('gvg-friendly-battlefield');
+         const enemyBattlefield = document.getElementById('gvg-enemy-battlefield');
+         const friendlyGuildNameEl = document.getElementById('gvg-friendly-guild-name');
+         const enemyGuildNameEl = document.getElementById('gvg-enemy-guild-name');
+         const prepTimerEl = document.getElementById('gvg-prep-timer');
+     
+         const friendlyGuildInfo = warData.guildA.id === playerGuildId ? warData.guildA : warData.guildB;
+         const enemyGuildInfo = warData.guildA.id === playerGuildId ? warData.guildB : warData.guildA;
+     
+         friendlyGuildNameEl.textContent = friendlyGuildInfo.name;
+         enemyGuildNameEl.textContent = enemyGuildInfo.name;
+     
+         friendlyBattlefield.innerHTML = '';
+         enemyBattlefield.innerHTML = '';
+     
+         const battlefieldNodes = warData.battlefield || {};
+     
+         Object.entries(battlefieldNodes).forEach(([uid, nodeData]) => {
+             const isFriendly = nodeData.guildId === playerGuildId;
+             const targetGrid = isFriendly ? friendlyBattlefield : enemyBattlefield;
+             
+             const nodeElement = document.createElement('div');
+             let nodeClasses = `gvg-player-node ${isFriendly ? 'friendly' : 'enemy'}`;
+             
+             let contentHtml = `<p class="player-name">${nodeData.name}</p>`;
+     
+             if (nodeData.isSet) {
+                 const teamPower = nodeData.defenseTeam.reduce((sum, char) => sum + char.power, 0);
+                 contentHtml += `<div class="flex justify-center gap-1 mt-2">
+                     ${nodeData.defenseTeam.map(char => `<img src="${char.image}" alt="${char.name}" title="${char.name}" class="w-8 h-8 rounded-full border-2 ${getRarityBorderClass(char.rarity)}">`).join('')}
+                 </div>`;
+                 contentHtml += `<p class="team-power mt-1">Puissance: ${teamPower.toLocaleString()}</p>`;
+             }
+     
+             if (isFriendly && uid === currentUser.uid) {
+                 if (nodeData.isSet) {
+                     nodeClasses += ' cursor-pointer hover:bg-gray-700 transition-colors duration-200 gvg-player-node-editable';
+                     nodeElement.dataset.uid = uid;
+                     contentHtml += `<p class="text-xs text-yellow-400 mt-2">Cliquez pour modifier</p>`;
+                 } else {
+                     contentHtml += `<button class="gvg-set-defense-btn mt-2 bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-2 rounded" data-uid="${uid}">Définir Défense</button>`;
+                 }
+             } else if (!nodeData.isSet) {
+                 contentHtml += `<p class="text-yellow-400 text-xs mt-1">En attente...</p>`;
+             }
+             
+             nodeElement.className = nodeClasses;
+             nodeElement.innerHTML = contentHtml;
+             targetGrid.appendChild(nodeElement);
+         });
+ 
+         if (warData.prepEndTime && prepTimerEl) {
+             if (gvgTimerIntervalId) clearInterval(gvgTimerIntervalId);
+             const updateTimer = () => {
+                 const timeLeftMs = warData.prepEndTime.toDate() - Date.now();
+                 if (timeLeftMs <= 0) {
+                     prepTimerEl.textContent = "Terminé !";
+                     clearInterval(gvgTimerIntervalId);
+                 } else {
+                     prepTimerEl.textContent = formatTime(timeLeftMs);
+                 }
+             };
+             updateTimer();
+             gvgTimerIntervalId = setInterval(updateTimer, 1000);
+         }
+     }
+
+    async function startGvgMatchmaking() {
+        if (!playerGuildData || playerGuildData.ownerId !== currentUser.uid) return;
+        resultElement.innerHTML = '<p class="text-yellow-400">Lancement d\'une guerre de guilde de test...</p>';
+    
+        const battlefield = {};
+        Object.entries(playerGuildData.members).forEach(([uid, memberData]) => {
+            battlefield[uid] = { guildId: playerGuildId, name: memberData.name, isSet: false, health: 3, defenseTeam: [] };
+        });
+    
+        const opponentGuildId = 'opponent_mock_id';
+        const opponentGuildName = 'Les Ombres Silencieuses';
+        const opponentMembers = { 'mock_player_1': { name: 'ShadowSlayer' }, 'mock_player_2': { name: 'NightBlade' }, 'mock_player_3': { name: 'VoidWalker' } };
+        Object.entries(opponentMembers).forEach(([uid, memberData]) => {
+            battlefield[uid] = { guildId: opponentGuildId, name: memberData.name, isSet: true, health: 3, defenseTeam: [] };
+        });
+    
+        const prepEndTime = new Date();
+        prepEndTime.setHours(prepEndTime.getHours() + 24);
+    
+        const newWarData = {
+            status: 'preparation',
+            guildA: { id: playerGuildId, name: playerGuildData.name, score: 0 },
+            guildB: { id: opponentGuildId, name: opponentGuildName, score: 0 },
+            battlefield: battlefield,
+            prepEndTime: firebase.firestore.Timestamp.fromDate(prepEndTime),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+    
+        try {
+            const warDocRef = await db.collection('gvgWars').add(newWarData);
+            await db.collection('guilds').doc(playerGuildId).update({
+                'gvg.status': 'preparation', 'gvg.currentWarId': warDocRef.id,
+                'gvg.opponentGuildId': opponentGuildId, 'gvg.opponentGuildName': opponentGuildName
+            });
+            resultElement.innerHTML = `<p class="text-green-400">Guerre de guilde contre ${opponentGuildName} initialisée !</p>`;
+        } catch (error) {
+            console.error("Erreur lors du lancement de la GvG:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur lors du lancement de la guerre.</p>`;
+        }
+    }
+
+    async function setGvgDefense(teamObjects) {
+        if (!gvgWarData || !playerGuildData.gvg || playerGuildData.gvg.status !== 'preparation') return;
+        const minimalTeam = teamObjects.map(char => ({ id: char.id, name: char.name, power: char.power, image: char.image, rarity: char.rarity, level: char.level, color: char.color }));
+        const warRef = db.collection('gvgWars').doc(gvgWarData.id);
+        try {
+            await warRef.update({ [`battlefield.${currentUser.uid}.isSet`]: true, [`battlefield.${currentUser.uid}.defenseTeam`]: minimalTeam });
+            resultElement.innerHTML = `<p class="text-green-400">Équipe de défense GvG définie avec succès !</p>`;
+        } catch (error) {
+            console.error("Erreur lors de la définition de la défense GvG:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur lors de la sauvegarde de l'équipe de défense.</p>`;
+        }
+    }
+
+     function handleGvgBattlefieldClick(e) {
+         const button = e.target.closest('.gvg-set-defense-btn');
+         const editableNode = e.target.closest('.gvg-player-node-editable');
+         
+         let targetElement = null;
+         if (button) {
+             targetElement = button;
+         } else if (editableNode) {
+             targetElement = editableNode;
+         }
+ 
+         if (targetElement) {
+             const uid = targetElement.dataset.uid;
+             if (!uid || uid !== currentUser.uid) return;
+     
+             currentSelectionContext = 'gvg_defense';
+             selectedBattleCharacters.clear();
+     
+             if (gvgWarData && gvgWarData.battlefield && gvgWarData.battlefield[uid] && gvgWarData.battlefield[uid].isSet) {
+                 const defenseTeam = gvgWarData.battlefield[uid].defenseTeam;
+                 if (defenseTeam && defenseTeam.length > 0) {
+                     defenseTeam.forEach(defChar => {
+                         const indexInOwned = ownedCharacters.findIndex(ownedChar => ownedChar.id === defChar.id);
+                         if (indexInOwned !== -1) {
+                             selectedBattleCharacters.add(indexInOwned);
+                         }
+                     });
+                 }
+             }
+     
+             openModal(characterSelectionModal);
+             updateCharacterSelectionDisplay();
+         }
+     }
+
+    // NOUVEAU: Fonction pour afficher la vue de combat GvG
+    function renderGvgCombatView(warData) {
+        const friendlyBattlefield = document.getElementById('gvg-combat-friendly-battlefield');
+        const enemyBattlefield = document.getElementById('gvg-combat-enemy-battlefield');
+        const friendlyGuildNameEl = document.getElementById('gvg-combat-friendly-guild-name');
+        const enemyGuildNameEl = document.getElementById('gvg-combat-enemy-guild-name');
+        const combatTimerEl = document.getElementById('gvg-combat-timer');
+        const attackTokensEl = document.getElementById('gvg-attack-tokens');
+
+        const friendlyGuildInfo = warData.guildA.id === playerGuildId ? warData.guildA : warData.guildB;
+        const enemyGuildInfo = warData.guildA.id === playerGuildId ? warData.guildB : warData.guildA;
+
+        friendlyGuildNameEl.textContent = friendlyGuildInfo.name;
+        enemyGuildNameEl.textContent = enemyGuildInfo.name;
+        attackTokensEl.textContent = gvgAttackTokens;
+
+        friendlyBattlefield.innerHTML = '';
+        enemyBattlefield.innerHTML = '';
+
+        const battlefieldNodes = warData.battlefield || {};
+
+        Object.entries(battlefieldNodes).forEach(([uid, nodeData]) => {
+            const isFriendly = nodeData.guildId === playerGuildId;
+            const targetGrid = isFriendly ? friendlyBattlefield : enemyBattlefield;
+            const isDefeated = nodeData.health <= 0;
+
+            const nodeElement = document.createElement('div');
+            let nodeClasses = `gvg-player-node ${isFriendly ? 'friendly' : 'enemy'} ${isDefeated ? 'defeated' : ''}`;
+            if (!isFriendly && !isDefeated && gvgAttackTokens > 0) {
+                nodeClasses += ' attackable';
+            }
+
+            let hpDisplay = '<div class="player-hp">';
+            for (let i = 0; i < 3; i++) {
+                hpDisplay += `<div class="hp-point ${i < nodeData.health ? '' : 'lost'}"></div>`;
+            }
+            hpDisplay += '</div>';
+
+            let contentHtml = `<p class="player-name">${nodeData.name}</p>${hpDisplay}`;
+            if (nodeData.isSet) {
+                const teamPower = nodeData.defenseTeam.reduce((sum, char) => sum + (char.power || 0), 0);
+                contentHtml += `<div class="flex justify-center gap-1 mt-2">
+                    ${nodeData.defenseTeam.map(char => `<img src="${char.image}" alt="${char.name}" title="${char.name}" class="w-8 h-8 rounded-full border-2 ${getRarityBorderClass(char.rarity)}">`).join('')}
+                </div>`;
+                contentHtml += `<p class="team-power mt-1">Puissance: ${teamPower.toLocaleString()}</p>`;
+            } else {
+                contentHtml += `<p class="text-yellow-400 text-xs mt-1">Pas de défense</p>`;
+            }
+
+            nodeElement.className = nodeClasses;
+            nodeElement.innerHTML = contentHtml;
+            nodeElement.dataset.uid = uid;
+            targetGrid.appendChild(nodeElement);
+        });
+
+        if (warData.combatEndTime && combatTimerEl) {
+            if (gvgTimerIntervalId) clearInterval(gvgTimerIntervalId);
+            const updateTimer = () => {
+                const timeLeftMs = warData.combatEndTime.toDate() - Date.now();
+                if (timeLeftMs <= 0) {
+                    combatTimerEl.textContent = "Terminé !";
+                    clearInterval(gvgTimerIntervalId);
+                    if (playerGuildData.ownerId === currentUser.uid) {
+                        endGvgWarByTimeout();
+                    }
+                } else {
+                    combatTimerEl.textContent = formatTime(timeLeftMs);
+                }
+            };
+            updateTimer();
+            gvgTimerIntervalId = setInterval(updateTimer, 1000);
+        }
+    }
+
+    // NOUVEAU: Gérer les clics sur le champ de bataille en phase de combat
+    function handleGvgCombatClick(e) {
+        const node = e.target.closest('.gvg-player-node.attackable');
+        if (!node) return;
+
+        const targetUid = node.dataset.uid;
+        if (targetUid) {
+            startGvgAttack(targetUid);
+        }
+    }
+
+    // NOUVEAU: Lancer une attaque GvG
+    function startGvgAttack(targetUid) {
+        if (gvgAttackTokens <= 0) {
+            resultElement.innerHTML = `<p class="text-red-400">Vous n'avez plus de jetons d'attaque.</p>`;
+            return;
+        }
+        if (!gvgWarData || !gvgWarData.battlefield[targetUid] || gvgWarData.battlefield[targetUid].health <= 0) {
+            resultElement.innerHTML = `<p class="text-red-400">Cette cible ne peut pas être attaquée.</p>`;
+            return;
+        }
+
+        currentGvgTargetUid = targetUid;
+        currentSelectionContext = 'gvg_attack';
+        selectedBattleCharacters.clear();
+        openModal(characterSelectionModal);
+        updateCharacterSelectionDisplay();
+    }
+
+    // NOUVEAU: Exécuter la logique de combat pour une attaque GvG
+    async function executeGvgAttack(attackerTeam) {
+        if (!currentGvgTargetUid || !gvgWarData) return;
+
+        const defenderNode = gvgWarData.battlefield[currentGvgTargetUid];
+        if (!defenderNode || !defenderNode.isSet) {
+            resultElement.innerHTML = `<p class="text-red-400">L'adversaire n'a pas défini d'équipe de défense.</p>`;
+            return;
+        }
+
+        const attackerPower = attackerTeam.reduce((sum, char) => sum + char.power, 0);
+        const defenderPower = defenderNode.defenseTeam.reduce((sum, char) => sum + (char.power || 0), 0);
+
+        const attackerScore = attackerPower * (1 + (Math.random() * 0.1));
+        const defenderScore = defenderPower * (1 + (Math.random() * 0.1));
+
+        const isVictory = attackerScore > defenderScore;
+
+        resultElement.innerHTML = `<p class="text-white">Attaque contre ${defenderNode.name} en cours...</p>`;
+        if (soundEnabled) battleSound.play();
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        if (isVictory) {
+            resultElement.innerHTML = `<p class="text-green-400 text-2xl font-bold">Victoire !</p><p class="text-white">Vous avez vaincu ${defenderNode.name} !</p>`;
+            if (animationsEnabled) confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+        } else {
+            resultElement.innerHTML = `<p class="text-red-400 text-2xl font-bold">Défaite !</p><p class="text-white">Vous avez été vaincu par ${defenderNode.name}.</p>`;
+        }
+
+        await processGvgAttackResult(isVictory);
+    }
+
+    // NOUVEAU: Mettre à jour les données de guerre après une attaque
+    async function processGvgAttackResult(isVictory) {
+        const warRef = db.collection('gvgWars').doc(gvgWarData.id);
+        const attackerUid = currentUser.uid;
+
+        try {
+            await db.runTransaction(async (transaction) => {
+                const warDoc = await transaction.get(warRef);
+                if (!warDoc.exists) throw new Error("La guerre n'existe plus.");
+
+                const currentWarData = warDoc.data();
+                const battlefield = currentWarData.battlefield;
+
+                const attacksMade = battlefield[attackerUid].attacksMade || 0;
+                if (attacksMade >= GVG_CONFIG.ATTACK_TOKENS_PER_WAR) {
+                    throw new Error("Plus de jetons d'attaque.");
+                }
+
+                transaction.update(warRef, { [`battlefield.${attackerUid}.attacksMade`]: attacksMade + 1 });
+
+                if (isVictory) {
+                    const currentWins = battlefield[attackerUid].wins || 0;
+                    transaction.update(warRef, { [`battlefield.${attackerUid}.wins`]: currentWins + 1 });
+                    
+                    const defenderHealth = battlefield[currentGvgTargetUid].health;
+                    if (defenderHealth > 0) {
+                        transaction.update(warRef, { [`battlefield.${currentGvgTargetUid}.health`]: defenderHealth - 1 });
+                    }
+                }
+            });
+            
+            const updatedWarDoc = await warRef.get();
+            if (updatedWarDoc.exists) {
+                gvgWarData = { id: updatedWarDoc.id, ...updatedWarDoc.data() };
+                checkGvgVictory(gvgWarData);
+            }
+
+        } catch (error) {
+            console.error("Erreur lors du traitement du résultat de l'attaque GvG:", error);
+            resultElement.innerHTML = `<p class="text-red-500">Erreur lors de l'attaque: ${error.message}</p>`;
+        }
+    }
+
+    // NOUVEAU: Vérifier si la guerre est terminée
+    function checkGvgVictory(warData) {
+        const guildA_Id = warData.guildA.id;
+        const guildB_Id = warData.guildB.id;
+
+        let guildA_NodesAlive = 0;
+        let guildB_NodesAlive = 0;
+
+        Object.values(warData.battlefield).forEach(node => {
+            if (node.health > 0) {
+                if (node.guildId === guildA_Id) {
+                    guildA_NodesAlive++;
+                } else if (node.guildId === guildB_Id) {
+                    guildB_NodesAlive++;
+                }
+            }
+        });
+
+        if (guildA_NodesAlive === 0) {
+            endGvgWar(guildB_Id, guildA_Id, warData);
+        } else if (guildB_NodesAlive === 0) {
+            endGvgWar(guildA_Id, guildB_Id, warData);
+        }
     }
 
     // --- FIN: Fonctions de Guilde ---
@@ -7568,6 +8802,10 @@
             parentTabId = "inventory";
             activeSubTabVarName = "activeInventorySubTabId";
             currentSubtabButtonsSelector = '#inventory .subtab-button';
+        } else if (document.getElementById("leaderboard")?.contains(document.getElementById(subtabId))) {
+            parentTabId = "leaderboard";
+            activeSubTabVarName = "activeLeaderboardSubTabId";
+            currentSubtabButtonsSelector = '#leaderboard .subtab-button';
         } else {
             console.warn(`showSubTab: Impossible de déterminer l'onglet parent pour le sous-onglet ${subtabId}`);
             // Afficher le sous-onglet directement s'il n'appartient pas à un parent connu (comportement de repli)
@@ -7600,6 +8838,16 @@
                 console.log("[Listener] Détachement du listener du classement Tour (changement de sous-onglet).");
                 towerLeaderboardListener();
                 towerLeaderboardListener = null;
+            }
+            if (parentTabId === 'leaderboard' && currentActiveSubTabId === 'leaderboard-player' && leaderboardListener) {
+                console.log("[Listener] Détachement du listener du classement joueur (changement de sous-onglet).");
+                leaderboardListener();
+                leaderboardListener = null;
+            }
+            if (parentTabId === 'leaderboard' && currentActiveSubTabId === 'leaderboard-guild' && guildLeaderboardListener) {
+                console.log("[Listener] Détachement du listener du classement guilde (changement de sous-onglet).");
+                guildLeaderboardListener();
+                guildLeaderboardListener = null;
             }
             // NOUVEAU: Détacher le listener des salles publiques co-op quand on quitte l'onglet
             if (parentTabId === 'play' && currentActiveSubTabId === 'coop' && publicRoomsListener) {
@@ -7653,6 +8901,10 @@
              updateDailyDungeonDisplay();
         } else if (parentTabId === "play" && subtabId === "tour") {
              updateTowerDisplay();
+        } else if (parentTabId === "leaderboard" && subtabId === "leaderboard-player") {
+            updateLeaderboard();
+        } else if (parentTabId === "leaderboard" && subtabId === "leaderboard-guild") {
+            updateGuildLeaderboard();
         } else if (parentTabId === "play" && subtabId === "coop") {
              updateCoopLobbyDisplay();
         }
@@ -7719,14 +8971,19 @@
         if (!coopDungeonList || !coopPublicRoomsList) return;
 
         const coopDungeons = allGameLevels.filter(l => l.type === 'coop');
+        // MODIFICATION: Nouvelle structure pour la création de salle avec sélection de difficulté
         coopDungeonList.innerHTML = coopDungeons.map(dungeon => `
             <div class="coop-dungeon-card">
                 <h5 class="text-lg font-bold text-white">${dungeon.name}</h5>
-                <p class="text-sm text-gray-300">Joueurs : ${dungeon.maxPlayers} | Puissance Boss : ${dungeon.enemy.power.toLocaleString()}</p>
-                <p class="text-xs text-gray-400 mt-1">Récompenses: ${dungeon.rewards.gems}G, ${dungeon.rewards.coins}P, ${dungeon.rewards.exp}EXP</p>
-                <button class="create-coop-room-button mt-3 w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-4 rounded-lg" data-dungeon-id="${dungeon.id}">
-                    Créer une Salle
-                </button>
+                <p class="text-xs text-gray-400 mt-1">Donjon pour ${dungeon.maxPlayers} joueurs.</p>
+                <div class="mt-3 space-y-2">
+                    <select class="coop-difficulty-select w-full bg-gray-700 text-white p-2 rounded" data-dungeon-id="${dungeon.id}">
+                        ${dungeon.difficulties.map(d => `<option value="${d.level}">${d.level} (Boss: ${d.enemy.power.toLocaleString()})</option>`).join('')}
+                    </select>
+                    <button class="create-coop-room-button w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-4 rounded-lg" data-dungeon-id="${dungeon.id}">
+                        Créer une Salle
+                    </button>
+                </div>
             </div>
         `).join('');
 
@@ -7741,12 +8998,14 @@
                 coopPublicRoomsList.innerHTML = snapshot.docs.map(doc => {
                     const room = doc.data();
                     const dungeon = allGameLevels.find(l => l.id === room.dungeonId);
-                    const isFull = Object.keys(room.players).length >= dungeon.maxPlayers;
+                    // MODIFICATION: Utiliser la difficulté pour obtenir le max de joueurs
+                    const maxPlayers = dungeon.maxPlayers; // La taille de l'équipe est définie par le donjon, pas la difficulté
+                    const isFull = Object.keys(room.players).length >= maxPlayers;
                     return `
                         <div class="bg-gray-700 p-3 rounded-lg flex justify-between items-center">
                             <div>
-                                <p class="text-white font-semibold">${room.hostName}'s Room - ${dungeon.name}</p>
-                                <p class="text-sm text-gray-400">Joueurs: ${Object.keys(room.players).length}/${dungeon.maxPlayers}</p>
+                                <p class="text-white font-semibold">${room.hostName}'s Room - ${dungeon.name} (${room.difficulty})</p>
+                                <p class="text-sm text-gray-400">Joueurs: ${Object.keys(room.players).length}/${maxPlayers}</p>
                             </div>
                             <button class="join-coop-room-button bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-lg text-sm ${isFull ? 'opacity-50 cursor-not-allowed' : ''}" data-room-id="${doc.id}" ${isFull ? 'disabled' : ''}>
                                 ${isFull ? 'Pleine' : 'Rejoindre'}
@@ -7760,7 +9019,7 @@
             });
     }
 
-    async function createCoopRoom(dungeonId) {
+    async function createCoopRoom(dungeonId, difficulty) {
         if (!currentUser) return;
         const dungeon = allGameLevels.find(l => l.id === dungeonId);
         if (!dungeon) return;
@@ -7770,6 +9029,7 @@
             hostId: currentUser.uid,
             hostName: username,
             dungeonId: dungeonId,
+            difficulty: difficulty, // NOUVEAU
             status: 'waiting',
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             players: {
@@ -7796,7 +9056,7 @@
                 if (!roomDoc.exists) throw new Error("La salle n'existe plus.");
                 
                 const roomData = roomDoc.data();
-                const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
+                const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId); // La taille de l'équipe est définie par le donjon, pas la difficulté
                 
                 if (Object.keys(roomData.players).length >= dungeon.maxPlayers && !isHost) {
                     throw new Error("La salle est pleine.");
@@ -7886,7 +9146,8 @@
         coopLobbyView.classList.add('hidden');
         coopRoomView.classList.remove('hidden');
         const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
-        coopRoomTitle.textContent = `Salle pour ${dungeon.name}`;
+        // NOUVEAU: Utiliser la difficulté pour le titre
+        coopRoomTitle.textContent = `Salle pour ${dungeon.name} (${roomData.difficulty})`;
 
         coopRoomPlayers.innerHTML = Object.entries(roomData.players).map(([uid, playerData]) => {
             const isHost = uid === roomData.hostId;
@@ -8020,15 +9281,20 @@
             }
 
             const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
-            if (!dungeon) throw new Error("Données du donjon introuvables.");
+            const difficultyData = dungeon.difficulties.find(d => d.level === roomData.difficulty);
+            if (!dungeon || !difficultyData) throw new Error("Données du donjon ou de la difficulté introuvables.");
 
             const playerCount = Object.keys(roomData.players).length;
             const battleState = {
-                bossMaxHealth: dungeon.enemy.power,
+                bossMaxHealth: difficultyData.enemy.power,
                 playerCountAtStart: playerCount,
-                bossCurrentHealth: dungeon.enemy.power,
-                battleLog: [`Le combat contre ${dungeon.enemy.name} commence !`],
-                lastActionTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+                bossCurrentHealth: difficultyData.enemy.power,
+                battleLog: [`Le combat contre ${difficultyData.enemy.name} commence !`],
+                lastActionTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                // NOUVEAU: Initialisation des mécaniques
+                mechanics: difficultyData.mechanics,
+                mechanicState: null, // Aucune mécanique active au début
+                lastMechanicCheckTimestamp: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             await roomRef.update({
@@ -8045,13 +9311,14 @@
     function launchCoopBattle(roomData) {
         if (!roomData || !roomData.battleState) return;
         const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
-        if (!dungeon) return;
+        const difficultyData = dungeon.difficulties.find(d => d.level === roomData.difficulty);
+        if (!dungeon || !difficultyData) return;
 
         console.log("Lancement de l'interface de combat co-op pour tous les joueurs.");
         coopLobbyView.classList.add('hidden');
         coopRoomView.classList.add('hidden');
 
-        coopBattleBossName.textContent = dungeon.enemy.name;
+        coopBattleBossName.textContent = difficultyData.enemy.name;
         updateCoopBattleUI(roomData);
 
         openModal(coopBattleModal);
@@ -8060,15 +9327,17 @@
     function updateCoopBattleUI(roomData) {
         if (!roomData || !roomData.battleState) return;
 
-        const { bossCurrentHealth, bossMaxHealth, battleLog } = roomData.battleState;
+        const { bossCurrentHealth, bossMaxHealth, battleLog, mechanicState } = roomData.battleState;
         const healthPercentage = (bossCurrentHealth / bossMaxHealth) * 100;
 
         coopBattleBossHealthBar.style.width = `${healthPercentage}%`;
         coopBattleBossHealthText.textContent = `${bossCurrentHealth.toLocaleString()} / ${bossMaxHealth.toLocaleString()}`;
 
-        coopBattlePlayersDisplay.innerHTML = Object.values(roomData.players).map(player => {
+        coopBattlePlayersDisplay.innerHTML = Object.entries(roomData.players).map(([uid, player]) => {
+            // NOUVEAU: Mettre en évidence le joueur ciblé
+            const isTargeted = mechanicState?.type === 'targeted_attack' && mechanicState.targetUid === uid;
             return `
-                <div class="coop-room-player-card">
+                <div class="coop-room-player-card ${isTargeted ? 'targeted-player' : ''}">
                     <p class="player-name font-bold text-white">${player.name}</p>
                     ${player.character ? `
                         <img src="${player.character.image}" alt="${player.character.name}" class="h-20 mx-auto my-1">
@@ -8080,6 +9349,29 @@
 
         coopBattleLog.innerHTML = (battleLog || []).map(log => `<p>${log}</p>`).join('');
         coopBattleLog.scrollTop = coopBattleLog.scrollHeight;
+
+        // NOUVEAU: Gérer l'affichage de l'alerte de mécanique
+        const mechanicAlert = document.getElementById('coop-battle-mechanic-alert');
+        if (mechanicState) {
+            mechanicAlert.classList.remove('hidden', 'mechanic-alert-targeted', 'mechanic-alert-vulnerable');
+            mechanicAlert.classList.add('mechanic-alert');
+            let alertText = '';
+            if (mechanicState.type === 'targeted_attack') {
+                const targetName = roomData.players[mechanicState.targetUid]?.name || 'un joueur';
+                alertText = `Le boss cible ${targetName} ! Brisez sa posture ! (${mechanicState.damageDealt.toLocaleString()} / ${mechanicState.threshold.toLocaleString()})`;
+                mechanicAlert.classList.add('mechanic-alert-targeted');
+            } else if (mechanicState.type === 'vulnerability_phase') {
+                alertText = `Le boss est vulnérable à l'essence ${mechanicState.requiredEssence} !`;
+                mechanicAlert.classList.add('mechanic-alert-vulnerable');
+            } else if (mechanicState.type === 'summon_adds') {
+                const addCount = mechanicState.adds.filter(a => a.health > 0).length;
+                alertText = `Le boss a invoqué ${addCount} sbire(s) ! Éliminez-les !`;
+                mechanicAlert.classList.add('mechanic-alert-targeted');
+            }
+            mechanicAlert.textContent = alertText;
+        } else {
+            mechanicAlert.classList.add('hidden');
+        }
     }
 
     async function coopAttack() {
@@ -8089,205 +9381,128 @@
         coopBattleAttackButton.disabled = true;
 
         try {
-            await db.runTransaction(async (transaction) => {
-                const roomDoc = await transaction.get(roomRef);
-                if (!roomDoc.exists) throw new Error("Le combat n'existe plus.");
+        await db.runTransaction(async (transaction) => {
+            const roomDoc = await transaction.get(roomRef);
+            if (!roomDoc.exists) throw new Error("Le combat n'existe plus.");
 
-                const roomData = roomDoc.data();
-                if (roomData.status !== 'in-progress') return;
+            let roomData = roomDoc.data();
+            if (roomData.status !== 'in-progress') return;
 
-                const player = roomData.players[currentUser.uid];
-                if (!player || !player.character) throw new Error("Données du joueur introuvables.");
+            const player = roomData.players[currentUser.uid];
+            if (!player || !player.character) throw new Error("Données du joueur introuvables.");
 
-                const damageDealt = player.character.power;
-                const newHealth = Math.max(0, roomData.battleState.bossCurrentHealth - damageDealt);
-                
-                const newLogEntry = `${player.name} attaque et inflige ${damageDealt.toLocaleString()} dégâts !`;
-                const newBattleLog = [...(roomData.battleState.battleLog || []), newLogEntry];
-                if (newBattleLog.length > 20) newBattleLog.shift();
+            const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
+            const difficultyData = dungeon.difficulties.find(d => d.level === roomData.difficulty);
+            let battleState = roomData.battleState;
+            let newLogEntries = [];
+            let damageDealt = player.character.power;
+            const now = Date.now();
 
-                let newStatus = roomData.status;
-                if (newHealth <= 0) {
-                    newStatus = 'completed';
-                    newBattleLog.push("Le boss a été vaincu !");
+            // --- GESTION DES MÉCANIQUES ACTIVES ---
+            if (battleState.mechanicState) {
+                const mechanic = battleState.mechanicState;
+                const mechanicDef = difficultyData.mechanics.find(m => m.type === mechanic.type);
+
+                // Mécanique: Attaque Ciblée
+                if (mechanic.type === 'targeted_attack') {
+                    mechanic.damageDealt += damageDealt;
+                    newLogEntries.push(`${player.name} attaque la posture du boss et inflige ${damageDealt.toLocaleString()} dégâts de posture !`);
+                    if (mechanic.damageDealt >= mechanic.threshold) {
+                        newLogEntries.push(`POSTURE BRISÉE ! L'attaque dévastatrice du boss est annulée !`);
+                        battleState.mechanicState = null; // Fin de la mécanique
+                    }
                 }
+                // Mécanique: Phase de Vulnérabilité
+                else if (mechanic.type === 'vulnerability_phase') {
+                    if (player.character.essence === mechanic.requiredEssence) {
+                        damageDealt *= mechanicDef.damageMultiplier; // Dégâts massifs
+                        newLogEntries.push(`${player.name} exploite la vulnérabilité du boss pour ${damageDealt.toLocaleString()} dégâts !`);
+                        battleState.bossCurrentHealth = Math.max(0, battleState.bossCurrentHealth - damageDealt);
+                    } else {
+                        newLogEntries.push(`${player.name} attaque, mais le boss est insensible à cette essence ! (0 dégâts)`);
+                    }
+                }
+                // Mécanique: Invocation de Sbires
+                else if (mechanic.type === 'summon_adds') {
+                    const activeAddIndex = mechanic.adds.findIndex(add => add.health > 0);
+                    if (activeAddIndex !== -1) {
+                        mechanic.adds[activeAddIndex].health -= damageDealt;
+                        newLogEntries.push(`${player.name} attaque un sbire et inflige ${damageDealt.toLocaleString()} dégâts.`);
+                        if (mechanic.adds[activeAddIndex].health <= 0) {
+                            newLogEntries.push(`Un sbire a été éliminé !`);
+                            if (mechanic.adds.every(add => add.health <= 0)) {
+                                newLogEntries.push(`Tous les sbires ont été éliminés !`);
+                                battleState.mechanicState = null; // Fin de la mécanique
+                            }
+                        }
+                    } else {
+                         // Normalement, ne devrait pas arriver si la mécanique est bien gérée
+                        newLogEntries.push(`Tous les sbires sont déjà éliminés. L'attaque touche le boss.`);
+                        battleState.bossCurrentHealth = Math.max(0, battleState.bossCurrentHealth - damageDealt);
+                    }
+                }
+            } 
+            // --- ATTAQUE NORMALE (AUCUNE MÉCANIQUE ACTIVE) ---
+            else {
+                battleState.bossCurrentHealth = Math.max(0, battleState.bossCurrentHealth - damageDealt);
+                newLogEntries.push(`${player.name} attaque et inflige ${damageDealt.toLocaleString()} dégâts !`);
+            }
 
-                transaction.update(roomRef, {
-                    'battleState.bossCurrentHealth': newHealth,
-                    'battleState.battleLog': newBattleLog,
-                    'status': newStatus,
-                    'battleState.lastActionTimestamp': firebase.firestore.FieldValue.serverTimestamp()
-                });
+            // --- VÉRIFICATION DE VICTOIRE ---
+            let newStatus = roomData.status;
+            if (battleState.bossCurrentHealth <= 0) {
+                newStatus = 'completed';
+                newLogEntries.push("Le boss a été vaincu !");
+                battleState.mechanicState = null; // Nettoyer l'état de la mécanique en cas de victoire
+            }
+
+            // --- DÉCLENCHEMENT D'UNE NOUVELLE MÉCANIQUE (si aucune n'est active et boss vivant) ---
+            const lastCheckTime = battleState.lastMechanicCheckTimestamp?.toMillis() || 0;
+            const timeSinceLastCheck = (now - lastCheckTime) / 1000;
+
+            if (!battleState.mechanicState && newStatus === 'in-progress' && difficultyData.mechanics.length > 0) {
+                const possibleMechanics = difficultyData.mechanics.filter(m => timeSinceLastCheck >= m.triggerInterval);
+                if (possibleMechanics.length > 0) {
+                    const chosenMechanic = possibleMechanics[Math.floor(Math.random() * possibleMechanics.length)];
+                    battleState.lastMechanicCheckTimestamp = firebase.firestore.Timestamp.fromMillis(now);
+
+                    if (chosenMechanic.type === 'targeted_attack') {
+                        const playerUids = Object.keys(roomData.players);
+                        const targetUid = playerUids[Math.floor(Math.random() * playerUids.length)];
+                        battleState.mechanicState = { type: 'targeted_attack', targetUid: targetUid, threshold: chosenMechanic.breakThreshold, damageDealt: 0, endTime: firebase.firestore.Timestamp.fromMillis(now + chosenMechanic.duration * 1000) };
+                        const targetName = roomData.players[targetUid]?.name || 'un joueur';
+                        newLogEntries.push(`ALERTE: Le boss cible ${targetName} pour une attaque dévastatrice ! Brisez sa posture !`);
+                    } 
+                    else if (chosenMechanic.type === 'vulnerability_phase') {
+                        const essences = ["Red", "Blue", "Yellow", "Green", "Purple", "Pink"];
+                        const requiredEssence = essences[Math.floor(Math.random() * essences.length)];
+                        battleState.mechanicState = { type: 'vulnerability_phase', requiredEssence: requiredEssence, endTime: firebase.firestore.Timestamp.fromMillis(now + chosenMechanic.duration * 1000) };
+                        newLogEntries.push(`ALERTE: Le boss change d'aura et devient vulnérable à l'essence ${requiredEssence} !`);
+                    }
+                    else if (chosenMechanic.type === 'summon_adds') {
+                        battleState.mechanicState = { type: 'summon_adds', adds: Array(chosenMechanic.count).fill(null).map(() => ({ health: chosenMechanic.addPower })) };
+                        newLogEntries.push(`ALERTE: Le boss invoque ${chosenMechanic.count} sbires !`);
+                    }
+                }
+            }
+            
+            // --- MISE À JOUR FINALE ---
+            const finalBattleLog = [...(battleState.battleLog || []), ...newLogEntries];
+            while (finalBattleLog.length > 20) finalBattleLog.shift();
+
+            transaction.update(roomRef, {
+                'battleState.bossCurrentHealth': battleState.bossCurrentHealth,
+                'battleState.battleLog': finalBattleLog,
+                'battleState.mechanicState': battleState.mechanicState,
+                'battleState.lastMechanicCheckTimestamp': battleState.lastMechanicCheckTimestamp,
+                'status': newStatus
             });
+        });
         } catch (error) {
             console.error("Erreur lors de l'attaque en co-op:", error);
         } finally {
             setTimeout(() => { coopBattleAttackButton.disabled = false; }, 1000);
         }
-    }
-
-    function endCoopBattle(isVictory, roomData) {
-        if (coopBattleModal.classList.contains('hidden')) return;
-
-        let message = "";
-        if (isVictory) {
-            const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
-            message = `<p class="text-green-400">Victoire ! Vous avez vaincu ${dungeon.enemy.name} !</p>`;
-            
-            const playerUid = currentUser.uid;
-            if (roomData.players[playerUid]) {
-                let rewardText = [];
-                const rewards = dungeon.rewards;
-                if (rewards.gems) { addGems(rewards.gems); rewardText.push(`${rewards.gems} Gemmes`); }
-                if (rewards.coins) { coins += rewards.coins; rewardText.push(`${rewards.coins} Pièces`); }
-                if (rewards.exp) { addExp(rewards.exp); rewardText.push(`${rewards.exp} EXP`); }
-                
-                if (rewards.itemChance) {
-                    rewards.itemChance.forEach(chance => {
-                        if (Math.random() < chance.probability) {
-                            const quantity = Math.floor(Math.random() * (chance.maxQuantity - chance.minQuantity + 1)) + chance.minQuantity;
-                            inventory[chance.item] = (inventory[chance.item] || 0) + quantity;
-                            rewardText.push(`${quantity}x ${chance.item}`);
-                        }
-                    });
-                }
-                message += `<p class="text-white">Récompenses obtenues: ${rewardText.join(', ')}</p>`;
-            }
-            if (animationsEnabled) confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
-        } else {
-            const dungeon = allGameLevels.find(l => l.id === roomData.dungeonId);
-            const battleLog = roomData.battleState?.battleLog || [];
-            const lastLogMessage = battleLog.length > 0 ? battleLog[battleLog.length - 1] : "";
-
-            if (lastLogMessage.includes("annulé")) {
-                message = `<p class="text-yellow-400 font-bold">Combat Annulé</p><p class="text-white">${lastLogMessage}</p>`;
-            } else if (dungeon) {
-                message = `<p class="text-red-400">Défaite ! Vous avez été vaincu par ${dungeon.enemy.name}.</p>`;
-            } else {
-                message = `<p class="text-red-400">Défaite ! Le combat est terminé.</p>`;
-            }
-        }
-
-        resultElement.innerHTML = message;
-        setTimeout(() => {
-            if (resultElement.innerHTML.includes("Victoire !") || resultElement.innerHTML.includes("Défaite !")) {
-                resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
-            }
-        }, 7000);
-
-        if (roomData.hostId === currentUser.uid) {
-            setTimeout(() => {
-                if(currentCoopRoomId) {
-                    db.collection('coopRooms').doc(currentCoopRoomId).delete().catch(e => console.error("Erreur lors de la suppression de la salle co-op terminée:", e));
-                }
-            }, 10000);
-        }
-        
-        cleanupCoopListeners();
-        updateUI();
-        updateItemDisplay();
-        scheduleSave();
-    }
-
-    function updateStatChangeTabDisplay() {
-        document.getElementById("stat-chip-count").textContent = inventory["Stat Chip"] || 0;
-        const selectedCharDisplay = document.getElementById("stat-change-selected-char-display");
-        const charSelectionGrid = document.getElementById("stat-change-char-selection-grid");
-        const applyButton = document.getElementById("apply-stat-change-button");
-        const searchInput = document.getElementById("stat-change-search");
-        const searchTerm = searchInput.value.toLowerCase();
-
-        let disableApplyButton = !currentStatChangeCharacterId || (inventory["Stat Chip"] || 0) < 1;
-        let char = null;
-
-        clearTimeout(statChangeInfoTimeoutId);
-        statChangeInfoTimeoutId = null;
-
-        if (resultElement.innerHTML.includes("Info: Le personnage") || resultElement.innerHTML.includes("Info:")) {
-            resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
-        }
-
-        if (currentStatChangeCharacterId) {
-            char = ownedCharacters.find(c => c.id === currentStatChangeCharacterId);
-            if (char) {
-                selectedCharDisplay.innerHTML = `
-                    <div class="bg-gray-800 bg-opacity-50 p-4 rounded-lg border-2 ${statRanks[char.statRank]?.borderColor || 'border-gray-400'} w-full max-w-xs mx-auto">
-                        <img src="${char.image}" alt="${char.name}" class="w-full h-32 object-contain rounded mb-2" loading="lazy" decoding="async">
-                        <p class="${char.color} font-semibold text-center">${char.name} (${char.rarity}) ${char.locked ? '🔒' : ''}</p>
-                        <p class="text-white text-center">Niv: ${char.level}, P: ${char.power}</p>
-                        <p class="text-center font-bold ${statRanks[char.statRank]?.color || 'text-white'}">Stat Actuel: ${char.statRank}</p>
-                    </div>
-                `;
-
-                const currentRankIsSSS = (char.statRank === "SSS");
-                const currentSelectedTargetRanks = Array.from(statTargetRanksSelectionElement.querySelectorAll(".stat-target-rank-checkbox:checked")).map(cb => cb.value);
-                
-                let infoMsgContent = "";
-
-                if (currentRankIsSSS) {
-                    infoMsgContent = `Info: ${char.name} a le rang SSS. "Changer Stat" demandera confirmation.`;
-                } else if (statKeepBetterToggle.checked && currentSelectedTargetRanks.length > 0 && currentSelectedTargetRanks.includes(char.statRank)) {
-                    infoMsgContent = `Info: ${char.name} a le rang cible coché "${char.statRank}". "Changer Stat" demandera confirmation pour continuer à chercher d'autres cibles (ou le même rang).`;
-                }
-                // Si aucune des conditions ci-dessus n'est remplie, aucun message d'info spécifique lié à une cible atteinte ou SSS.
-                // Le bouton reste actif tant qu'il y a des chips.
-
-                if (infoMsgContent && (inventory["Stat Chip"] || 0) >= 1 && !disableApplyButton) {
-                     if (!resultElement.innerHTML.includes("Changement de Stat pour") && 
-                         !resultElement.innerHTML.includes("Changement de stat annulé") &&
-                         !resultElement.innerHTML.includes("malédiction") && 
-                         !resultElement.innerHTML.includes("a été maudit")) {
-                        resultElement.innerHTML = `<p class="text-blue-400">${infoMsgContent}</p>`;
-                        statChangeInfoTimeoutId = setTimeout(() => {
-                            if (resultElement.innerHTML.includes("Info:")) {
-                                resultElement.innerHTML = `<p class="text-white text-lg">Tire pour obtenir des personnages légendaires !</p>`;
-                            }
-                            statChangeInfoTimeoutId = null;
-                        }, 7000);
-                    }
-                }
-            } else { // char non trouvé
-                selectedCharDisplay.innerHTML = '<p class="text-gray-400">Personnage non trouvé.</p>';
-                currentStatChangeCharacterId = null;
-                disableApplyButton = true;
-            }
-        } else { // Aucun perso sélectionné
-            selectedCharDisplay.innerHTML = '<p class="text-gray-400">Aucun personnage sélectionné.</p>';
-            disableApplyButton = true;
-        }
-
-        charSelectionGrid.innerHTML = "";
-        const availableCharacters = ownedCharacters
-            .filter(c => c.name.toLowerCase().includes(searchTerm));
-
-        if (availableCharacters.length === 0) {
-            charSelectionGrid.innerHTML = `<p class="text-gray-400 col-span-full">${searchTerm ? 'Aucun personnage trouvé pour "' + searchTerm + '".' : 'Aucun personnage disponible.'}</p>`;
-        } else {
-            const fragment = document.createDocumentFragment();
-            availableCharacters.sort((a,b) => (statRanks[b.statRank]?.order || 0) - (statRanks[a.statRank]?.order || 0) || b.power - a.power)
-            .forEach(c => {
-                // MODIFICATION: Utiliser la nouvelle fonction createCharacterCard
-                const cardElement = createCharacterCard(c, -1, 'statChangeSelection');
-                fragment.appendChild(cardElement);
-            });
-            charSelectionGrid.appendChild(fragment);
-        }
-
-        // La logique de disableApplyButton est maintenant plus simple:
-        // elle est vraie si pas de perso sélectionné ou pas de chips.
-        // Les confirmations dans applyStatChange gèrent les cas SSS ou cible cochée.
-        applyButton.disabled = disableApplyButton;
-        applyButton.classList.toggle("opacity-50", disableApplyButton);
-        applyButton.classList.toggle("cursor-not-allowed", disableApplyButton);
-
-        const checkboxesDisabled = !statKeepBetterToggle.checked;
-        statTargetRanksSelectionElement.classList.toggle("stat-target-ranks-disabled", checkboxesDisabled);
-        statTargetRanksSelectionElement.querySelectorAll(".stat-target-rank-checkbox").forEach(cb => {
-            cb.disabled = checkboxesDisabled;
-            if (checkboxesDisabled) {
-                cb.checked = false; 
-            }
-        });
     }
 
     function calculateMaxTeamSize() {
@@ -9650,6 +10865,12 @@
         // L'utilisation de "await" garantit que nous attendons que ce soit terminé.
         await processPendingPvpResults();
 
+        pvpLogsListContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('view-replay-button')) {
+                const log = pvpLogs.find(l => l.id === e.target.dataset.logId);
+                if (log) showPvpReplay(log.battleReport);
+            }
+        });
         // Étape 2 : Maintenant que les logs sont à jour, on ouvre la modale.
         openPvpLogsModal();
     });
@@ -9660,6 +10881,7 @@
         
         // Pour le bouton "Trouver un adversaire"
         if (event.target.closest('#find-opponent-button')) {
+            currentBattleMode = 'standard';
             findOpponent();
         }
         
@@ -9668,6 +10890,12 @@
         // if (event.target.closest('#un-autre-bouton-problematique')) {
         //     maFonctionPourCetAutreBouton();
         // }
+
+        // NOUVEAU: Bouton pour le mode Brawl
+        if (event.target.closest('#play-brawl-button')) {
+            currentBattleMode = 'brawl';
+            findOpponent();
+        }
     });
     autofuseSettingsButton.addEventListener("click", startAutofuse);
     cancelAutofuseButton.addEventListener("click", cancelAutofuse);
@@ -9883,20 +11111,27 @@
 
     if (savedTeamsList) savedTeamsList.addEventListener('click', (e) => {
         const button = e.target.closest('button');
-        if (!button) return;
-        const teamId = button.dataset.teamId;
-        if (!teamId) return;
+        const card = e.target.closest('.saved-team-card');
 
-        if (button.classList.contains('load-team-btn')) {
-            loadTeamForBattle(teamId);
-        } else if (button.classList.contains('edit-team-btn')) {
-            openTeamEditor(teamId);
-        } else if (button.classList.contains('delete-team-btn')) {
-            deleteTeam(teamId);
-        } else if (button.classList.contains('set-defense-btn')) {
-            setDefenseTeam(teamId);
-        } else if (button.classList.contains('set-default-btn')) { // NOUVEAU
-            setDefaultBattleTeam(teamId);
+        // Si un bouton est cliqué, on gère son action spécifique
+        if (button) {
+            const teamId = button.dataset.teamId;
+            if (!teamId) return;
+
+            if (button.classList.contains('load-team-btn')) {
+                loadTeamForBattle(teamId);
+            } else if (button.classList.contains('set-defense-btn')) {
+                setDefenseTeam(teamId);
+            } else if (button.classList.contains('set-default-btn')) {
+                setDefaultBattleTeam(teamId);
+            }
+            return;
+        }
+
+        // Si la carte est cliquée (mais pas un bouton), on ouvre l'éditeur
+        if (card) {
+            const teamId = card.dataset.teamId;
+            if (teamId) { openTeamEditor(teamId); }
         }
     });
 
@@ -9918,7 +11153,14 @@
         teamEditorNameInput.addEventListener('input', updateTeamEditorDisplay);
     }
 
-    document.getElementById('start-raid-button').addEventListener('click', startRaid);
+    // NOUVEAU: Écouteurs pour la sélection de raid
+    openRaidSelectionButton.addEventListener('click', openRaidSelectionModal);
+    cancelRaidSelectionButton.addEventListener('click', () => closeModalHelper(raidSelectionModal));
+    raidBossSelectionList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('start-raid-button')) {
+            startRaid(e.target.dataset.bossId);
+        }
+    });
 
     // NOUVEAU: Écouteurs d'événements pour la guilde
     openCreateGuildModalButton.addEventListener('click', openCreateGuildModal);
@@ -9929,6 +11171,10 @@
         if (e.target.classList.contains('join-guild-button')) {
             joinGuild(e.target.dataset.guildId, e.target.dataset.guildName);
         }
+    });
+
+    document.querySelectorAll('.guild-subtab-button').forEach(btn => {
+        btn.addEventListener('click', () => showGuildSubTab(btn.dataset.subtab));
     });
 
     guildConfirmYesButton.addEventListener("click", () => {
@@ -9992,7 +11238,14 @@
             const joinButton = e.target.closest('.join-coop-room-button');
             if (createButton) {
                 const dungeonId = parseInt(createButton.dataset.dungeonId, 10);
-                createCoopRoom(dungeonId);
+                // MODIFICATION: Récupérer la difficulté sélectionnée
+                const difficultySelect = createButton.parentElement.querySelector('.coop-difficulty-select');
+                if (!difficultySelect) {
+                    console.error("Impossible de trouver le sélecteur de difficulté pour ce bouton.");
+                    return;
+                }
+                const difficulty = difficultySelect.value;
+                createCoopRoom(dungeonId, difficulty);
             }
             if (joinButton) {
                 const roomId = joinButton.dataset.roomId;
@@ -10015,6 +11268,34 @@
     document.getElementById('start-tower-floor-button').addEventListener('click', startTowerFloor);
     populateTargetStatRanks();
     populateTargetTraits();
+    closePvpReplayButton.addEventListener('click', () => closeModalHelper(document.getElementById('pvp-replay-modal')));
+
+    // NOUVEAU: Écouteur pour le champ de bataille GvG (délégation d'événements)
+    const gvgPreparationView = document.getElementById('gvg-preparation-view');
+    if (gvgPreparationView) {
+        gvgPreparationView.addEventListener('click', handleGvgBattlefieldClick);
+    }
+    // NOUVEAU: Écouteur pour le champ de bataille de combat GvG
+    const gvgCombatView = document.getElementById('gvg-combat-view');
+    if (gvgCombatView) {
+        gvgCombatView.addEventListener('click', handleGvgCombatClick);
+    }
+
+    // NOUVEAU: Écouteur pour le matchmaking GvG
+    const gvgMatchmakingButton = document.getElementById('gvg-matchmaking-button');
+    if (gvgMatchmakingButton) {
+        gvgMatchmakingButton.addEventListener('click', startGvgMatchmaking);
+    }
+
+    // NOUVEAU: Écouteur pour le bouton de rapport de bug
+    const bugReportButton = document.getElementById('bug-report-button');
+    if (bugReportButton) {
+        bugReportButton.addEventListener('click', () => {
+            // TODO: REMPLACEZ CE LIEN PAR LE LIEN DE VOTRE FORMULAIRE DE RAPPORT DE BUG
+            const bugReportUrl = 'https://noteforms.com/forms/formulaire-0qx5gb';
+            window.open(bugReportUrl, '_blank');
+        });
+    }
 
     auth.onAuthStateChanged(user => {
         if (user) {
@@ -10032,6 +11313,8 @@
             
             // Charger la progression du joueur
             if (!isGameInitialized) {
+                // NOUVEAU: Attacher le listener de la boîte aux lettres
+                checkMailbox();
                 loadProgress(user.uid);
             }
 
@@ -10039,6 +11322,12 @@
             // L'utilisateur est déconnecté
             currentUser = null;
             console.log("Aucun utilisateur connecté.");
+
+            // NOUVEAU: Nettoyer le listener de la boîte aux lettres
+            if (mailListener) {
+                mailListener();
+                mailListener = null;
+            }
 
             // NOUVEAU: Nettoyer les données de guilde à la déconnexion
             cleanupGuildListeners();

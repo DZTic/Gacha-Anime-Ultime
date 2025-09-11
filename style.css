@@ -61,8 +61,8 @@
 /* --- MODAL STYLING REFACTOR START --- */
 .modal-content-wrapper { display: flex; flex-direction: column; }
 .modal-content-wrapper:not([class*="max-h-"]) { max-height: 85vh; }
-.modal-scroll-list-container { flex-grow: 1; overflow: hidden; min-height: 50px; position: relative; }
-.modal-scroll-list { height: 100%; overflow-y: auto; padding-right: 10px; }
+.modal-scroll-list-container { flex-grow: 1; overflow-y: auto; min-height: 50px; position: relative; }
+.modal-scroll-list { /* height: 100%; overflow-y: auto; */ padding-right: 10px; }
 .modal-scroll-list-pb-7 { padding-bottom: 7rem !important; }
 .modal-sticky-footer { position: sticky; bottom: 0; left: 0; right: 0; padding: 1rem; z-index: 100; flex-shrink: 0; }
 /* --- MODAL STYLING REFACTOR END --- */
@@ -450,6 +450,106 @@ body {
     overflow-y: auto;
 }
 
+/* --- GvG Styles --- */
+.gvg-battlefield {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #4a5568;
+}
+
+.gvg-player-node {
+    background-color: rgba(41, 53, 76, 0.7);
+    border: 2px solid #4a5568;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    text-align: center;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.gvg-player-node.friendly {
+    border-color: #4299e1; /* blue */
+}
+
+.gvg-player-node.enemy {
+    border-color: #e53e3e; /* red */
+}
+
+.gvg-player-node.defeated {
+    opacity: 0.5;
+    filter: grayscale(100%);
+    cursor: not-allowed;
+}
+
+.gvg-player-node.attackable:not(.defeated):hover {
+    border-color: #f6e05e; /* yellow-400 */
+    box-shadow: 0 0 15px #f6e05e;
+}
+
+.gvg-player-node .player-hp {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.gvg-player-node .hp-point {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    background-color: #ef4444; /* red-500 */
+    border: 1px solid #b91c1c; /* red-700 */
+    transition: background-color 0.3s ease;
+}
+
+.gvg-player-node .hp-point.lost {
+    background-color: #4b5563; /* gray-600 */
+    border-color: #1f2937; /* gray-800 */
+}
+
+.gvg-player-node:not(.defeated):hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.gvg-player-node .player-name {
+    font-weight: 600;
+    color: white;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gvg-player-node .team-power {
+    font-size: 0.75rem;
+    color: #a0aec0; /* gray-400 */
+}
+
+.gvg-health-bar {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.gvg-health-point {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    background-color: #48bb78; /* green-500 */
+    border: 1px solid #2f855a; /* green-700 */
+}
+
+.gvg-health-point.lost {
+    background-color: #4a5568; /* gray-600 */
+    border-color: #2d3748; /* gray-800 */
+}
+
 /* --- Team Management Styles --- */
 .saved-team-card {
     background-color: rgba(31, 41, 55, 0.8); /* bg-gray-800 with opacity */
@@ -557,3 +657,62 @@ body {
 }
 .coop-room-player-card.ready { border-color: #34d399; box-shadow: 0 0 8px #34d399; }
 .coop-room-player-card.host .player-name::after { content: ' 👑'; color: #facc15; }
+
+/* --- NOUVEAU: Styles pour les mécaniques Co-op --- */
+@keyframes mechanic-alert-glow {
+  0%, 100% { box-shadow: 0 0 15px, inset 0 0 10px; }
+  50% { box-shadow: 0 0 25px, inset 0 0 15px; }
+}
+.mechanic-alert {
+    animation: mechanic-alert-glow 1.5s ease-in-out infinite;
+}
+.mechanic-alert-targeted {
+  background-color: rgba(220, 38, 38, 0.3);
+  border: 2px solid #ef4444;
+  color: #fca5a5;
+}
+.mechanic-alert-vulnerable {
+  background-color: rgba(59, 130, 246, 0.3);
+  border: 2px solid #60a5fa;
+  color: #93c5fd;
+}
+.targeted-player {
+    border-color: #ef4444 !important;
+    animation: pulse-red 1.5s infinite;
+}
+
+/* --- PvP Replay Styles --- */
+.replay-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: center;
+}
+.replay-team {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.replay-team.attacker {
+    align-items: flex-start;
+}
+.replay-team.defender {
+    align-items: flex-end;
+}
+.replay-char-card {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: rgba(0,0,0,0.2);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+}
+.replay-vs {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #ef4444; /* red-500 */
+}
+@keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 12px #ef4444; }
+    50% { box-shadow: 0 0 20px #ef4444; }
+}
